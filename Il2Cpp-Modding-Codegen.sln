@@ -3,7 +3,9 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 16
 VisualStudioVersion = 16.0.30002.166
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Il2Cpp-Modding-Codegen", "Il2Cpp-Modding-Codegen\Il2Cpp-Modding-Codegen.csproj", "{D27DC0B1-2A9B-4C33-9CF2-A85CB855810B}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Il2Cpp-Modding-Codegen", "Il2Cpp-Modding-Codegen\Il2Cpp-Modding-Codegen.csproj", "{D27DC0B1-2A9B-4C33-9CF2-A85CB855810B}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Codegen-CLI", "Codegen-CLI\Codegen-CLI.csproj", "{7F0FCB4B-C82D-4841-B3FC-095E1AAF20E1}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -15,6 +17,10 @@ Global
 		{D27DC0B1-2A9B-4C33-9CF2-A85CB855810B}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{D27DC0B1-2A9B-4C33-9CF2-A85CB855810B}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{D27DC0B1-2A9B-4C33-9CF2-A85CB855810B}.Release|Any CPU.Build.0 = Release|Any CPU
+		{7F0FCB4B-C82D-4841-B3FC-095E1AAF20E1}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{7F0FCB4B-C82D-4841-B3FC-095E1AAF20E1}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{7F0FCB4B-C82D-4841-B3FC-095E1AAF20E1}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{7F0FCB4B-C82D-4841-B3FC-095E1AAF20E1}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
