@@ -31,9 +31,18 @@ namespace Il2Cpp_Modding_Codegen.Data.DumpHandling
                 throw new InvalidOperationException($"Field cannot be created from: {line}");
             }
             Offset = Convert.ToInt32(split[split.Length - 1], 16);
-            Name = split[split.Length - 3].TrimEnd(';');
-            Type = new TypeDefinition(split[split.Length - 4]);
-            for (int i = 0; i < split.Length - 4; i++)
+            int start = split.Length - 3;
+            for (int i = start; i > 1; i--)
+            {
+                if (split[i] == "=")
+                {
+                    start = i - 1;
+                    break;
+                }
+            }
+            Name = split[start].TrimEnd(';');
+            Type = new TypeDefinition(split[start - 1]);
+            for (int i = 0; i < start - 1; i++)
             {
                 Specifiers.Add(new DumpSpecifier(split[i]));
             }

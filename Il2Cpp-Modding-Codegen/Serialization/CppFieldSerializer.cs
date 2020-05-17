@@ -45,7 +45,7 @@ namespace Il2Cpp_Modding_Codegen.Serialization
             }
             fieldString += $"{field.Type} {field.Name} Offset: 0x{field.Offset:X}";
             writer.WriteLine($"{_prefix}// {fieldString}");
-            if (!field.Specifiers.IsStatic())
+            if (!field.Specifiers.IsStatic() && !field.Specifiers.IsConst())
                 writer.WriteLine($"{_prefix}{_resolvedTypeNames[field]} {field.Name};");
             writer.Flush();
         }

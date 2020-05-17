@@ -24,5 +24,9 @@ namespace Il2Cpp_Modding_Codegen.Data
         {
             return specifiers.Any(s => s.Static);
         }
+        public static bool IsConst(this List<ISpecifier> specifiers)
+        {
+            return specifiers.Any(s => s.Const);
+        }
     }
 }
