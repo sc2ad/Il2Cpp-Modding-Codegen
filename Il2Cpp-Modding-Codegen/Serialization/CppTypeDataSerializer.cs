@@ -60,10 +60,11 @@ namespace Il2Cpp_Modding_Codegen.Serialization
                     {
                         // Stop serializing the type
                         // TODO: Log the exception
-                        writer.WriteLine("/*");
-                        writer.WriteLine(e);
-                        writer.WriteLine("*/");
-                        writer.Flush();
+                        var fs = new StreamWriter(fieldStream);
+                        fs.WriteLine("/*");
+                        fs.WriteLine(e);
+                        fs.WriteLine("*/");
+                        fs.Flush();
                     }
                 }
                 var specifiers = "";
