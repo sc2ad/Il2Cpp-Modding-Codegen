@@ -21,7 +21,7 @@ namespace Il2Cpp_Modding_Codegen.Serialization
 
         public void Serialize(ISerializer<ITypeData> serializer, ITypeData data)
         {
-            var headerLocation = _config.OutputHeaderDirectory + "/" + _context.FileName + ".hpp";
+            var headerLocation = _context.FileName + ".hpp";
             var sourceLocation = Path.Combine(_config.OutputDirectory, _config.OutputSourceDirectory, _context.FileName) + ".cpp";
             Directory.CreateDirectory(Path.GetDirectoryName(sourceLocation));
             using (var ms = new MemoryStream())
