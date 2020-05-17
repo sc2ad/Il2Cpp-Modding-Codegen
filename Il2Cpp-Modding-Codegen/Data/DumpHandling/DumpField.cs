@@ -10,11 +10,13 @@ namespace Il2Cpp_Modding_Codegen.Data.DumpHandling
         public List<IAttribute> Attributes { get; } = new List<IAttribute>();
         public List<ISpecifier> Specifiers { get; } = new List<ISpecifier>();
         public TypeDefinition Type { get; }
+        public TypeDefinition DeclaringType { get; }
         public string Name { get; }
         public int Offset { get; }
 
-        public DumpField(PeekableStreamReader fs)
+        public DumpField(TypeDefinition declaring, PeekableStreamReader fs)
         {
+            DeclaringType = declaring;
             string line = fs.PeekLine().Trim();
             while (line.StartsWith("["))
             {

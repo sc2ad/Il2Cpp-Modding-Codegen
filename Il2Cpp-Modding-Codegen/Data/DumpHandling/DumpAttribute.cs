@@ -26,7 +26,10 @@ namespace Il2Cpp_Modding_Codegen.Data.DumpHandling
             var split = parsed.Split(new string[] { " " }, StringSplitOptions.None);
             if (split.Length != 8)
             {
-                throw new InvalidOperationException($"Attribute cannot be created from: {line}");
+                RVA = 0;
+                Offset = 0;
+                VA = 0;
+                return;
             }
             RVA = Convert.ToInt32(split[3], 16);
             Offset = Convert.ToInt32(split[5], 16);

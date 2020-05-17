@@ -13,6 +13,8 @@ namespace Il2Cpp_Modding_Codegen.Serialization
         // When serialize is called, we simply write the field we have.
         private string _prefix;
 
+        private Dictionary<IField, string> _resolvedTypeNames = new Dictionary<IField, string>();
+
         public CppFieldSerializer(string prefix = "  ")
         {
             _prefix = prefix;
@@ -23,27 +25,29 @@ namespace Il2Cpp_Modding_Codegen.Serialization
         {
             // In this situation, if the type is a pointer, we can simply forward declare.
             // Otherwise, we need to include the corresponding file. This must be resolved via context
-            context.AddReference(field.Type);
+            // If the resolved type name is null, we won't serialize this field
+            _resolvedTypeNames.Add(field, context.GetNameFromReference(field.Type));
         }
 
         // Write the field here
         public void Serialize(Stream stream, IField field)
         {
-            using (var writer = new StreamWriter(stream))
+            // If we could not resolve the type name, don't serialize the field (this should cause a critical failure in the type)
+            if (_resolvedTypeNames[field] == null)
+                throw new UnresolvedTypeException(field.DeclaringType, field.Type);
+            // Don't use a using statement here because it will close the underlying stream-- we want to keep it open
+            var writer = new StreamWriter(stream);
+
+            var fieldString = "";
+            foreach (var spec in field.Specifiers)
             {
-                var fieldString = "";
-                foreach (var spec in field.Specifiers)
-                {
-                    fieldString += $"{spec} ";
-                }
-                fieldString += $"{field.Type} {field.Name} // 0x{field.Offset:X}";
-                writer.WriteLine($"{_prefix}// {fieldString}");
-                if (field.Type.IsPointer(_context.TypeContext))
-                {
-                    if (_context.ContainsType(field.Type.SafeFullName()))
-                    {
-                    }
-                }
+                fieldString += $"{spec} ";
             }
+            fieldString += $"{field.Type} {field.Name} Offset: 0x{field.Offset:X}";
+            writer.WriteLine($"{_prefix}// {fieldString}");
+            if (!field.Specifiers.IsStatic())
+                writer.WriteLine($"{_prefix}{_resolvedTypeNames[field]} {field.Name};");
+            writer.Flush();
         }
     }
+}

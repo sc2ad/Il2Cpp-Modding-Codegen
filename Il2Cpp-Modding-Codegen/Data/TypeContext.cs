@@ -10,5 +10,7 @@ namespace Il2Cpp_Modding_Codegen.Data
         List<ITypeData> Types { get; }
 
         ITypeData Resolve(TypeDefinition typeDefinition);
+
+        TypeDefinition ResolvedTypeDefinition(TypeDefinition def);
     }
 }

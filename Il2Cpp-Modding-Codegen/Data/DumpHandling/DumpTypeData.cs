@@ -18,6 +18,7 @@ namespace Il2Cpp_Modding_Codegen.Data.DumpHandling
         public TypeInfo Info { get; private set; }
         public TypeDefinition This { get; }
         public TypeDefinition Parent { get; private set; }
+        public List<TypeDefinition> ImplementingInterfaces { get; } = new List<TypeDefinition>();
         public int TypeDefIndex { get; private set; }
         public List<IAttribute> Attributes { get; } = new List<IAttribute>();
         public List<ISpecifier> Specifiers { get; } = new List<ISpecifier>();
@@ -48,18 +49,45 @@ namespace Il2Cpp_Modding_Codegen.Data.DumpHandling
             string line = fs.ReadLine();
             var split = line.Split(' ');
             TypeDefIndex = int.Parse(split[split.Length - 1]);
+            // : at least 4 from end
             int start = 4;
-            if (split[split.Length - 5] == ":")
+            bool found = false;
+            for (int i = split.Length - 1 - start; i > 1; i--)
             {
-                Parent = new TypeDefinition(split[split.Length - 4]);
-                start = 6;
+                // Count down till we hit the :
+                if (split[i] == ":")
+                {
+                    start = i - 1;
+                    found = true;
+                    break;
+                }
+            }
+            if (found)
+            {
+                // 1 after is Parent
+                // We will assume that if the Parent type starts with an I, it is an interface
+                // TODO: Fix this assumption, perhaps by resolving the types forcibly and ensuring they are interfaces?
+                var parentCandidate = split[start + 2].TrimEnd(',');
+                if (parentCandidate.StartsWith("I"))
+                    ImplementingInterfaces.Add(new TypeDefinition { Name = parentCandidate });
+                else
+                    Parent = new TypeDefinition { Name = parentCandidate };
+                // Go from 2 after : to length - 3
+                for (int i = start + 3; i < split.Length - 3; i++)
+                {
+                    ImplementingInterfaces.Add(new TypeDefinition { Name = split[i].TrimEnd(',') });
+                }
+            }
+            else
+            {
+                start = split.Length - start;
             }
             // -4 is name
             // -5 is type enum
             // all others are specifiers
-            This.Name = split[split.Length - start];
-            Type = (TypeEnum)Enum.Parse(typeof(TypeEnum), split[split.Length - start - 1], true);
-            for (int i = 0; i < split.Length - start - 1; i++)
+            This.Name = split[start];
+            Type = (TypeEnum)Enum.Parse(typeof(TypeEnum), split[start - 1], true);
+            for (int i = 0; i < start - 1; i++)
             {
                 if (_config.ParseTypeSpecifiers)
                     Specifiers.Add(new DumpSpecifier(split[i]));
@@ -68,6 +96,13 @@ namespace Il2Cpp_Modding_Codegen.Data.DumpHandling
             {
                 TypeFlags = Type == TypeEnum.Class ? TypeFlags.ReferenceType : TypeFlags.ValueType
             };
+            if (Parent == null)
+            {
+                // If the type is a value type, it has no parent.
+                // If the type is a reference type, it has parent Il2CppObject
+                if (Info.TypeFlags == TypeFlags.ReferenceType)
+                    Parent = TypeDefinition.ObjectType;
+            }
         }
 
         private void ParseFields(PeekableStreamReader fs)
@@ -91,7 +126,7 @@ namespace Il2Cpp_Modding_Codegen.Data.DumpHandling
             while (line != "" && line != "}" && !line.StartsWith("// Properties") && !line.StartsWith("// Methods"))
             {
                 if (_config.ParseTypeFields)
-                    Fields.Add(new DumpField(fs));
+                    Fields.Add(new DumpField(This, fs));
                 line = fs.PeekLine().Trim();
             }
         }
@@ -115,7 +150,7 @@ namespace Il2Cpp_Modding_Codegen.Data.DumpHandling
             while (line != "" && line != "}" && !line.StartsWith("// Methods"))
             {
                 if (_config.ParseTypeProperties)
-                    Properties.Add(new DumpProperty(fs));
+                    Properties.Add(new DumpProperty(This, fs));
                 line = fs.PeekLine().Trim();
             }
         }
@@ -139,7 +174,7 @@ namespace Il2Cpp_Modding_Codegen.Data.DumpHandling
             while (line != "" && line != "}")
             {
                 if (_config.ParseTypeMethods)
-                    Methods.Add(new DumpMethod(fs));
+                    Methods.Add(new DumpMethod(This, fs));
                 line = fs.PeekLine().Trim();
             }
         }

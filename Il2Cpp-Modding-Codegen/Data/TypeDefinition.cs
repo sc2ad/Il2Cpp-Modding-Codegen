@@ -2,7 +2,9 @@
 {
     public class TypeDefinition
     {
-        public string Namespace { get; internal set; }
+        public static readonly TypeDefinition VoidType = new TypeDefinition("void");
+        public static readonly TypeDefinition ObjectType = new TypeDefinition("object");
+        public string Namespace { get; internal set; } = "";
         public string Name { get; internal set; }
 
         private ITypeData _resolvedType;
@@ -29,12 +31,13 @@
         /// <summary>
         /// Resolves the type in the given context
         /// </summary>
-        public void Resolve(ITypeContext context)
+        public ITypeData Resolve(ITypeContext context)
         {
             if (_resolvedType == null)
             {
                 _resolvedType = context.Resolve(this);
             }
+            return _resolvedType;
         }
 
         public bool IsPointer(ITypeContext context)
@@ -68,6 +71,19 @@
             if (!string.IsNullOrWhiteSpace(Namespace))
                 return $"{Namespace}.{Name}";
             return $"{Name}";
+        }
+
+        // Namespace is actually NOT useful for comparisons!
+        public override int GetHashCode()
+        {
+            return (Namespace + Name).GetHashCode();
+        }
+
+        // Namespace is actually NOT useful for comparisons!
+        public override bool Equals(object obj)
+        {
+            var o = obj as TypeDefinition;
+            return o?.Namespace + o?.Name == Namespace + Name;
         }
     }
 }

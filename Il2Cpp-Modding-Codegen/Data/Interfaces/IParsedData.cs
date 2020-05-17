@@ -4,10 +4,10 @@ using System.Text;
 
 namespace Il2Cpp_Modding_Codegen.Data
 {
-    public interface IParsedData
+    public interface IParsedData : ITypeContext
     {
         string Name { get; }
         List<IImage> Images { get; }
-        List<ITypeData> Types { get; }
+        new List<ITypeData> Types { get; }
     }
 }

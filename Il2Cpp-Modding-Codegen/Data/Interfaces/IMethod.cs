@@ -11,6 +11,7 @@ namespace Il2Cpp_Modding_Codegen.Data
         int VA { get; }
         int Slot { get; }
         TypeDefinition ReturnType { get; }
+        TypeDefinition DeclaringType { get; }
         string Name { get; }
         List<Parameter> Parameters { get; }
     }

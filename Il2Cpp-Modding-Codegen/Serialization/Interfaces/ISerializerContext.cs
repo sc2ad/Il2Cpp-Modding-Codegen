@@ -7,6 +7,14 @@ namespace Il2Cpp_Modding_Codegen.Serialization.Interfaces
 {
     public interface ISerializerContext
     {
-        ITypeContext TypeContext { get; }
+        string GetNameFromReference(TypeDefinition def, ForceAsType force = ForceAsType.None);
+    }
+
+    public enum ForceAsType
+    {
+        None,
+        Literal,
+        Pointer,
+        Reference
     }
 }

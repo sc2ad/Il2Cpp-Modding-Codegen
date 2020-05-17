@@ -10,12 +10,14 @@ namespace Il2Cpp_Modding_Codegen.Data.DumpHandling
         public List<IAttribute> Attributes { get; } = new List<IAttribute>();
         public List<ISpecifier> Specifiers { get; } = new List<ISpecifier>();
         public TypeDefinition Type { get; }
+        public TypeDefinition DeclaringType { get; }
         public string Name { get; }
         public bool GetMethod { get; }
         public bool SetMethod { get; }
 
-        public DumpProperty(PeekableStreamReader fs)
+        public DumpProperty(TypeDefinition declaring, PeekableStreamReader fs)
         {
+            DeclaringType = declaring;
             string line = fs.PeekLine().Trim();
             while (line.StartsWith("["))
             {
@@ -48,7 +50,7 @@ namespace Il2Cpp_Modding_Codegen.Data.DumpHandling
                 }
             }
             Name = split[split.Length - 3 - i];
-            Type = new TypeDefinition(split[split.Length - 4 - i]);
+            Type = new TypeDefinition { Name = split[split.Length - 4 - i] };
             for (int j = 0; j < split.Length - 4 - i; j++)
             {
                 Specifiers.Add(new DumpSpecifier(split[j]));

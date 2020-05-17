@@ -15,11 +15,13 @@ namespace Il2Cpp_Modding_Codegen.Data.DumpHandling
         public int VA { get; }
         public int Slot { get; }
         public TypeDefinition ReturnType { get; }
+        public TypeDefinition DeclaringType { get; }
         public string Name { get; }
         public List<Parameter> Parameters { get; } = new List<Parameter>();
 
-        public DumpMethod(PeekableStreamReader fs)
+        public DumpMethod(TypeDefinition declaring, PeekableStreamReader fs)
         {
+            DeclaringType = declaring;
             // Read Attributes
             string line = fs.PeekLine().Trim();
             while (line.StartsWith("["))
@@ -78,16 +80,8 @@ namespace Il2Cpp_Modding_Codegen.Data.DumpHandling
             {
                 s += $"{spec} ";
             }
-            s += $"{ReturnType} {Name}(";
-            for (int i = 0; i < Parameters.Count; i++)
-            {
-                s += $"{Parameters[i]}";
-                if (i != Parameters.Count - 1)
-                {
-                    s += ", ";
-                }
-            }
-            s += ") { }";
+            s += $"{ReturnType} {Name}({Parameters.FormatParameters()}) ";
+            s += "{}";
             return s;
         }
     }
