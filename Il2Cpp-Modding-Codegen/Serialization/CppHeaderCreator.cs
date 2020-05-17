@@ -35,18 +35,24 @@ namespace Il2Cpp_Modding_Codegen.Serialization
                 // Write includes
                 writer.WriteLine("// Includes");
                 writer.WriteLine("#include \"utils/il2cpp-utils.hpp\"");
-                foreach (var include in _context.Includes)
+                if (data.Type != TypeEnum.Interface)
                 {
-                    writer.WriteLine($"#include \"{include}\"");
+                    foreach (var include in _context.Includes)
+                    {
+                        writer.WriteLine($"#include \"{include}\"");
+                    }
+                    writer.WriteLine("// End Includes");
+                    // Write forward declarations
+                    writer.WriteLine("// Forward declarations");
+                    foreach (var fd in _context.ForwardDeclares)
+                    {
+                        writer.WriteLine($"typedef struct {fd} {fd};");
+                    }
+                    writer.WriteLine("// End Forward declarations");
                 }
-                writer.WriteLine("// End Includes");
-                // Write forward declarations
-                writer.WriteLine("// Forward declarations");
-                foreach (var fd in _context.ForwardDeclares)
-                {
-                    writer.WriteLine($"typedef struct {fd} {fd};");
-                }
-                writer.WriteLine("// End Forward declarations");
+                // Write namespace
+                writer.WriteLine("namespace " + _context.QualifiedTypeName);
+                writer.WriteLine("{");
                 writer.Flush();
                 // Write actual type
                 try
@@ -60,7 +66,8 @@ namespace Il2Cpp_Modding_Codegen.Serialization
                     writer.WriteLine(e);
                     writer.WriteLine("*/");
                 }
-                writer.WriteLine($"DEFINE_IL2CPP_ARG_TYPE({_context.TypeName}, \"{data.This.Namespace}\", \"{data.This.Name}\");");
+                writer.WriteLine("}");
+                writer.WriteLine($"DEFINE_IL2CPP_ARG_TYPE({_context.QualifiedTypeName}, \"{data.This.Namespace}\", \"{data.This.Name}\");");
                 writer.Flush();
                 using (var fs = File.OpenWrite(headerLocation))
                 {

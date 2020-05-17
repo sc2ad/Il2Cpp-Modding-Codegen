@@ -43,9 +43,29 @@ namespace Il2Cpp_Modding_Codegen.Data.DumpHandling
                 Slot = int.Parse(split[split.Length - 1]);
                 start = split.Length - 3;
             }
-            VA = Convert.ToInt32(split[start], 16);
-            Offset = Convert.ToInt32(split[start - 2], 16);
-            RVA = Convert.ToInt32(split[start - 4], 16);
+            if (split[start - 1] == "VA:")
+            {
+                if (split[start] == "-1")
+                    VA = -1;
+                else
+                    VA = Convert.ToInt32(split[start], 16);
+                start -= 2;
+            }
+            if (split[start - 1] == "Offset")
+            {
+                if (split[start] == "-1")
+                    Offset = -1;
+                else
+                    Offset = Convert.ToInt32(split[start], 16);
+                start -= 2;
+            }
+            if (split[start - 1] == "RVA")
+            {
+                if (split[start] == "-1")
+                    RVA = -1;
+                else
+                    RVA = Convert.ToInt32(split[start], 16);
+            }
             // Read parameters
             line = fs.ReadLine().Trim();
             int end = line.LastIndexOf(')');

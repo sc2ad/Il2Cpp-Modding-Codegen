@@ -8,6 +8,7 @@ namespace Il2Cpp_Modding_Codegen.Data
     {
         Struct,
         Class,
-        Enum
+        Enum,
+        Interface
     }
 }

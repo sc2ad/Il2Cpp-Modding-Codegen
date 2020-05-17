@@ -21,6 +21,11 @@ namespace Il2Cpp_Modding_Codegen.Serialization
 
         public void Serialize(ISerializer<ITypeData> serializer, ITypeData data)
         {
+            if (data.Type == TypeEnum.Interface || data.Methods.Count == 0)
+            {
+                // Don't create C++ for types with no methods, or if it is an interface
+                return;
+            }
             var headerLocation = _context.FileName + ".hpp";
             var sourceLocation = Path.Combine(_config.OutputDirectory, _config.OutputSourceDirectory, _context.FileName) + ".cpp";
             Directory.CreateDirectory(Path.GetDirectoryName(sourceLocation));

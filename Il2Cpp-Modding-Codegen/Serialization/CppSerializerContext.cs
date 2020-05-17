@@ -13,7 +13,9 @@ namespace Il2Cpp_Modding_Codegen.Serialization
         public HashSet<string> ForwardDeclares { get; } = new HashSet<string>();
         public HashSet<string> Includes { get; } = new HashSet<string>();
         public string FileName { get; private set; }
-        public string TypeName { get; private set; }
+        public string TypeNamespace { get; }
+        public string TypeName { get; }
+        public string QualifiedTypeName { get; }
 
         // Maps TypeDefinitions to resolved names
         private Dictionary<TypeDefinition, (TypeInfo, string)> _references = new Dictionary<TypeDefinition, (TypeInfo, string)>();
@@ -23,16 +25,24 @@ namespace Il2Cpp_Modding_Codegen.Serialization
 
         private string ConvertTypeToName(TypeDefinition def)
         {
+            return def.Name;
+        }
+
+        private string ConvertTypeToNamespace(TypeDefinition def)
+        {
             if (string.IsNullOrWhiteSpace(def.Namespace))
-                return def.Name;
-            return def.Namespace + "_" + def.Name;
+                return NoNamespace;
+            return def.Namespace;
+        }
+
+        private string ConvertTypeToQualifiedName(TypeDefinition def)
+        {
+            return ConvertTypeToNamespace(def) + "::" + ConvertTypeToName(def);
         }
 
         private string ConvertTypeToInclude(TypeDefinition def)
         {
-            if (string.IsNullOrWhiteSpace(def.Namespace))
-                return NoNamespace + "/" + def.Name;
-            return def.Namespace + "/" + def.Name;
+            return ConvertTypeToNamespace(def) + "/" + ConvertTypeToName(def);
         }
 
         public CppSerializerContext(ITypeContext context, ITypeData data)
@@ -40,6 +50,8 @@ namespace Il2Cpp_Modding_Codegen.Serialization
             _context = context;
             _localType = data;
             var resolvedTd = _context.ResolvedTypeDefinition(data.This);
+            QualifiedTypeName = ConvertTypeToQualifiedName(resolvedTd);
+            TypeNamespace = ConvertTypeToNamespace(resolvedTd);
             TypeName = ConvertTypeToName(resolvedTd);
             FileName = ConvertTypeToInclude(resolvedTd);
         }
@@ -106,14 +118,14 @@ namespace Il2Cpp_Modding_Codegen.Serialization
             // If the type is ourselves, no need to include/forward declare it
             if (type.Equals(_localType))
             {
-                return ForceName(type.Info, ConvertTypeToName(resolvedTd), force);
+                return ForceName(type.Info, ConvertTypeToQualifiedName(resolvedTd), force);
             }
 
             // If the type exists, AND it is a reference type AND it is being asked to be used like a reference type:
             // Forward declare
             if (type.Info.TypeFlags == TypeFlags.ReferenceType && force == ForceAsType.Pointer)
             {
-                ForwardDeclares.Add(ConvertTypeToName(resolvedTd));
+                ForwardDeclares.Add(ConvertTypeToQualifiedName(resolvedTd));
             }
             else
             {
@@ -124,7 +136,7 @@ namespace Il2Cpp_Modding_Codegen.Serialization
             }
 
             // Add newly created name to _references
-            var convertedName = ConvertTypeToName(resolvedTd);
+            var convertedName = ConvertTypeToQualifiedName(resolvedTd);
             _references.Add(def, (type.Info, convertedName));
 
             // Return safe created name
