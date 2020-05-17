@@ -16,6 +16,7 @@ namespace Il2Cpp_Modding_Codegen.Data.DumpHandling
         public int Slot { get; }
         public TypeDefinition ReturnType { get; }
         public TypeDefinition DeclaringType { get; }
+        public TypeDefinition ImplementedFrom { get; }
         public string Name { get; }
         public List<Parameter> Parameters { get; } = new List<Parameter>();
 
@@ -60,7 +61,10 @@ namespace Il2Cpp_Modding_Codegen.Data.DumpHandling
             }
             // Read method
             var methodSplit = line.Substring(0, startSubstr).Split(' ');
-            Name = methodSplit[methodSplit.Length - 1];
+            int startIndex = methodSplit[methodSplit.Length - 1].LastIndexOf(".");
+            if (startIndex != -1)
+                ImplementedFrom = new TypeDefinition(methodSplit[methodSplit.Length - 1].Substring(0, startIndex));
+            Name = methodSplit[methodSplit.Length - 1].Substring(startIndex + 1);
             ReturnType = new TypeDefinition(methodSplit[methodSplit.Length - 2]);
             for (int i = 0; i < methodSplit.Length - 2; i++)
             {

@@ -12,6 +12,7 @@ namespace Il2Cpp_Modding_Codegen.Data
         int Slot { get; }
         TypeDefinition ReturnType { get; }
         TypeDefinition DeclaringType { get; }
+        TypeDefinition ImplementedFrom { get; }
         string Name { get; }
         List<Parameter> Parameters { get; }
     }

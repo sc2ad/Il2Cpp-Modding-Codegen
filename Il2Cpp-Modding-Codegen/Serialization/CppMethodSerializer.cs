@@ -85,6 +85,8 @@ namespace Il2Cpp_Modding_Codegen.Serialization
                 methodString += $"{method.ReturnType} {method.Name}({method.Parameters.FormatParameters()})";
                 methodString += $" // Offset: 0x{method.Offset:X}";
                 writer.WriteLine($"{_prefix}// {methodString}");
+                if (method.ImplementedFrom != null)
+                    writer.WriteLine($"{_prefix}// Implemented from: {method.ImplementedFrom}");
                 writer.WriteLine($"{WriteMethod(staticFunc, method)};");
             }
             else
