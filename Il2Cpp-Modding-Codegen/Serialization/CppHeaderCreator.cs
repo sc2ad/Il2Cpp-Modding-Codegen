@@ -51,7 +51,7 @@ namespace Il2Cpp_Modding_Codegen.Serialization
                     writer.WriteLine("// End Forward declarations");
                 }
                 // Write namespace
-                writer.WriteLine("namespace " + _context.QualifiedTypeName);
+                writer.WriteLine("namespace " + _context.TypeNamespace);
                 writer.WriteLine("{");
                 writer.Flush();
                 // Write actual type

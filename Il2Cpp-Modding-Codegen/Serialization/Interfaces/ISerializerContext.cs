@@ -11,7 +11,7 @@ namespace Il2Cpp_Modding_Codegen.Serialization.Interfaces
         string TypeName { get; }
         string QualifiedTypeName { get; }
 
-        string GetNameFromReference(TypeDefinition def, ForceAsType force = ForceAsType.None);
+        string GetNameFromReference(TypeDefinition def, ForceAsType force = ForceAsType.None, bool qualified = true);
     }
 
     public enum ForceAsType

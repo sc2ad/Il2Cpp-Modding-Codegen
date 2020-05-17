@@ -88,7 +88,7 @@ namespace Il2Cpp_Modding_Codegen.Serialization
         /// <param name="def"></param>
         /// <param name="force"></param>
         /// <returns></returns>
-        public string GetNameFromReference(TypeDefinition def, ForceAsType force = ForceAsType.None)
+        public string GetNameFromReference(TypeDefinition def, ForceAsType force, bool qualified)
         {
             // TODO: Need to determine a better way of resolving unique names
             var primitiveName = ResolvePrimitive(def, force);
@@ -118,7 +118,7 @@ namespace Il2Cpp_Modding_Codegen.Serialization
             // If the type is ourselves, no need to include/forward declare it
             if (type.Equals(_localType))
             {
-                return ForceName(type.Info, ConvertTypeToQualifiedName(resolvedTd), force);
+                return ForceName(type.Info, qualified ? ConvertTypeToQualifiedName(resolvedTd) : ConvertTypeToName(resolvedTd), force);
             }
 
             // If the type exists, AND it is a reference type AND it is being asked to be used like a reference type:
@@ -136,11 +136,10 @@ namespace Il2Cpp_Modding_Codegen.Serialization
             }
 
             // Add newly created name to _references
-            var convertedName = ConvertTypeToQualifiedName(resolvedTd);
-            _references.Add(def, (type.Info, convertedName));
+            _references.Add(def, (type.Info, ConvertTypeToQualifiedName(resolvedTd)));
 
             // Return safe created name
-            return ForceName(type.Info, convertedName, force);
+            return ForceName(type.Info, qualified ? ConvertTypeToQualifiedName(resolvedTd) : ConvertTypeToName(resolvedTd), force);
         }
 
         private string ResolvePrimitive(TypeDefinition def, ForceAsType force)

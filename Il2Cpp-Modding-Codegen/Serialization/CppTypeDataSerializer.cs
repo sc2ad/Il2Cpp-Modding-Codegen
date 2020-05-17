@@ -27,7 +27,7 @@ namespace Il2Cpp_Modding_Codegen.Serialization
         {
             if (_asHeader)
             {
-                _typeName = context.GetNameFromReference(type.This, ForceAsType.Literal);
+                _typeName = context.GetNameFromReference(type.This, ForceAsType.Literal, false);
                 if (type.Parent != null)
                     _parentName = context.GetNameFromReference(type.Parent, ForceAsType.Literal);
                 // TODO: Make prefix configurable
