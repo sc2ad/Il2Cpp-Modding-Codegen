@@ -84,16 +84,27 @@ namespace Il2Cpp_Modding_Codegen.Data.DumpHandling
             // Read method
             var methodSplit = line.Substring(0, startSubstr).Split(' ');
             int startIndex = -1;
+            int nameIdx = methodSplit.Length - 1;
             if (!methodSplit[methodSplit.Length - 1].StartsWith("."))
             {
                 // Not a special name, should have an implementing type
                 startIndex = methodSplit[methodSplit.Length - 1].LastIndexOf(".");
                 if (startIndex != -1)
-                    ImplementedFrom = new TypeDefinition(methodSplit[methodSplit.Length - 1].Substring(0, startIndex));
+                {
+                    var typeStr = TypeDefinition.FromMultiple(methodSplit, methodSplit.Length - 1, out nameIdx, -1, " ");
+                    var finalDot = typeStr.LastIndexOf('.');
+                    ImplementedFrom = new TypeDefinition(typeStr.Substring(0, finalDot));
+                    Name = typeStr.Substring(finalDot + 1);
+                } else
+                {
+                    Name = methodSplit[methodSplit.Length - 1];
+                }
+            } else
+            {
+                Name = methodSplit[methodSplit.Length - 1].Substring(startIndex + 1);
             }
-            Name = methodSplit[methodSplit.Length - 1].Substring(startIndex + 1);
-            ReturnType = new TypeDefinition(methodSplit[methodSplit.Length - 2], false);
-            for (int i = 0; i < methodSplit.Length - 2; i++)
+            ReturnType = new TypeDefinition(TypeDefinition.FromMultiple(methodSplit, nameIdx - 1, out nameIdx, -1, " "), false);
+            for (int i = 0; i < nameIdx - 1; i++)
             {
                 Specifiers.Add(new DumpSpecifier(methodSplit[i]));
             }

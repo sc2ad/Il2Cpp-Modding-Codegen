@@ -67,15 +67,16 @@ namespace Il2Cpp_Modding_Codegen.Data.DumpHandling
                 // 1 after is Parent
                 // We will assume that if the Parent type starts with an I, it is an interface
                 // TODO: Fix this assumption, perhaps by resolving the types forcibly and ensuring they are interfaces?
-                var parentCandidate = split[start + 2].TrimEnd(',');
+                var parentCandidate = TypeDefinition.FromMultiple(split, start + 2, out int tmp, 1, " ").TrimEnd(',');
                 if (parentCandidate.StartsWith("I"))
                     ImplementingInterfaces.Add(new TypeDefinition(parentCandidate, false));
                 else
                     Parent = new TypeDefinition(parentCandidate, false);
                 // Go from 2 after : to length - 3
-                for (int i = start + 3; i < split.Length - 3; i++)
+                for (int i = tmp + 1; i < split.Length - 3; i++)
                 {
-                    ImplementingInterfaces.Add(new TypeDefinition(split[i].TrimEnd(','), false));
+                    ImplementingInterfaces.Add(new TypeDefinition(TypeDefinition.FromMultiple(split, i, out tmp, 1, " ").TrimEnd(','), false));
+                    i = tmp;
                 }
             }
             else

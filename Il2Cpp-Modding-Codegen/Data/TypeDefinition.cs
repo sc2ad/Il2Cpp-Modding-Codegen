@@ -24,7 +24,7 @@ namespace Il2Cpp_Modding_Codegen.Data
         internal static string FromMultiple(string[] spl, int ind, out int adjustedIndex, int direction = -1, string sep = " ")
         {
             adjustedIndex = ind;
-            if (direction < 0 ? !spl[ind].EndsWith(">") : !spl[ind].Contains("<"))
+            if (direction < 0 ? !spl[ind].Contains(">") : !spl[ind].Contains("<"))
             {
                 adjustedIndex = ind;
                 return spl[ind];
@@ -55,6 +55,7 @@ namespace Il2Cpp_Modding_Codegen.Data
                 {
                     string s = spl[i];
                     int unclosed = s.Count(c => c == '<');
+                    unclosed -= s.Count(c => c == '>');
                     i++;
                     while (unclosed > 0)
                     {
@@ -140,7 +141,7 @@ namespace Il2Cpp_Modding_Codegen.Data
                 return $"{Namespace}.{Name}";
             if (!Generic)
                 return $"{Name}";
-            var s = Name+"<";
+            var s = Name + "<";
             for (int i = 0; i < GenericParameters.Count; i++)
             {
                 s += GenericParameters[i].ToString();
@@ -161,7 +162,9 @@ namespace Il2Cpp_Modding_Codegen.Data
         public override bool Equals(object obj)
         {
             var o = obj as TypeDefinition;
-            return o?.Namespace + o?.Name == Namespace + Name;
+            return o?.Namespace + o?.Name == Namespace + Name
+                && o?.Generic == Generic
+                && GenericParameters.SequenceEqual(o?.GenericParameters);
         }
     }
 }

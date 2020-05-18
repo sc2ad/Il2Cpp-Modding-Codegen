@@ -21,11 +21,12 @@ namespace Il2Cpp_Modding_Codegen.Serialization
 
         public void Serialize(ISerializer<ITypeData> serializer, ITypeData data)
         {
-            if (data.Type == TypeEnum.Interface || data.Methods.Count == 0)
+            if (data.Type == TypeEnum.Interface || data.Methods.Count == 0 || data.This.Generic)
             {
-                // Don't create C++ for types with no methods, or if it is an interface
+                // Don't create C++ for types with no methods, or if it is an interface, or if it is generic
                 return;
             }
+
             var headerLocation = _context.FileName + ".hpp";
             var sourceLocation = Path.Combine(_config.OutputDirectory, _config.OutputSourceDirectory, _context.FileName) + ".cpp";
             Directory.CreateDirectory(Path.GetDirectoryName(sourceLocation));
@@ -41,6 +42,7 @@ namespace Il2Cpp_Modding_Codegen.Serialization
                 writer.WriteLine($"#include \"{headerLocation}\"");
                 writer.WriteLine("#include \"utils/il2cpp-utils.hpp\"");
                 writer.WriteLine("#include \"utils/utils.h\"");
+                writer.WriteLine("#include <optional>");
                 foreach (var include in _context.Includes)
                 {
                     writer.WriteLine($"#include \"{include}\"");

@@ -34,9 +34,9 @@ namespace Il2Cpp_Modding_Codegen.Data
             }
 
             Type = new TypeDefinition(TypeDefinition.FromMultiple(spl, typeIndex, out int res, 1, " "), false);
-            if (res - 1 >= 0)
+            if (res + 1 < spl.Length)
             {
-                Name = spl[res - 1];
+                Name = spl[res + 1];
             }
         }
 

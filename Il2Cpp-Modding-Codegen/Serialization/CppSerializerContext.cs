@@ -100,6 +100,8 @@ namespace Il2Cpp_Modding_Codegen.Serialization
         /// <returns></returns>
         public string GetNameFromReference(TypeDefinition def, ForceAsType force, bool qualified)
         {
+            // For resolving generic type paramters
+            // ex: TypeName<T1, T2>, GetNameFromReference(T1)
             if (_genericTypes.Contains(def))
                 // TODO: Check to ensure ValueType is correct here. Perhaps assuming reference type is better?
                 return ForceName(new TypeInfo() { TypeFlags = TypeFlags.ValueType }, def.Name, force);
@@ -121,14 +123,14 @@ namespace Il2Cpp_Modding_Codegen.Serialization
             {
                 if (!found.Generic)
                     return ForceName(_references[found].Item1, _references[found].Item2, force);
-                var types = "";
+                var typeStr = "";
                 for (int i = 0; i < found.GenericParameters.Count; i++)
                 {
-                    types += GetNameFromReference(found.GenericParameters[i], ForceAsType.Literal, true);
+                    typeStr += GetNameFromReference(found.GenericParameters[i], ForceAsType.None, true);
                     if (i != found.GenericParameters.Count - 1)
-                        types += ", ";
+                        typeStr += ", ";
                 }
-                return ForceName(_references[found].Item1, _references[found].Item2, force) + "<" + types + ">";
+                return ForceName(_references[found].Item1, _references[found].Item2 + "<" + typeStr + ">", force);
             }
 
             // Resolve the type definition
@@ -140,10 +142,25 @@ namespace Il2Cpp_Modding_Codegen.Serialization
             // If we have not, map the type definition to a safe, unique name (TypeDefinition)
             var resolvedTd = _context.ResolvedTypeDefinition(type.This);
 
+            // If this is a generic type, we need to ensure we are providing correct type parameters
+            var types = "";
+            if (def.Generic)
+            {
+                types = "<";
+                for (int i = 0; i < def.GenericParameters.Count; i++)
+                {
+                    types += GetNameFromReference(def.GenericParameters[i], ForceAsType.None, true);
+                    if (i != def.GenericParameters.Count - 1)
+                        types += ", ";
+                }
+                types += ">";
+                // Modify resolved type definition's name to include generic arguments
+            }
+
             // If the type is ourselves, no need to include/forward declare it
             if (type.Equals(_localType))
             {
-                return ForceName(type.Info, qualified ? ConvertTypeToQualifiedName(resolvedTd) : ConvertTypeToName(resolvedTd), force);
+                return ForceName(type.Info, (qualified ? ConvertTypeToQualifiedName(resolvedTd) : ConvertTypeToName(resolvedTd)) + types, force);
             }
 
             // If the type exists, AND it is a reference type AND it is being asked to be used like a reference type:
@@ -161,10 +178,10 @@ namespace Il2Cpp_Modding_Codegen.Serialization
             }
 
             // Add newly created name to _references
-            _references.Add(def, (type.Info, ConvertTypeToQualifiedName(resolvedTd)));
+            _references.Add(def, (type.Info, ConvertTypeToQualifiedName(resolvedTd) + types));
 
             // Return safe created name
-            return ForceName(type.Info, qualified ? ConvertTypeToQualifiedName(resolvedTd) : ConvertTypeToName(resolvedTd), force);
+            return ForceName(type.Info, (qualified ? ConvertTypeToQualifiedName(resolvedTd) : ConvertTypeToName(resolvedTd)) + types, force);
         }
 
         private string ResolvePrimitive(TypeDefinition def, ForceAsType force)
