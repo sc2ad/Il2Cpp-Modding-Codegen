@@ -85,9 +85,9 @@ namespace Il2Cpp_Modding_Codegen.Data.DumpHandling
             // -4 is name
             // -5 is type enum
             // all others are specifiers
-            This.Set(split[start]);
-            Type = (TypeEnum)Enum.Parse(typeof(TypeEnum), split[start - 1], true);
-            for (int i = 0; i < start - 1; i++)
+            This.Set(TypeDefinition.FromMultiple(split, start, out int adjusted, -1, " "));
+            Type = (TypeEnum)Enum.Parse(typeof(TypeEnum), split[adjusted - 1], true);
+            for (int i = 0; i < adjusted - 1; i++)
             {
                 if (_config.ParseTypeSpecifiers)
                     Specifiers.Add(new DumpSpecifier(split[i]));

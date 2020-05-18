@@ -20,6 +20,9 @@ namespace Il2Cpp_Modding_Codegen.Serialization
         // Maps TypeDefinitions to resolved names
         private Dictionary<TypeDefinition, (TypeInfo, string)> _references = new Dictionary<TypeDefinition, (TypeInfo, string)>();
 
+        // Holds generic types (ex: T1, T2, ...) defined by the type
+        private HashSet<TypeDefinition> _genericTypes = new HashSet<TypeDefinition>();
+
         private ITypeContext _context;
         private ITypeData _localType;
 
@@ -54,6 +57,13 @@ namespace Il2Cpp_Modding_Codegen.Serialization
             TypeNamespace = ConvertTypeToNamespace(resolvedTd);
             TypeName = ConvertTypeToName(resolvedTd);
             FileName = ConvertTypeToInclude(resolvedTd);
+            if (data.This.Generic)
+            {
+                foreach (var g in data.This.GenericParameters)
+                {
+                    _genericTypes.Add(g);
+                }
+            }
         }
 
         private string ForceName(TypeInfo info, string name, ForceAsType force)
@@ -90,7 +100,11 @@ namespace Il2Cpp_Modding_Codegen.Serialization
         /// <returns></returns>
         public string GetNameFromReference(TypeDefinition def, ForceAsType force, bool qualified)
         {
-            // TODO: Need to determine a better way of resolving unique names
+            if (_genericTypes.Contains(def))
+                // TODO: Check to ensure ValueType is correct here. Perhaps assuming reference type is better?
+                return ForceName(new TypeInfo() { TypeFlags = TypeFlags.ValueType }, def.Name, force);
+
+            // TODO: Need to determine a better way of resolving special names
             var primitiveName = ResolvePrimitive(def, force);
             // Primitives are automatically resolved via this call
             if (primitiveName != null)
@@ -104,7 +118,18 @@ namespace Il2Cpp_Modding_Codegen.Serialization
             // We may have already resolved this type, but without a namespace. Check that
             var found = _references.Keys.FirstOrDefault(td => td.Name == def.Name);
             if (found != null)
-                return ForceName(_references[found].Item1, _references[found].Item2, force);
+            {
+                if (!found.Generic)
+                    return ForceName(_references[found].Item1, _references[found].Item2, force);
+                var types = "";
+                for (int i = 0; i < found.GenericParameters.Count; i++)
+                {
+                    types += GetNameFromReference(found.GenericParameters[i], ForceAsType.Literal, true);
+                    if (i != found.GenericParameters.Count - 1)
+                        types += ", ";
+                }
+                return ForceName(_references[found].Item1, _references[found].Item2, force) + "<" + types + ">";
+            }
 
             // Resolve the type definition
             var type = def.Resolve(_context);
