@@ -33,10 +33,10 @@ namespace Il2Cpp_Modding_Codegen.Data
                 typeIndex = 0;
             }
 
-            Type = new TypeDefinition { Name = spl[typeIndex] };
-            if (typeIndex + 1 < spl.Length)
+            Type = new TypeDefinition(TypeDefinition.FromMultiple(spl, typeIndex, out int res, 1, " "), false);
+            if (res - 1 >= 0)
             {
-                Name = spl[typeIndex + 1];
+                Name = spl[res - 1];
             }
         }
 

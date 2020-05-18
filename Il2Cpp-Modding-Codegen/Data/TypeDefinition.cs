@@ -1,4 +1,9 @@
-﻿namespace Il2Cpp_Modding_Codegen.Data
+﻿using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Security.Principal;
+
+namespace Il2Cpp_Modding_Codegen.Data
 {
     public class TypeDefinition
     {
@@ -7,24 +12,87 @@
         public string Namespace { get; internal set; } = "";
         public string Name { get; internal set; }
 
+        public bool Generic { get; private set; }
+        public List<TypeDefinition> GenericParameters { get; } = new List<TypeDefinition>();
+
         private ITypeData _resolvedType;
 
         internal TypeDefinition()
         {
         }
 
-        public TypeDefinition(string qualifiedName)
+        internal static string FromMultiple(string[] spl, int ind, out int adjustedIndex, int direction = -1, string sep = " ")
         {
-            int dotLocation = qualifiedName.IndexOf('.');
-            if (dotLocation == -1)
+            adjustedIndex = ind;
+            if (direction < 0 ? !spl[ind].EndsWith(">") : !spl[ind].Contains("<"))
             {
-                Name = qualifiedName;
-                Namespace = "";
+                adjustedIndex = ind;
+                return spl[ind];
+            }
+            int countToClose = 0;
+            string s = "";
+            for (; direction > 0 ? ind < spl.Length : ind >= 0; ind += direction, adjustedIndex += direction)
+            {
+                // Depending which way we are travelling, either decrease or increase countToClose
+                countToClose -= direction * spl[ind].Count(c => c == '>');
+                countToClose += direction * spl[ind].Count(c => c == '<');
+                s = direction > 0 ? s + sep + spl[ind] : spl[ind] + sep + s;
+                if (countToClose == 0)
+                    break;
+            }
+            return direction > 0 ? s.Substring(sep.Length) : s.Substring(0, s.Length - sep.Length);
+        }
+
+        public void Set(string typeName)
+        {
+            if (typeName.EndsWith(">") && !typeName.StartsWith("<"))
+            {
+                Generic = true;
+                var ind = typeName.IndexOf("<");
+                var types = typeName.Substring(ind + 1, typeName.Length - ind - 2);
+                var spl = types.Split(new string[] { ", " }, StringSplitOptions.None);
+                for (int i = 0; i < spl.Length;)
+                {
+                    string s = spl[i];
+                    int unclosed = s.Count(c => c == '<');
+                    i++;
+                    while (unclosed > 0)
+                    {
+                        unclosed += spl[i].Count(c => c == '<');
+                        unclosed -= spl[i].Count(c => c == '>');
+                        s += ", " + spl[i];
+                        i++;
+                    }
+                    GenericParameters.Add(new TypeDefinition(s, false));
+                }
+                Name = typeName.Substring(0, ind);
             }
             else
             {
-                Namespace = qualifiedName.Substring(0, dotLocation);
-                Name = qualifiedName.Substring(dotLocation + 1);
+                Name = typeName;
+            }
+        }
+
+        public TypeDefinition(string qualifiedName, bool qualified = true)
+        {
+            if (qualified)
+            {
+                int dotLocation = qualifiedName.IndexOf('.');
+                if (dotLocation == -1)
+                {
+                    Set(qualifiedName);
+                    Namespace = "";
+                }
+                else
+                {
+                    Namespace = qualifiedName.Substring(0, dotLocation);
+                    Set(qualifiedName.Substring(dotLocation + 1));
+                }
+            }
+            else
+            {
+                Set(qualifiedName);
+                Namespace = "";
             }
         }
 
@@ -70,7 +138,17 @@
         {
             if (!string.IsNullOrWhiteSpace(Namespace))
                 return $"{Namespace}.{Name}";
-            return $"{Name}";
+            if (!Generic)
+                return $"{Name}";
+            var s = Name+"<";
+            for (int i = 0; i < GenericParameters.Count; i++)
+            {
+                s += GenericParameters[i].ToString();
+                if (i != GenericParameters.Count - 1)
+                    s += ", ";
+            }
+            s += ">";
+            return s;
         }
 
         // Namespace is actually NOT useful for comparisons!

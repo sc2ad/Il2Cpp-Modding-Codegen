@@ -41,8 +41,8 @@ namespace Il2Cpp_Modding_Codegen.Data.DumpHandling
                 }
             }
             Name = split[start].TrimEnd(';');
-            Type = new TypeDefinition(split[start - 1]);
-            for (int i = 0; i < start - 1; i++)
+            Type = new TypeDefinition(TypeDefinition.FromMultiple(split, start - 1, out int res, -1, " "), false);
+            for (int i = 0; i < res; i++)
             {
                 Specifiers.Add(new DumpSpecifier(split[i]));
             }

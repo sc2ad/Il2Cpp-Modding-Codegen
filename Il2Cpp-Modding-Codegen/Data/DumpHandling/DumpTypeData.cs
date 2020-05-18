@@ -69,13 +69,13 @@ namespace Il2Cpp_Modding_Codegen.Data.DumpHandling
                 // TODO: Fix this assumption, perhaps by resolving the types forcibly and ensuring they are interfaces?
                 var parentCandidate = split[start + 2].TrimEnd(',');
                 if (parentCandidate.StartsWith("I"))
-                    ImplementingInterfaces.Add(new TypeDefinition { Name = parentCandidate });
+                    ImplementingInterfaces.Add(new TypeDefinition(parentCandidate, false));
                 else
-                    Parent = new TypeDefinition { Name = parentCandidate };
+                    Parent = new TypeDefinition(parentCandidate, false);
                 // Go from 2 after : to length - 3
                 for (int i = start + 3; i < split.Length - 3; i++)
                 {
-                    ImplementingInterfaces.Add(new TypeDefinition { Name = split[i].TrimEnd(',') });
+                    ImplementingInterfaces.Add(new TypeDefinition(split[i].TrimEnd(','), false));
                 }
             }
             else
@@ -85,7 +85,7 @@ namespace Il2Cpp_Modding_Codegen.Data.DumpHandling
             // -4 is name
             // -5 is type enum
             // all others are specifiers
-            This.Name = split[start];
+            This.Set(split[start]);
             Type = (TypeEnum)Enum.Parse(typeof(TypeEnum), split[start - 1], true);
             for (int i = 0; i < start - 1; i++)
             {
