@@ -11,10 +11,15 @@ namespace Codegen_CLI
     {
         private static void Main(string[] args)
         {
-            Console.WriteLine("Hello World!");
+            Console.WriteLine("Drag and drop your dump.cs file (or a partial of it of the correct format) then press enter...");
+            string path;
+            if (File.Exists(@"C:\Users\Sc2ad\Desktop\Code\Android Modding\BeatSaber\1.8.0\partial.cs"))
+                path = @"C:\Users\Sc2ad\Desktop\Code\Android Modding\BeatSaber\1.8.0\partial.cs";
+            else
+                path = Console.ReadLine();
             var parser = new DumpParser(new DumpConfig());
 
-            using var stream = File.OpenRead(@"C:\Users\Sc2ad\Desktop\Code\Android Modding\BeatSaber\1.8.0\partial.cs");
+            using var stream = File.OpenRead(path);
             Console.WriteLine("Parsing...");
             Stopwatch watch = new Stopwatch();
             watch.Start();
@@ -23,6 +28,7 @@ namespace Codegen_CLI
             //Console.WriteLine(parsed);
             Console.WriteLine($"Parsing took: {watch.ElapsedMilliseconds}ms");
             Console.WriteLine("============================================");
+            Console.WriteLine("Press enter to serialize...");
             Console.ReadLine();
 
             Console.WriteLine("Creating serializer...");
