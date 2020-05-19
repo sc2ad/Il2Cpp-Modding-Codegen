@@ -1,4 +1,5 @@
-﻿using Il2Cpp_Modding_Codegen.Data;
+﻿using Il2Cpp_Modding_Codegen.Config;
+using Il2Cpp_Modding_Codegen.Data;
 using Il2Cpp_Modding_Codegen.Serialization.Interfaces;
 using System;
 using System.Collections.Generic;
@@ -17,9 +18,11 @@ namespace Il2Cpp_Modding_Codegen.Serialization
         private string _qualifiedName;
         private CppFieldSerializer fieldSerializer;
         private CppMethodSerializer methodSerializer;
+        private SerializationConfig _config;
 
-        public CppTypeDataSerializer(string prefix = "", bool asHeader = true)
+        public CppTypeDataSerializer(SerializationConfig config, string prefix = "", bool asHeader = true)
         {
+            _config = config;
             _prefix = prefix;
             _asHeader = asHeader;
         }
@@ -37,7 +40,7 @@ namespace Il2Cpp_Modding_Codegen.Serialization
                 foreach (var f in type.Fields)
                     fieldSerializer.PreSerialize(context, f);
             }
-            methodSerializer = new CppMethodSerializer(_asHeader ? _prefix + "  " : _prefix, _asHeader);
+            methodSerializer = new CppMethodSerializer(_config, _asHeader ? _prefix + "  " : _prefix, _asHeader);
             foreach (var m in type.Methods)
                 methodSerializer.PreSerialize(context, m);
         }
@@ -76,13 +79,16 @@ namespace Il2Cpp_Modding_Codegen.Serialization
                     }
                     catch (UnresolvedTypeException e)
                     {
-                        // Stop serializing the type
-                        // TODO: Log the exception
-                        var fs = new StreamWriter(fieldStream);
-                        fs.WriteLine("/*");
-                        fs.WriteLine(e);
-                        fs.WriteLine("*/");
-                        fs.Flush();
+                        if (_config.UnresolvedTypeExceptionHandling.FieldHandling == UnresolvedTypeExceptionHandling.DisplayInFile)
+                        {
+                            var fs = new StreamWriter(fieldStream);
+                            fs.WriteLine("/*");
+                            fs.WriteLine(e);
+                            fs.WriteLine("*/");
+                            fs.Flush();
+                        }
+                        else if (_config.UnresolvedTypeExceptionHandling.FieldHandling == UnresolvedTypeExceptionHandling.Elevate)
+                            throw;
                     }
                 }
                 var specifiers = "";
@@ -131,13 +137,15 @@ namespace Il2Cpp_Modding_Codegen.Serialization
                 }
                 catch (UnresolvedTypeException e)
                 {
-                    // Skip the method.
-                    // TODO: Log the exception
-                    // TODO: Do more with this later
-                    writer.WriteLine("/*");
-                    writer.WriteLine(e);
-                    writer.WriteLine("*/");
-                    writer.Flush();
+                    if (_config.UnresolvedTypeExceptionHandling.MethodHandling == UnresolvedTypeExceptionHandling.DisplayInFile)
+                    {
+                        writer.WriteLine("/*");
+                        writer.WriteLine(e);
+                        writer.WriteLine("*/");
+                        writer.Flush();
+                    }
+                    else if (_config.UnresolvedTypeExceptionHandling.MethodHandling == UnresolvedTypeExceptionHandling.Elevate)
+                        throw;
                 }
             }
             // Write type closing "};"

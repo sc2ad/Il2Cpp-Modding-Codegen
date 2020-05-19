@@ -18,7 +18,7 @@ namespace Il2Cpp_Modding_Codegen.Config
         /// <summary>
         /// How to handle unresolved type exceptions
         /// </summary>
-        public UnresolvedTypeExceptionHandling UnresolvedTypeExceptionHandling { get; set; }
+        public ExceptionHandling UnresolvedTypeExceptionHandling { get; set; }
 
         /// <summary>
         /// Types blacklisted are explicitly not converted, even if it causes unresolved type exceptions in other types
@@ -41,17 +41,35 @@ namespace Il2Cpp_Modding_Codegen.Config
         public GenericHandling GenericHandling { get; set; }
     }
 
+    public struct ExceptionHandling
+    {
+        public UnresolvedTypeExceptionHandling TypeHandling { get; set; }
+
+        // TODO: May not work as intended
+        public UnresolvedTypeExceptionHandling FieldHandling { get; set; }
+
+        // TODO: May not work as intended
+        public UnresolvedTypeExceptionHandling MethodHandling { get; set; }
+    }
+
     public enum OutputStyle
     {
-        CrashUnless,
-        Normal
+        Normal,
+        CrashUnless
     }
 
     public enum UnresolvedTypeExceptionHandling
     {
+        Ignore,
         DisplayInFile,
-        Continue,
-        Skip
+        SkipIssue,
+
+        /// <summary>
+        /// Skips the current, forcing the parent to resolve it.
+        /// In most cases, this involves forwarding field --> type, or method --> type
+        /// So this will force TypeHandling to resolve it as if it were a higher level exception
+        /// </summary>
+        Elevate
     }
 
     public enum GenericHandling

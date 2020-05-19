@@ -89,6 +89,8 @@ namespace Il2Cpp_Modding_Codegen.Data.DumpHandling
 
         public ITypeData Resolve(TypeDefinition typeDefinition)
         {
+            // TODO: Resolve only among our types that we actually plan on serializing
+            // Basically, check it against our whitelist/blacklist
             var te = Types.FirstOrDefault(t => t.This.Equals(typeDefinition) || t.This.Name == typeDefinition.Name);
             return te;
         }
@@ -106,6 +108,7 @@ namespace Il2Cpp_Modding_Codegen.Data.DumpHandling
             var safeNamespace = def.SafeNamespace();
             var safeName = def.SafeName();
             int i = 1;
+
             TypeDefinition td = new TypeDefinition { Name = safeName, Namespace = safeNamespace };
             while (_resolvedTypeNames.ContainsValue(td))
             {

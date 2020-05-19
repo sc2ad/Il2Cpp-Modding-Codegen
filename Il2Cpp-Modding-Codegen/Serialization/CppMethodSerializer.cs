@@ -1,4 +1,5 @@
-﻿using Il2Cpp_Modding_Codegen.Data;
+﻿using Il2Cpp_Modding_Codegen.Config;
+using Il2Cpp_Modding_Codegen.Data;
 using Il2Cpp_Modding_Codegen.Serialization.Interfaces;
 using System;
 using System.Collections.Generic;
@@ -12,14 +13,16 @@ namespace Il2Cpp_Modding_Codegen.Serialization
     {
         private string _prefix;
         private bool _asHeader;
+        private SerializationConfig _config;
 
         private Dictionary<IMethod, string> _resolvedTypeNames = new Dictionary<IMethod, string>();
         private Dictionary<IMethod, string> _declaringTypeNames = new Dictionary<IMethod, string>();
         private Dictionary<IMethod, List<string>> _parameterMaps = new Dictionary<IMethod, List<string>>();
         private string _declaringFullyQualified;
 
-        public CppMethodSerializer(string prefix = "", bool asHeader = true)
+        public CppMethodSerializer(SerializationConfig config, string prefix = "", bool asHeader = true)
         {
+            _config = config;
             _prefix = prefix;
             _asHeader = asHeader;
         }
@@ -49,15 +52,6 @@ namespace Il2Cpp_Modding_Codegen.Serialization
         {
             // If the method is an instance method, first parameter should be a pointer to the declaringType.
             string paramString = "";
-            // Remove this for now since self is replaced with `this`
-            //if (!staticFunc)
-            //{
-            //    paramString = $"{_declaringTypeNames[method]} self";
-            //    if (method.Parameters.Count > 0)
-            //    {
-            //        paramString += ", ";
-            //    }
-            //}
             var ns = "";
             var staticString = "";
             if (namespaceQualified)
@@ -68,7 +62,10 @@ namespace Il2Cpp_Modding_Codegen.Serialization
             // TODO: Should be configurable
             var retStr = _resolvedTypeNames[method];
             if (!method.ReturnType.Equals(TypeDefinition.VoidType))
-                retStr = "std::optional<" + retStr + ">";
+            {
+                if (_config.OutputStyle == OutputStyle.Normal)
+                    retStr = "std::optional<" + retStr + ">";
+            }
             var nameStr = method.Name.Replace('.', '_');
             return $"{staticString}{retStr} {ns}{nameStr}({paramString + method.Parameters.FormatParameters(_parameterMaps[method], FormatParameterMode.Names | FormatParameterMode.Types)})";
         }
@@ -125,15 +122,17 @@ namespace Il2Cpp_Modding_Codegen.Serialization
                 _prefix += "  ";
                 var s = "";
                 var innard = "";
-                var macro = "RET_V_UNLESS";
+                var macro = "RET_V_UNLESS(";
+                if (_config.OutputStyle == OutputStyle.CrashUnless)
+                    macro = "CRASH_UNLESS(";
                 if (!method.ReturnType.Equals(TypeDefinition.VoidType))
                 {
                     s = "return ";
                     innard = $"<{_resolvedTypeNames[method]}>";
-                    macro = "RET_NULLOPT_UNLESS";
+                    macro = "";
                 }
                 // TODO: Replace with RET_NULLOPT_UNLESS or another equivalent (perhaps literally just the ret)
-                s += $"{macro}(il2cpp_utils::RunMethod{innard}(";
+                s += $"{macro}il2cpp_utils::RunMethod{innard}(";
                 if (!isStatic)
                 {
                     s += "this, ";
@@ -146,7 +145,7 @@ namespace Il2Cpp_Modding_Codegen.Serialization
                 var paramString = method.Parameters.FormatParameters(_parameterMaps[method], FormatParameterMode.Names);
                 if (!string.IsNullOrEmpty(paramString))
                     paramString = ", " + paramString;
-                s += $"\"{method.Name}\"{paramString}));";
+                s += $"\"{method.Name}\"{paramString}){(!string.IsNullOrEmpty(macro) ? ")" : "")};";
                 // Write method with return
                 writer.WriteLine($"{_prefix}{s}");
                 // Close method

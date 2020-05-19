@@ -30,7 +30,15 @@ namespace Codegen_CLI
             {
                 OutputDirectory = Path.Combine(Environment.CurrentDirectory, "output"),
                 OutputHeaderDirectory = "include",
-                OutputSourceDirectory = "src"
+                OutputSourceDirectory = "src",
+                GenericHandling = GenericHandling.Do,
+                OutputStyle = OutputStyle.Normal,
+                UnresolvedTypeExceptionHandling = new ExceptionHandling
+                {
+                    FieldHandling = UnresolvedTypeExceptionHandling.DisplayInFile,
+                    MethodHandling = UnresolvedTypeExceptionHandling.DisplayInFile,
+                    TypeHandling = UnresolvedTypeExceptionHandling.DisplayInFile
+                }
             };
 
             if (Directory.Exists(Path.Combine(config.OutputDirectory, config.OutputHeaderDirectory)))

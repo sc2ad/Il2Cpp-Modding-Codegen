@@ -36,8 +36,13 @@ namespace Il2Cpp_Modding_Codegen.Serialization
                 // Cache all of these
                 // and ofc call PreSerialize on each of the types
                 // This could be simplified to actually SHARE a context... Not really sure how, atm
-                var header = new CppTypeDataSerializer("  ", true);
-                var cpp = new CppTypeDataSerializer("", false);
+                if (t.This.Generic && _config.GenericHandling == GenericHandling.Skip)
+                {
+                    // Skip the generic type, ensure it doesn't get serialized.
+                    continue;
+                }
+                var header = new CppTypeDataSerializer(_config, "  ", true);
+                var cpp = new CppTypeDataSerializer(_config, "", false);
                 var headerContext = new CppSerializerContext(_context, t);
                 var cppContext = new CppSerializerContext(_context, t);
                 header.PreSerialize(headerContext, t);
