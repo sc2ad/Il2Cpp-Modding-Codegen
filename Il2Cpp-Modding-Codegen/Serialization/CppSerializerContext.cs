@@ -174,7 +174,7 @@ namespace Il2Cpp_Modding_Codegen.Serialization
                 // Get path to this type (namespace/name)
                 // TODO: If we have namespace headers, we need to namespace declare our return value:
                 // namespace::typeName
-                Includes.Add(ConvertTypeToInclude(resolvedTd));
+                Includes.Add(ConvertTypeToInclude(resolvedTd) + ".hpp");
             }
 
             // Add newly created name to _references
