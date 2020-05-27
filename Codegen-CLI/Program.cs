@@ -28,8 +28,13 @@ namespace Codegen_CLI
             //Console.WriteLine(parsed);
             Console.WriteLine($"Parsing took: {watch.ElapsedMilliseconds}ms");
             Console.WriteLine("============================================");
-            Console.WriteLine("Press enter to serialize...");
-            Console.ReadLine();
+            Console.WriteLine("Type the name of an output style (or don't for Normal) then press enter to serialize:");
+            var input = Console.ReadLine();
+            OutputStyle style = OutputStyle.Normal;
+            if (Enum.TryParse(input, false, out style))
+            {
+                Console.WriteLine($"Parsed style '{style}'");
+            }
 
             Console.WriteLine("Creating serializer...");
             var config = new SerializationConfig
@@ -38,7 +43,7 @@ namespace Codegen_CLI
                 OutputHeaderDirectory = "include",
                 OutputSourceDirectory = "src",
                 GenericHandling = GenericHandling.Do,
-                OutputStyle = OutputStyle.Normal,
+                OutputStyle = style,
                 UnresolvedTypeExceptionHandling = new ExceptionHandling
                 {
                     FieldHandling = UnresolvedTypeExceptionHandling.DisplayInFile,
