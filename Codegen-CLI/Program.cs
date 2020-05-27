@@ -1,4 +1,4 @@
-﻿using Il2Cpp_Modding_Codegen;
+using Il2Cpp_Modding_Codegen;
 using Il2Cpp_Modding_Codegen.Config;
 using Il2Cpp_Modding_Codegen.Serialization;
 using System;
@@ -58,7 +58,7 @@ namespace Codegen_CLI
             // context unused
             serializer.PreSerialize(null, parsed);
             watch.Stop();
-            Console.WriteLine($"Serialization Complete, took: {watch.ElapsedMilliseconds}ms!");
+            Console.WriteLine($"Serialization Complete, took: {watch.Elapsed}!");
             Console.ReadLine();
         }
     }

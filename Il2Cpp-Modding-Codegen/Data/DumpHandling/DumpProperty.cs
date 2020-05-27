@@ -28,7 +28,7 @@ namespace Il2Cpp_Modding_Codegen.Data.DumpHandling
             var split = line.Split(' ');
             if (split.Length < 5)
             {
-                throw new InvalidOperationException($"Property cannot be created from: {line}");
+                throw new InvalidOperationException($"Line {fs.CurrentLineIndex}: Property cannot be created from: \"{line.Trim()}\"");
             }
             // Start at the end (but before the }), count back until we hit a { (or we have gone 3 steps)
             // Keep track of how far back we count

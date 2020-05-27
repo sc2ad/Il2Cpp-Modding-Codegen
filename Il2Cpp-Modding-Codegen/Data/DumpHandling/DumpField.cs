@@ -28,7 +28,7 @@ namespace Il2Cpp_Modding_Codegen.Data.DumpHandling
             // Offset is at the end
             if (split.Length < 4)
             {
-                throw new InvalidOperationException($"Field cannot be created from: {line}");
+                throw new InvalidOperationException($"Line {fs.CurrentLineIndex}: Field cannot be created from: \"{line.Trim()}\"");
             }
             Offset = Convert.ToInt32(split[split.Length - 1], 16);
             int start = split.Length - 3;

@@ -40,6 +40,8 @@ namespace Il2Cpp_Modding_Codegen.Data.DumpHandling
             {
                 if (_config.ParseTypeAttributes)
                     Attributes.Add(new DumpAttribute(fs));
+                else
+                    fs.ReadLine();
                 line = fs.PeekLine();
             }
         }
@@ -128,6 +130,8 @@ namespace Il2Cpp_Modding_Codegen.Data.DumpHandling
             {
                 if (_config.ParseTypeFields)
                     Fields.Add(new DumpField(This, fs));
+                else
+                    fs.ReadLine();
                 line = fs.PeekLine().Trim();
             }
         }
@@ -152,6 +156,8 @@ namespace Il2Cpp_Modding_Codegen.Data.DumpHandling
             {
                 if (_config.ParseTypeProperties)
                     Properties.Add(new DumpProperty(This, fs));
+                else
+                    fs.ReadLine();
                 line = fs.PeekLine().Trim();
             }
         }
@@ -176,6 +182,8 @@ namespace Il2Cpp_Modding_Codegen.Data.DumpHandling
             {
                 if (_config.ParseTypeMethods)
                     Methods.Add(new DumpMethod(This, fs));
+                else
+                    fs.ReadLine();
                 line = fs.PeekLine().Trim();
             }
         }

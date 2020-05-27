@@ -19,7 +19,7 @@ namespace Il2Cpp_Modding_Codegen.Data.DumpHandling
             // Line must start with a [ after being trimmed
             if (!line.StartsWith("["))
             {
-                throw new InvalidOperationException($"Could not create attribute from: {line.Trim()}");
+                throw new InvalidOperationException($"Line {fs.CurrentLineIndex}: Could not create attribute from: \"{line.Trim()}\"");
             }
             var parsed = line.Substring(1);
             Name = parsed.Substring(0, line.LastIndexOf(']') - 1);

@@ -35,7 +35,7 @@ namespace Il2Cpp_Modding_Codegen.Data.DumpHandling
             var split = line.Split(' ');
             if (split.Length < 5)
             {
-                throw new InvalidOperationException($"Method cannot be created from: {line}");
+                throw new InvalidOperationException($"Line {fs.CurrentLineIndex}: Method cannot be created from: \"{line.Trim()}\"");
             }
             int start = split.Length - 1;
             if (split[split.Length - 2] == "Slot:")

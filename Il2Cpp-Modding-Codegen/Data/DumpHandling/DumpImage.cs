@@ -16,7 +16,7 @@ namespace Il2Cpp_Modding_Codegen.Data.DumpHandling
             var split = line.Split(' ');
             if (split.Length < 6)
             {
-                throw new InvalidOperationException($"Could not create Image out of: {line}");
+                throw new InvalidOperationException($"Could not create Image out of: \"{line.Trim()}\"");
             }
             Start = int.Parse(split[split.Length - 1]);
             Name = split[split.Length - 3];
