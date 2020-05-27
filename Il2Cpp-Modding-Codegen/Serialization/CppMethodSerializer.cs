@@ -129,7 +129,7 @@ namespace Il2Cpp_Modding_Codegen.Serialization
                 {
                     s = "return ";
                     innard = $"<{_resolvedTypeNames[method]}>";
-                    macro = "";
+                    if (_config.OutputStyle != OutputStyle.CrashUnless) macro = "";
                 }
                 // TODO: Replace with RET_NULLOPT_UNLESS or another equivalent (perhaps literally just the ret)
                 s += $"{macro}il2cpp_utils::RunMethod{innard}(";
