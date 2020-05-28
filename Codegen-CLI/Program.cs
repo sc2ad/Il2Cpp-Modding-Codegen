@@ -60,11 +60,16 @@ namespace Codegen_CLI
 
             var serializer = new CppDataSerializer(config, parsed);
             Console.WriteLine("Serializing...");
-            watch.Restart();
-            // context unused
-            serializer.PreSerialize(null, parsed);
-            watch.Stop();
-            Console.WriteLine($"Serialization Complete, took: {watch.Elapsed}!");
+            try
+            {
+                watch.Restart();
+                // context unused
+                serializer.PreSerialize(null, parsed);
+                watch.Stop();
+                Console.WriteLine($"Serialization Complete, took: {watch.Elapsed}!");
+            } catch (Exception e) {
+                Console.WriteLine(e);
+            }
             Console.ReadLine();
         }
     }

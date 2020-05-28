@@ -2,6 +2,7 @@
 using Il2Cpp_Modding_Codegen.Serialization.Interfaces;
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Text;
 
@@ -45,7 +46,10 @@ namespace Il2Cpp_Modding_Codegen.Serialization
 
         private string ConvertTypeToInclude(TypeDefinition def)
         {
-            return ConvertTypeToNamespace(def) + "/" + ConvertTypeToName(def);
+            // TODO: instead split on :: and Path.Combine?
+            var fileName = String.Join("-", ConvertTypeToName(def).Replace("::", "_").Split(Path.GetInvalidFileNameChars()));
+            var directory = String.Join("-", ConvertTypeToNamespace(def).Replace("::", "_").Split(Path.GetInvalidPathChars()));
+            return Path.Combine(directory, fileName);
         }
 
         public CppSerializerContext(ITypeContext context, ITypeData data)
