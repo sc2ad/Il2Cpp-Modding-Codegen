@@ -42,7 +42,8 @@ namespace Il2Cpp_Modding_Codegen.Serialization
                 writer.WriteLine($"#include \"{headerLocation}\"");
                 writer.WriteLine("#include \"utils/il2cpp-utils.hpp\"");
                 writer.WriteLine("#include \"utils/utils.h\"");
-                writer.WriteLine("#include <optional>");
+                if (_config.OutputStyle == OutputStyle.Normal)
+                    writer.WriteLine("#include <optional>");
                 foreach (var include in _context.Includes)
                 {
                     writer.WriteLine($"#include \"{include}\"");
