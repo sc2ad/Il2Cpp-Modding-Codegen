@@ -11,7 +11,7 @@ namespace Il2Cpp_Modding_Codegen.Serialization
 {
     public class CppMethodSerializer : ISerializer<IMethod>
     {
-        private static readonly HashSet<string> IgnoredMethods = new HashSet<string>() { "op_Implicit" };
+        private static readonly HashSet<string> IgnoredMethods = new HashSet<string>() { "op_Implicit", "op_Explicit" };
         private string _prefix;
         private bool _asHeader;
         private SerializationConfig _config;

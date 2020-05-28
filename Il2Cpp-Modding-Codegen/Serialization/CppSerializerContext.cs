@@ -10,7 +10,6 @@ namespace Il2Cpp_Modding_Codegen.Serialization
 {
     public class CppSerializerContext : ISerializerContext
     {
-        private const string NoNamespace = "GlobalNamespace";
         public HashSet<TypeDefinition> ForwardDeclares { get; } = new HashSet<TypeDefinition>();
         public HashSet<TypeDefinition> NamespaceForwardDeclares { get; } = new HashSet<TypeDefinition>();
         public HashSet<string> Includes { get; } = new HashSet<string>();
@@ -29,41 +28,16 @@ namespace Il2Cpp_Modding_Codegen.Serialization
         private ITypeData _localType;
         private bool _cpp;
 
-        private string ConvertTypeToName(TypeDefinition def)
-        {
-            return def.Name;
-        }
-
-        private string ConvertTypeToNamespace(TypeDefinition def)
-        {
-            if (string.IsNullOrWhiteSpace(def.Namespace))
-                return NoNamespace;
-            return def.Namespace;
-        }
-
-        private string ConvertTypeToQualifiedName(TypeDefinition def)
-        {
-            return ConvertTypeToNamespace(def) + "::" + ConvertTypeToName(def);
-        }
-
-        private string ConvertTypeToInclude(TypeDefinition def)
-        {
-            // TODO: instead split on :: and Path.Combine?
-            var fileName = string.Join("-", ConvertTypeToName(def).Replace("::", "_").Split(Path.GetInvalidFileNameChars()));
-            var directory = string.Join("-", ConvertTypeToNamespace(def).Replace("::", "_").Split(Path.GetInvalidPathChars()));
-            return Path.Combine(directory, fileName);
-        }
-
         public CppSerializerContext(ITypeContext context, ITypeData data, bool cpp = false)
         {
             _context = context;
             _localType = data;
             _cpp = cpp;
             var resolvedTd = _context.ResolvedTypeDefinition(data.This);
-            QualifiedTypeName = ConvertTypeToQualifiedName(resolvedTd);
-            TypeNamespace = ConvertTypeToNamespace(resolvedTd);
-            TypeName = ConvertTypeToName(resolvedTd);
-            FileName = ConvertTypeToInclude(resolvedTd);
+            QualifiedTypeName = resolvedTd.ConvertTypeToQualifiedName();
+            TypeNamespace = resolvedTd.ConvertTypeToNamespace();
+            TypeName = resolvedTd.ConvertTypeToName();
+            FileName = resolvedTd.ConvertTypeToInclude();
             if (data.This.Generic)
             {
                 foreach (var g in data.This.GenericParameters)
@@ -172,7 +146,7 @@ namespace Il2Cpp_Modding_Codegen.Serialization
             // If the type is ourselves, no need to include/forward declare it
             if (type.Equals(_localType))
             {
-                return ForceName(type.Info, (qualified ? ConvertTypeToQualifiedName(resolvedTd) : ConvertTypeToName(resolvedTd)) + types, force);
+                return ForceName(type.Info, (qualified ? resolvedTd.ConvertTypeToQualifiedName() : resolvedTd.ConvertTypeToName()) + types, force);
             }
 
             // If the type exists:
@@ -191,14 +165,14 @@ namespace Il2Cpp_Modding_Codegen.Serialization
                 // Get path to this type (namespace/name)
                 // TODO: If we have namespace headers, we need to namespace declare our return value:
                 // namespace::typeName
-                Includes.Add(ConvertTypeToInclude(resolvedTd) + ".hpp");
+                Includes.Add(resolvedTd.ConvertTypeToInclude() + ".hpp");
             }
 
             // Add newly created name to _references
-            _references.Add(def, (type.Info, ConvertTypeToQualifiedName(resolvedTd) + types));
+            _references.Add(def, (type.Info, resolvedTd.ConvertTypeToQualifiedName() + types));
 
             // Return safe created name
-            return ForceName(type.Info, (qualified ? ConvertTypeToQualifiedName(resolvedTd) : ConvertTypeToName(resolvedTd)) + types, force);
+            return ForceName(type.Info, (qualified ? resolvedTd.ConvertTypeToQualifiedName() : resolvedTd.ConvertTypeToName()) + types, force);
         }
 
         private string ResolvePrimitive(TypeDefinition def, ForceAsType force)
