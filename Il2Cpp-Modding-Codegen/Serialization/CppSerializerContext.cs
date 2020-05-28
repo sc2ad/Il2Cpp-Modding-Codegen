@@ -12,6 +12,7 @@ namespace Il2Cpp_Modding_Codegen.Serialization
     {
         private const string NoNamespace = "GlobalNamespace";
         public HashSet<TypeDefinition> ForwardDeclares { get; } = new HashSet<TypeDefinition>();
+        public HashSet<TypeDefinition> NamespaceForwardDeclares { get; } = new HashSet<TypeDefinition>();
         public HashSet<string> Includes { get; } = new HashSet<string>();
         public string FileName { get; private set; }
         public string TypeNamespace { get; }
@@ -26,6 +27,7 @@ namespace Il2Cpp_Modding_Codegen.Serialization
 
         private ITypeContext _context;
         private ITypeData _localType;
+        private bool _cpp;
 
         private string ConvertTypeToName(TypeDefinition def)
         {
@@ -52,10 +54,11 @@ namespace Il2Cpp_Modding_Codegen.Serialization
             return Path.Combine(directory, fileName);
         }
 
-        public CppSerializerContext(ITypeContext context, ITypeData data)
+        public CppSerializerContext(ITypeContext context, ITypeData data, bool cpp = false)
         {
             _context = context;
             _localType = data;
+            _cpp = cpp;
             var resolvedTd = _context.ResolvedTypeDefinition(data.This);
             QualifiedTypeName = ConvertTypeToQualifiedName(resolvedTd);
             TypeNamespace = ConvertTypeToNamespace(resolvedTd);
@@ -176,9 +179,12 @@ namespace Il2Cpp_Modding_Codegen.Serialization
             // AND it is a reference type AND it is being asked to be used NOT as a literal or as a reference:
             // OR, if the type is being asked to be used as a POINTER
             // Forward declare
-            if (force == ForceAsType.Pointer || (type.Info.TypeFlags == TypeFlags.ReferenceType && force != ForceAsType.Literal && force != ForceAsType.Reference))
+            if (!_cpp && (force == ForceAsType.Pointer || (type.Info.TypeFlags == TypeFlags.ReferenceType && force != ForceAsType.Literal && force != ForceAsType.Reference)))
             {
-                ForwardDeclares.Add(resolvedTd);
+                if (resolvedTd.Namespace == TypeNamespace)
+                    NamespaceForwardDeclares.Add(resolvedTd);
+                else
+                    ForwardDeclares.Add(resolvedTd);
             }
             else
             {

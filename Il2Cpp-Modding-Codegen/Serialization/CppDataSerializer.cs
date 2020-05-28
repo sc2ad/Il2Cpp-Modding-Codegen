@@ -44,7 +44,7 @@ namespace Il2Cpp_Modding_Codegen.Serialization
                 var header = new CppTypeDataSerializer(_config, "  ", true);
                 var cpp = new CppTypeDataSerializer(_config, "", false);
                 var headerContext = new CppSerializerContext(_context, t);
-                var cppContext = new CppSerializerContext(_context, t);
+                var cppContext = new CppSerializerContext(_context, t, true);
                 header.PreSerialize(headerContext, t);
                 cpp.PreSerialize(cppContext, t);
                 // Ensure that we are going to write everything in this context:

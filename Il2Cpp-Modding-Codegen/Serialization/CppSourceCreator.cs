@@ -49,28 +49,6 @@ namespace Il2Cpp_Modding_Codegen.Serialization
                     writer.WriteLine($"#include \"{include}\"");
                 }
                 writer.WriteLine("// End Includes");
-                // Write forward declarations TODO: May not be necessary, or may even be incorrect for C++ files
-                writer.WriteLine("// Forward declarations");
-                foreach (var fd in _context.ForwardDeclares)
-                {
-                    if (fd.Generic)
-                    {
-                        // If the forward declare is generic, we need to write the template type
-                        var s = "template<";
-                        for (int i = 0; i < fd.GenericParameters.Count; i++)
-                        {
-                            s += "typename " + fd.GenericParameters[i].Name;
-                            if (i != fd.GenericParameters.Count - 1)
-                                s += ", ";
-                        }
-                        s += ">";
-                        writer.WriteLine(s);
-                        writer.WriteLine($"struct {fd};");
-                    }
-                    else
-                        writer.WriteLine($"typedef struct {fd} {fd};");
-                }
-                writer.WriteLine("// End Forward declarations");
                 writer.Flush();
                 // Write actual type
                 try

@@ -138,7 +138,7 @@ namespace Il2Cpp_Modding_Codegen.Data
         public override string ToString()
         {
             if (!string.IsNullOrWhiteSpace(Namespace))
-                return $"{Namespace}.{Name}";
+                return $"{Namespace}::{Name}";
             if (!Generic)
                 return $"{Name}";
             var s = Name + "<";
