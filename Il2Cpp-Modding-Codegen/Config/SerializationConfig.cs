@@ -28,7 +28,7 @@ namespace Il2Cpp_Modding_Codegen.Config
         /// <summary>
         /// Methods blacklisted are explicitly not converted
         /// </summary>
-        public HashSet<string> BlacklistMethods { get; set; }
+        public HashSet<string> BlacklistMethods { get; set; } = new HashSet<string>();
 
         /// <summary>
         /// Types whitelisted are explicitly converted, even if some have unresolved type exceptions
