@@ -47,8 +47,8 @@ namespace Il2Cpp_Modding_Codegen.Serialization
         private string ConvertTypeToInclude(TypeDefinition def)
         {
             // TODO: instead split on :: and Path.Combine?
-            var fileName = String.Join("-", ConvertTypeToName(def).Replace("::", "_").Split(Path.GetInvalidFileNameChars()));
-            var directory = String.Join("-", ConvertTypeToNamespace(def).Replace("::", "_").Split(Path.GetInvalidPathChars()));
+            var fileName = string.Join("-", ConvertTypeToName(def).Replace("::", "_").Split(Path.GetInvalidFileNameChars()));
+            var directory = string.Join("-", ConvertTypeToNamespace(def).Replace("::", "_").Split(Path.GetInvalidPathChars()));
             return Path.Combine(directory, fileName);
         }
 
@@ -102,7 +102,7 @@ namespace Il2Cpp_Modding_Codegen.Serialization
         /// <param name="def"></param>
         /// <param name="force"></param>
         /// <returns></returns>
-        public string GetNameFromReference(TypeDefinition def, ForceAsType force, bool qualified)
+        public string GetNameFromReference(TypeDefinition def, ForceAsType force, bool qualified, bool genericParams)
         {
             // For resolving generic type paramters
             // ex: TypeName<T1, T2>, GetNameFromReference(T1)
@@ -130,7 +130,7 @@ namespace Il2Cpp_Modding_Codegen.Serialization
                 var typeStr = "";
                 for (int i = 0; i < found.GenericParameters.Count; i++)
                 {
-                    typeStr += GetNameFromReference(found.GenericParameters[i], ForceAsType.None, true);
+                    typeStr += GetNameFromReference(found.GenericParameters[i], ForceAsType.None, true, true);
                     if (i != found.GenericParameters.Count - 1)
                         typeStr += ", ";
                 }
@@ -148,12 +148,12 @@ namespace Il2Cpp_Modding_Codegen.Serialization
 
             // If this is a generic type, we need to ensure we are providing correct type parameters
             var types = "";
-            if (def.Generic)
+            if (def.Generic && genericParams)
             {
                 types = "<";
                 for (int i = 0; i < def.GenericParameters.Count; i++)
                 {
-                    types += GetNameFromReference(def.GenericParameters[i], ForceAsType.None, true);
+                    types += GetNameFromReference(def.GenericParameters[i], ForceAsType.None, true, true);
                     if (i != def.GenericParameters.Count - 1)
                         types += ", ";
                 }
