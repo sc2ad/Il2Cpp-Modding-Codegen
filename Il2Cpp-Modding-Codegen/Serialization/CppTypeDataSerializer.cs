@@ -47,7 +47,7 @@ namespace Il2Cpp_Modding_Codegen.Serialization
                 methodSerializer = null;
 
             foreach (var m in type.Methods)
-                methodSerializer.PreSerialize(context, m);
+                methodSerializer?.PreSerialize(context, m);
         }
 
         // Should be provided a file, with all references resolved:
