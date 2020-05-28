@@ -88,6 +88,7 @@ namespace Il2Cpp_Modding_Codegen.Data.DumpHandling
             // -4 is name
             // -5 is type enum
             // all others are specifiers
+            // This will have DeclaringType set on it
             This.Set(TypeDefinition.FromMultiple(split, start, out int adjusted, -1, " "));
             Type = (TypeEnum)Enum.Parse(typeof(TypeEnum), split[adjusted - 1], true);
             for (int i = 0; i < adjusted - 1; i++)
@@ -126,7 +127,7 @@ namespace Il2Cpp_Modding_Codegen.Data.DumpHandling
             }
             // Read past // Fields
             fs.ReadLine();
-            while (line != "" && line != "}" && !line.StartsWith("// Properties") && !line.StartsWith("// Methods"))
+            while (!string.IsNullOrEmpty(line) && line != "}" && !line.StartsWith("// Properties") && !line.StartsWith("// Methods"))
             {
                 if (_config.ParseTypeFields)
                     Fields.Add(new DumpField(This, fs));
