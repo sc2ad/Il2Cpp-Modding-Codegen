@@ -30,6 +30,7 @@ namespace Codegen_CLI
             Console.WriteLine("============================================");
             Console.WriteLine("Type the name of an output style (or don't for Normal) then press enter to serialize:");
             var input = Console.ReadLine();
+            // TODO: strip non-alphabetic characters out of input before parsing it
             OutputStyle style = OutputStyle.Normal;
             if (Enum.TryParse(input, true, out style))
             {
