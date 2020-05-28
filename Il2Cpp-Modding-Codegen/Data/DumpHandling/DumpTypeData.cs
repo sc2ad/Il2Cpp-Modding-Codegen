@@ -97,7 +97,7 @@ namespace Il2Cpp_Modding_Codegen.Data.DumpHandling
             }
             Info = new TypeInfo
             {
-                TypeFlags = Type == TypeEnum.Class ? TypeFlags.ReferenceType : TypeFlags.ValueType
+                TypeFlags = Type == TypeEnum.Class || Type == TypeEnum.Interface ? TypeFlags.ReferenceType : TypeFlags.ValueType
             };
             if (Parent == null)
             {
