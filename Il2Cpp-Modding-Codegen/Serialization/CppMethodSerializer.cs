@@ -11,6 +11,7 @@ namespace Il2Cpp_Modding_Codegen.Serialization
 {
     public class CppMethodSerializer : ISerializer<IMethod>
     {
+        private static readonly HashSet<string> IgnoredMethods = new HashSet<string>() { "op_Implicit" };
         private string _prefix;
         private bool _asHeader;
         private SerializationConfig _config;
@@ -81,6 +82,8 @@ namespace Il2Cpp_Modding_Codegen.Serialization
             var val = _parameterMaps[method].FindIndex(s => s == null);
             if (val != -1)
                 throw new UnresolvedTypeException(method.DeclaringType, method.Parameters[val].Type);
+            if (IgnoredMethods.Contains(method.Name) || _config.BlacklistMethods.Contains(method.Name))
+                return;
             // Don't use a using statement here because it will close the underlying stream-- we want to keep it open
             var writer = new StreamWriter(stream);
 
