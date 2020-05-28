@@ -31,7 +31,7 @@ namespace Codegen_CLI
             Console.WriteLine("Type the name of an output style (or don't for Normal) then press enter to serialize:");
             var input = Console.ReadLine();
             OutputStyle style = OutputStyle.Normal;
-            if (Enum.TryParse(input, false, out style))
+            if (Enum.TryParse(input, true, out style))
             {
                 Console.WriteLine($"Parsed style '{style}'");
             }
