@@ -11,7 +11,7 @@ namespace Il2Cpp_Modding_Codegen.Serialization
     public class CppSerializerContext : ISerializerContext
     {
         private const string NoNamespace = "GlobalNamespace";
-        public HashSet<string> ForwardDeclares { get; } = new HashSet<string>();
+        public HashSet<TypeDefinition> ForwardDeclares { get; } = new HashSet<TypeDefinition>();
         public HashSet<string> Includes { get; } = new HashSet<string>();
         public string FileName { get; private set; }
         public string TypeNamespace { get; }
@@ -128,13 +128,18 @@ namespace Il2Cpp_Modding_Codegen.Serialization
                 if (!found.Generic)
                     return ForceName(_references[found].Item1, _references[found].Item2, force);
                 var typeStr = "";
-                for (int i = 0; i < found.GenericParameters.Count; i++)
+                if (genericParams)
                 {
-                    typeStr += GetNameFromReference(found.GenericParameters[i], ForceAsType.None, true, true);
-                    if (i != found.GenericParameters.Count - 1)
-                        typeStr += ", ";
+                    typeStr = "<";
+                    for (int i = 0; i < found.GenericParameters.Count; i++)
+                    {
+                        typeStr += GetNameFromReference(found.GenericParameters[i], ForceAsType.None, true, true);
+                        if (i != found.GenericParameters.Count - 1)
+                            typeStr += ", ";
+                    }
+                    typeStr += ">";
                 }
-                return ForceName(_references[found].Item1, _references[found].Item2 + "<" + typeStr + ">", force);
+                return ForceName(_references[found].Item1, _references[found].Item2 + typeStr, force);
             }
 
             // Resolve the type definition
@@ -167,11 +172,13 @@ namespace Il2Cpp_Modding_Codegen.Serialization
                 return ForceName(type.Info, (qualified ? ConvertTypeToQualifiedName(resolvedTd) : ConvertTypeToName(resolvedTd)) + types, force);
             }
 
-            // If the type exists, AND it is a reference type AND it is being asked to be used like a reference type:
+            // If the type exists:
+            // AND it is a reference type AND it is being asked to be used NOT as a literal or as a reference:
+            // OR, if the type is being asked to be used as a POINTER
             // Forward declare
-            if (type.Info.TypeFlags == TypeFlags.ReferenceType && force == ForceAsType.Pointer)
+            if (force == ForceAsType.Pointer || (type.Info.TypeFlags == TypeFlags.ReferenceType && force != ForceAsType.Literal && force != ForceAsType.Reference))
             {
-                ForwardDeclares.Add(ConvertTypeToQualifiedName(resolvedTd));
+                ForwardDeclares.Add(resolvedTd);
             }
             else
             {
@@ -250,7 +257,11 @@ namespace Il2Cpp_Modding_Codegen.Serialization
                     // Pointer type for Il2Cpp types on default
                     if (s != null && s.StartsWith("Il2Cpp"))
                     {
-                        ForwardDeclares.Add(s);
+                        ForwardDeclares.Add(new TypeDefinition()
+                        {
+                            Name = s,
+                            Namespace = "",
+                        });
                         return s + "*";
                     }
                     return s;
