@@ -14,6 +14,7 @@ namespace Il2Cpp_Modding_Codegen.Data
 
         public bool Generic { get; private set; }
         public List<TypeDefinition> GenericParameters { get; } = new List<TypeDefinition>();
+        public TypeDefinition DeclaringType { get; internal set; }
 
         private ITypeData _resolvedType;
 
@@ -66,11 +67,25 @@ namespace Il2Cpp_Modding_Codegen.Data
                     }
                     GenericParameters.Add(new TypeDefinition(s, false));
                 }
-                Name = typeName.Substring(0, ind);
+                var declInd = typeName.LastIndexOf('.');
+                if (declInd != -1)
+                {
+                    // Create a new TypeDefinition for the declaring type, it should recursively create more declaring types
+                    DeclaringType = new TypeDefinition();
+                    DeclaringType.Set(typeName.Substring(0, declInd));
+                }
+                Name = typeName.Substring(declInd + 1, ind);
             }
             else
             {
-                Name = typeName;
+                var declInd = typeName.LastIndexOf('.');
+                if (declInd != -1)
+                {
+                    // Create a new TypeDefinition for the declaring type, it should recursively create more declaring types
+                    DeclaringType = new TypeDefinition();
+                    DeclaringType.Set(typeName.Substring(0, declInd));
+                }
+                Name = typeName.Substring(declInd + 1);
             }
         }
 
@@ -78,7 +93,7 @@ namespace Il2Cpp_Modding_Codegen.Data
         {
             if (qualified)
             {
-                int dotLocation = qualifiedName.IndexOf('.');
+                int dotLocation = qualifiedName.LastIndexOf('.');
                 if (dotLocation == -1)
                 {
                     Set(qualifiedName);
