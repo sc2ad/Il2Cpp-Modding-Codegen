@@ -1,4 +1,5 @@
-﻿using System;
+﻿using Mono.Cecil;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Security.Principal;
@@ -17,6 +18,8 @@ namespace Il2Cpp_Modding_Codegen.Data
         public TypeRef DeclaringType { get; internal set; }
 
         private ITypeData _resolvedType;
+        private TypeReference baseType;
+        private InterfaceImplementation i;
 
         internal TypeRef()
         {
@@ -89,6 +92,11 @@ namespace Il2Cpp_Modding_Codegen.Data
             }
         }
 
+        internal static string From(TypeDefinition def)
+        {
+            throw new NotImplementedException();
+        }
+
         public TypeRef(string qualifiedName, bool qualified = true)
         {
             if (qualified)
@@ -110,6 +118,16 @@ namespace Il2Cpp_Modding_Codegen.Data
                 Set(qualifiedName);
                 Namespace = "";
             }
+        }
+
+        public TypeRef(TypeReference baseType)
+        {
+            this.baseType = baseType;
+        }
+
+        public TypeRef(InterfaceImplementation i)
+        {
+            this.i = i;
         }
 
         /// <summary>

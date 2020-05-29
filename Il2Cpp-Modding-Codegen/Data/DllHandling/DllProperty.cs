@@ -1,4 +1,5 @@
 ﻿using Il2Cpp_Modding_Codegen.Parsers;
+using Mono.Cecil;
 using System;
 using System.Collections.Generic;
 using System.Text;
@@ -7,6 +8,9 @@ namespace Il2Cpp_Modding_Codegen.Data.DllHandling
 {
     internal class DllProperty : IProperty
     {
+        private PropertyDefinition p;
+        private TypeDefinition def;
+
         public List<IAttribute> Attributes { get; } = new List<IAttribute>();
         public List<ISpecifier> Specifiers { get; } = new List<ISpecifier>();
         public TypeRef Type { get; }
@@ -55,6 +59,12 @@ namespace Il2Cpp_Modding_Codegen.Data.DllHandling
             {
                 Specifiers.Add(new DllSpecifier(split[j]));
             }
+        }
+
+        public DllProperty(PropertyDefinition p, TypeDefinition def)
+        {
+            this.p = p;
+            this.def = def;
         }
 
         public override string ToString()

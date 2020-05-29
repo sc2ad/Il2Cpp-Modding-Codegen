@@ -1,4 +1,5 @@
 ﻿using Il2Cpp_Modding_Codegen.Parsers;
+using Mono.Cecil;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -8,6 +9,9 @@ namespace Il2Cpp_Modding_Codegen.Data.DllHandling
 {
     internal class DllMethod : IMethod
     {
+        private MethodDefinition m;
+        private TypeDefinition def;
+
         public List<IAttribute> Attributes { get; } = new List<IAttribute>();
         public List<ISpecifier> Specifiers { get; } = new List<ISpecifier>();
         public int RVA { get; }
@@ -108,6 +112,12 @@ namespace Il2Cpp_Modding_Codegen.Data.DllHandling
             {
                 Specifiers.Add(new DllSpecifier(methodSplit[i]));
             }
+        }
+
+        public DllMethod(MethodDefinition m, TypeDefinition def)
+        {
+            this.m = m;
+            this.def = def;
         }
 
         public override string ToString()

@@ -15,6 +15,8 @@ namespace Il2Cpp_Modding_Codegen.Data.DllHandling
         /// </summary>
         private const int NamespaceStartOffset = 13;
 
+        private TypeDefinition _def;
+
         public TypeEnum Type { get; private set; }
         public TypeInfo Info { get; private set; }
         public TypeRef This { get; }
@@ -36,182 +38,74 @@ namespace Il2Cpp_Modding_Codegen.Data.DllHandling
 
         private void ParseAttributes(TypeDefinition def)
         {
-            string line = fs.PeekLine();
-            while (line.StartsWith("["))
-            {
-                if (_config.ParseTypeAttributes)
-                    Attributes.Add(new DllAttribute(fs));
-                else
-                    fs.ReadLine();
-                line = fs.PeekLine();
-            }
+            Attributes.AddRange(DllAttribute.From(def));
         }
 
+        static TypeEnum ExtractTypeEnum(TypeDefinition def)
+        {
+            if (def.IsEnum) return TypeEnum.Enum;
+            if (def.IsInterface) return TypeEnum.Interface;
+            if (def.IsClass) return TypeEnum.Class;
+            Console.WriteLine($"Warning: assuming {def.FullName} is a struct!");
+            return TypeEnum.Struct;
+        }
+
+        // Sets: TypeRefIndex and above
         private void ParseTypeName(TypeDefinition def)
         {
-            string line = fs.ReadLine();
-            var split = line.Split(' ');
-            TypeRefIndex = int.Parse(split[split.Length - 1]);
-            // : at least 4 from end
-            int start = 4;
-            bool found = false;
-            for (int i = split.Length - 1 - start; i > 1; i--)
+            // TODO: extract TypeDefIndex?
+            foreach (var i in def.Interfaces)
             {
-                // Count down till we hit the :
-                if (split[i] == ":")
-                {
-                    start = i - 1;
-                    found = true;
-                    break;
-                }
+                ImplementingInterfaces.Add(new TypeRef(i));
             }
-            if (found)
-            {
-                // 1 after is Parent
-                // We will assume that if the Parent type starts with an I, it is an interface
-                // TODO: Fix this assumption, perhaps by resolving the types forcibly and ensuring they are interfaces?
-                var parentCandidate = TypeRef.FromMultiple(split, start + 2, out int tmp, 1, " ").TrimEnd(',');
-                if (parentCandidate.StartsWith("I"))
-                    ImplementingInterfaces.Add(new TypeRef(parentCandidate, false));
-                else
-                    Parent = new TypeRef(parentCandidate, false);
-                // Go from 2 after : to length - 3
-                for (int i = tmp + 1; i < split.Length - 3; i++)
-                {
-                    ImplementingInterfaces.Add(new TypeRef(TypeRef.FromMultiple(split, i, out tmp, 1, " ").TrimEnd(','), false));
-                    i = tmp;
-                }
-            }
-            else
-            {
-                start = split.Length - start;
-            }
-            // -4 is name
-            // -5 is type enum
-            // all others are specifiers
-            // This will have DeclaringType set on it
-            This.Set(TypeRef.FromMultiple(split, start, out int adjusted, -1, " "));
-            Type = (TypeEnum)Enum.Parse(typeof(TypeEnum), split[adjusted - 1], true);
-            for (int i = 0; i < adjusted - 1; i++)
-            {
-                if (_config.ParseTypeSpecifiers)
-                    Specifiers.Add(new DllSpecifier(split[i]));
-            }
+            Parent = new TypeRef(def.BaseType);
+
+            This.Set(TypeRef.From(def));
+
+            Type = ExtractTypeEnum(def);
+            Specifiers.AddRange(DllSpecifier.From(def));
             Info = new TypeInfo
             {
                 TypeFlags = Type == TypeEnum.Class || Type == TypeEnum.Interface ? TypeFlags.ReferenceType : TypeFlags.ValueType
             };
-            if (Parent == null)
-            {
-                // If the type is a value type, it has no parent.
-                // If the type is a reference type, it has parent Il2CppObject
-                if (Info.TypeFlags == TypeFlags.ReferenceType)
-                    Parent = TypeRef.ObjectType;
-            }
         }
 
         private void ParseFields(TypeDefinition def)
         {
-            string line = fs.PeekLine().Trim();
-            if (line != "{")
+            foreach (var f in def.Fields)
             {
-                // Nothing in the type
-                return;
-            }
-            fs.ReadLine();
-            line = fs.PeekLine().Trim();
-            // Fields should be second line, if it isn't there are no fields.
-            if (!line.StartsWith("// Fields"))
-            {
-                // No fields, but other things
-                return;
-            }
-            // Read past // Fields
-            fs.ReadLine();
-            while (!string.IsNullOrEmpty(line) && line != "}" && !line.StartsWith("// Properties") && !line.StartsWith("// Methods"))
-            {
-                if (_config.ParseTypeFields)
-                    Fields.Add(new DllField(This, fs));
-                else
-                    fs.ReadLine();
-                line = fs.PeekLine().Trim();
+                Fields.Add(new DllField(f, def));
             }
         }
 
         private void ParseProperties(TypeDefinition def)
         {
-            string line = fs.PeekLine().Trim();
-            if (line == "")
+            foreach (var p in def.Properties)
             {
-                // Spaced after fields
-                fs.ReadLine();
-                line = fs.PeekLine().Trim();
-            }
-            if (!line.StartsWith("// Properties"))
-            {
-                // No properties
-                return;
-            }
-            // Read past // Properties
-            fs.ReadLine();
-            while (line != "" && line != "}" && !line.StartsWith("// Methods"))
-            {
-                if (_config.ParseTypeProperties)
-                    Properties.Add(new DllProperty(This, fs));
-                else
-                    fs.ReadLine();
-                line = fs.PeekLine().Trim();
+                Properties.Add(new DllProperty(p, def));
             }
         }
 
         private void ParseMethods(TypeDefinition def)
         {
-            string line = fs.PeekLine().Trim();
-            if (line == "")
+            foreach (var m in def.Methods)
             {
-                // Spaced after fields or properties
-                fs.ReadLine();
-                line = fs.PeekLine().Trim();
-            }
-            if (!line.StartsWith("// Methods"))
-            {
-                // No methods
-                return;
-            }
-            // Read past // Methods
-            fs.ReadLine();
-            while (line != "" && line != "}")
-            {
-                if (_config.ParseTypeMethods)
-                    Methods.Add(new DllMethod(This, fs));
-                else
-                    fs.ReadLine();
-                line = fs.PeekLine().Trim();
+                Methods.Add(new DllMethod(m, def));
             }
         }
 
         public DllTypeData(TypeDefinition def, DllConfig config)
         {
             _config = config;
-            // Extract namespace from line
+            _def = def;
+
             This = new TypeRef();
-            This.Namespace = fs.ReadLine().Substring(NamespaceStartOffset).Trim();
-            ParseAttributes(fs);
-            ParseTypeName(fs);
-            // Empty type
-            if (fs.PeekLine() == "{}")
-            {
-                fs.ReadLine();
-                return;
-            }
-            ParseFields(fs);
-            ParseProperties(fs);
-            ParseMethods(fs);
-            // Read closing brace, if it needs to be read
-            if (fs.PeekLine() == "}")
-            {
-                fs.ReadLine();
-            }
+            This.Namespace = def.Namespace;
+            ParseAttributes(def);
+            ParseTypeName(def);
+            ParseFields(def);
+            ParseProperties(def);
+            ParseMethods(def);
         }
 
         public override string ToString()

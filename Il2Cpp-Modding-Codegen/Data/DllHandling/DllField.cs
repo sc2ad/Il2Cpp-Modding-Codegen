@@ -1,4 +1,5 @@
 ﻿using Il2Cpp_Modding_Codegen.Parsers;
+using Mono.Cecil;
 using System;
 using System.Collections.Generic;
 using System.Text;
@@ -7,6 +8,9 @@ namespace Il2Cpp_Modding_Codegen.Data.DllHandling
 {
     internal class DllField : IField
     {
+        private FieldDefinition f;
+        private TypeDefinition def;
+
         public List<IAttribute> Attributes { get; } = new List<IAttribute>();
         public List<ISpecifier> Specifiers { get; } = new List<ISpecifier>();
         public TypeRef Type { get; }
@@ -46,6 +50,12 @@ namespace Il2Cpp_Modding_Codegen.Data.DllHandling
             {
                 Specifiers.Add(new DllSpecifier(split[i]));
             }
+        }
+
+        public DllField(FieldDefinition f, TypeDefinition def)
+        {
+            this.f = f;
+            this.def = def;
         }
 
         public override string ToString()
