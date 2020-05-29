@@ -9,13 +9,13 @@ namespace Il2Cpp_Modding_Codegen.Data.DllHandling
     {
         public List<IAttribute> Attributes { get; } = new List<IAttribute>();
         public List<ISpecifier> Specifiers { get; } = new List<ISpecifier>();
-        public TypeDefinition Type { get; }
-        public TypeDefinition DeclaringType { get; }
+        public TypeRef Type { get; }
+        public TypeRef DeclaringType { get; }
         public string Name { get; }
         public bool GetMethod { get; }
         public bool SetMethod { get; }
 
-        public DllProperty(TypeDefinition declaring, PeekableStreamReader fs)
+        public DllProperty(TypeRef declaring, PeekableStreamReader fs)
         {
             DeclaringType = declaring;
             string line = fs.PeekLine().Trim();
@@ -50,7 +50,7 @@ namespace Il2Cpp_Modding_Codegen.Data.DllHandling
                 }
             }
             Name = split[split.Length - 3 - i];
-            Type = new TypeDefinition(TypeDefinition.FromMultiple(split, split.Length - 4 - i, out int adjust, -1, " "), false);
+            Type = new TypeRef(TypeRef.FromMultiple(split, split.Length - 4 - i, out int adjust, -1, " "), false);
             for (int j = 0; j < adjust; j++)
             {
                 Specifiers.Add(new DllSpecifier(split[j]));

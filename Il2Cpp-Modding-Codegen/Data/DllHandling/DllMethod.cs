@@ -14,13 +14,13 @@ namespace Il2Cpp_Modding_Codegen.Data.DllHandling
         public int Offset { get; }
         public int VA { get; }
         public int Slot { get; }
-        public TypeDefinition ReturnType { get; }
-        public TypeDefinition DeclaringType { get; }
-        public TypeDefinition ImplementedFrom { get; }
+        public TypeRef ReturnType { get; }
+        public TypeRef DeclaringType { get; }
+        public TypeRef ImplementedFrom { get; }
         public string Name { get; }
         public List<Parameter> Parameters { get; } = new List<Parameter>();
 
-        public DllMethod(TypeDefinition declaring, PeekableStreamReader fs)
+        public DllMethod(TypeRef declaring, PeekableStreamReader fs)
         {
             DeclaringType = declaring;
             // Read Attributes
@@ -76,7 +76,7 @@ namespace Il2Cpp_Modding_Codegen.Data.DllHandling
                 var spl = paramLine.Split(new string[] { ", " }, StringSplitOptions.None);
                 for (int i = 0; i < spl.Length; i++)
                 {
-                    var fullParamString = TypeDefinition.FromMultiple(spl, i, out int adjust, 1, ", ");
+                    var fullParamString = TypeRef.FromMultiple(spl, i, out int adjust, 1, ", ");
                     Parameters.Add(new Parameter(fullParamString));
                     i = adjust;
                 }
@@ -91,9 +91,9 @@ namespace Il2Cpp_Modding_Codegen.Data.DllHandling
                 startIndex = methodSplit[methodSplit.Length - 1].LastIndexOf(".");
                 if (startIndex != -1)
                 {
-                    var typeStr = TypeDefinition.FromMultiple(methodSplit, methodSplit.Length - 1, out nameIdx, -1, " ");
+                    var typeStr = TypeRef.FromMultiple(methodSplit, methodSplit.Length - 1, out nameIdx, -1, " ");
                     var finalDot = typeStr.LastIndexOf('.');
-                    ImplementedFrom = new TypeDefinition(typeStr.Substring(0, finalDot));
+                    ImplementedFrom = new TypeRef(typeStr.Substring(0, finalDot));
                     Name = typeStr.Substring(finalDot + 1);
                 } else
                 {
@@ -103,7 +103,7 @@ namespace Il2Cpp_Modding_Codegen.Data.DllHandling
             {
                 Name = methodSplit[methodSplit.Length - 1].Substring(startIndex + 1);
             }
-            ReturnType = new TypeDefinition(TypeDefinition.FromMultiple(methodSplit, nameIdx - 1, out nameIdx, -1, " "), false);
+            ReturnType = new TypeRef(TypeRef.FromMultiple(methodSplit, nameIdx - 1, out nameIdx, -1, " "), false);
             for (int i = 0; i < nameIdx - 1; i++)
             {
                 Specifiers.Add(new DllSpecifier(methodSplit[i]));

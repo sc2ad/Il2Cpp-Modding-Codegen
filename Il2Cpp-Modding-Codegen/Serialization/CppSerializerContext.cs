@@ -10,19 +10,19 @@ namespace Il2Cpp_Modding_Codegen.Serialization
 {
     public class CppSerializerContext : ISerializerContext
     {
-        public HashSet<TypeDefinition> ForwardDeclares { get; } = new HashSet<TypeDefinition>();
-        public HashSet<TypeDefinition> NamespaceForwardDeclares { get; } = new HashSet<TypeDefinition>();
+        public HashSet<TypeRef> ForwardDeclares { get; } = new HashSet<TypeRef>();
+        public HashSet<TypeRef> NamespaceForwardDeclares { get; } = new HashSet<TypeRef>();
         public HashSet<string> Includes { get; } = new HashSet<string>();
         public string FileName { get; private set; }
         public string TypeNamespace { get; }
         public string TypeName { get; }
         public string QualifiedTypeName { get; }
 
-        // Maps TypeDefinitions to resolved names
-        private Dictionary<TypeDefinition, (TypeInfo, string)> _references = new Dictionary<TypeDefinition, (TypeInfo, string)>();
+        // Maps TypeRefs to resolved names
+        private Dictionary<TypeRef, (TypeInfo, string)> _references = new Dictionary<TypeRef, (TypeInfo, string)>();
 
         // Holds generic types (ex: T1, T2, ...) defined by the type
-        private HashSet<TypeDefinition> _genericTypes = new HashSet<TypeDefinition>();
+        private HashSet<TypeRef> _genericTypes = new HashSet<TypeRef>();
 
         private ITypeContext _context;
         private ITypeData _localType;
@@ -33,7 +33,7 @@ namespace Il2Cpp_Modding_Codegen.Serialization
             _context = context;
             _localType = data;
             _cpp = cpp;
-            var resolvedTd = _context.ResolvedTypeDefinition(data.This);
+            var resolvedTd = _context.ResolvedTypeRef(data.This);
             QualifiedTypeName = resolvedTd.ConvertTypeToQualifiedName();
             TypeNamespace = resolvedTd.ConvertTypeToNamespace();
             TypeName = resolvedTd.ConvertTypeToName();
@@ -79,7 +79,7 @@ namespace Il2Cpp_Modding_Codegen.Serialization
         /// <param name="def"></param>
         /// <param name="force"></param>
         /// <returns></returns>
-        public string GetNameFromReference(TypeDefinition def, ForceAsType force, bool qualified, bool genericParams)
+        public string GetNameFromReference(TypeRef def, ForceAsType force, bool qualified, bool genericParams)
         {
             // For resolving generic type paramters
             // ex: TypeName<T1, T2>, GetNameFromReference(T1)
@@ -125,8 +125,8 @@ namespace Il2Cpp_Modding_Codegen.Serialization
                 // We have no way of resolving this type definition
                 return null;
 
-            // If we have not, map the type definition to a safe, unique name (TypeDefinition)
-            var resolvedTd = _context.ResolvedTypeDefinition(type.This);
+            // If we have not, map the type definition to a safe, unique name (TypeRef)
+            var resolvedTd = _context.ResolvedTypeRef(type.This);
 
             // If this is a generic type, we need to ensure we are providing correct type parameters
             var types = "";
@@ -175,7 +175,7 @@ namespace Il2Cpp_Modding_Codegen.Serialization
             return ForceName(type.Info, (qualified ? resolvedTd.ConvertTypeToQualifiedName() : resolvedTd.ConvertTypeToName()) + types, force);
         }
 
-        private string ResolvePrimitive(TypeDefinition def, ForceAsType force)
+        private string ResolvePrimitive(TypeRef def, ForceAsType force)
         {
             if (def.Name == "void")
                 return "void";
@@ -237,7 +237,7 @@ namespace Il2Cpp_Modding_Codegen.Serialization
                     // Pointer type for Il2Cpp types on default
                     if (s != null && s.StartsWith("Il2Cpp"))
                     {
-                        ForwardDeclares.Add(new TypeDefinition()
+                        ForwardDeclares.Add(new TypeRef()
                         {
                             Name = s,
                             Namespace = "",

@@ -9,12 +9,12 @@ namespace Il2Cpp_Modding_Codegen.Data.DumpHandling
     {
         public List<IAttribute> Attributes { get; } = new List<IAttribute>();
         public List<ISpecifier> Specifiers { get; } = new List<ISpecifier>();
-        public TypeDefinition Type { get; }
-        public TypeDefinition DeclaringType { get; }
+        public TypeRef Type { get; }
+        public TypeRef DeclaringType { get; }
         public string Name { get; }
         public int Offset { get; }
 
-        public DumpField(TypeDefinition declaring, PeekableStreamReader fs)
+        public DumpField(TypeRef declaring, PeekableStreamReader fs)
         {
             DeclaringType = declaring;
             string line = fs.PeekLine().Trim();
@@ -41,7 +41,7 @@ namespace Il2Cpp_Modding_Codegen.Data.DumpHandling
                 }
             }
             Name = split[start].TrimEnd(';');
-            Type = new TypeDefinition(TypeDefinition.FromMultiple(split, start - 1, out int res, -1, " "), false);
+            Type = new TypeRef(TypeRef.FromMultiple(split, start - 1, out int res, -1, " "), false);
             for (int i = 0; i < res; i++)
             {
                 Specifiers.Add(new DumpSpecifier(split[i]));

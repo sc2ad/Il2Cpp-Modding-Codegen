@@ -6,8 +6,8 @@ namespace Il2Cpp_Modding_Codegen.Data
     {
         List<IAttribute> Attributes { get; }
         List<ISpecifier> Specifiers { get; }
-        TypeDefinition Type { get; }
-        TypeDefinition DeclaringType { get; }
+        TypeRef Type { get; }
+        TypeRef DeclaringType { get; }
         string Name { get; }
         bool GetMethod { get; }
         bool SetMethod { get; }

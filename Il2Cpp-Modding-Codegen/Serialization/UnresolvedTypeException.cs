@@ -7,7 +7,7 @@ namespace Il2Cpp_Modding_Codegen.Serialization
 {
     public class UnresolvedTypeException : Exception
     {
-        public UnresolvedTypeException(TypeDefinition declaringType, TypeDefinition typeFailed) : base($"{declaringType} could not find reference to type: {typeFailed}")
+        public UnresolvedTypeException(TypeRef declaringType, TypeRef typeFailed) : base($"{declaringType} could not find reference to type: {typeFailed}")
         {
         }
     }

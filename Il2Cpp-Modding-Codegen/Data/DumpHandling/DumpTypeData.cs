@@ -16,10 +16,10 @@ namespace Il2Cpp_Modding_Codegen.Data.DumpHandling
 
         public TypeEnum Type { get; private set; }
         public TypeInfo Info { get; private set; }
-        public TypeDefinition This { get; }
-        public TypeDefinition Parent { get; private set; }
-        public List<TypeDefinition> ImplementingInterfaces { get; } = new List<TypeDefinition>();
-        public int TypeDefIndex { get; private set; }
+        public TypeRef This { get; }
+        public TypeRef Parent { get; private set; }
+        public List<TypeRef> ImplementingInterfaces { get; } = new List<TypeRef>();
+        public int TypeRefIndex { get; private set; }
         public List<IAttribute> Attributes { get; } = new List<IAttribute>();
         public List<ISpecifier> Specifiers { get; } = new List<ISpecifier>();
         public List<IField> Fields { get; } = new List<IField>();
@@ -27,9 +27,9 @@ namespace Il2Cpp_Modding_Codegen.Data.DumpHandling
         public List<IMethod> Methods { get; } = new List<IMethod>();
 
         /// <summary>
-        /// List of dependency TypeDefinitions to resolve in the type
+        /// List of dependency TypeRefs to resolve in the type
         /// </summary>
-        internal HashSet<TypeDefinition> References { get; } = new HashSet<TypeDefinition>();
+        internal HashSet<TypeRef> References { get; } = new HashSet<TypeRef>();
 
         private DumpConfig _config;
 
@@ -50,7 +50,7 @@ namespace Il2Cpp_Modding_Codegen.Data.DumpHandling
         {
             string line = fs.ReadLine();
             var split = line.Split(' ');
-            TypeDefIndex = int.Parse(split[split.Length - 1]);
+            TypeRefIndex = int.Parse(split[split.Length - 1]);
             // : at least 4 from end
             int start = 4;
             bool found = false;
@@ -69,15 +69,15 @@ namespace Il2Cpp_Modding_Codegen.Data.DumpHandling
                 // 1 after is Parent
                 // We will assume that if the Parent type starts with an I, it is an interface
                 // TODO: Fix this assumption, perhaps by resolving the types forcibly and ensuring they are interfaces?
-                var parentCandidate = TypeDefinition.FromMultiple(split, start + 2, out int tmp, 1, " ").TrimEnd(',');
+                var parentCandidate = TypeRef.FromMultiple(split, start + 2, out int tmp, 1, " ").TrimEnd(',');
                 if (parentCandidate.StartsWith("I"))
-                    ImplementingInterfaces.Add(new TypeDefinition(parentCandidate, false));
+                    ImplementingInterfaces.Add(new TypeRef(parentCandidate, false));
                 else
-                    Parent = new TypeDefinition(parentCandidate, false);
+                    Parent = new TypeRef(parentCandidate, false);
                 // Go from 2 after : to length - 3
                 for (int i = tmp + 1; i < split.Length - 3; i++)
                 {
-                    ImplementingInterfaces.Add(new TypeDefinition(TypeDefinition.FromMultiple(split, i, out tmp, 1, " ").TrimEnd(','), false));
+                    ImplementingInterfaces.Add(new TypeRef(TypeRef.FromMultiple(split, i, out tmp, 1, " ").TrimEnd(','), false));
                     i = tmp;
                 }
             }
@@ -89,7 +89,7 @@ namespace Il2Cpp_Modding_Codegen.Data.DumpHandling
             // -5 is type enum
             // all others are specifiers
             // This will have DeclaringType set on it
-            This.Set(TypeDefinition.FromMultiple(split, start, out int adjusted, -1, " "));
+            This.Set(TypeRef.FromMultiple(split, start, out int adjusted, -1, " "));
             Type = (TypeEnum)Enum.Parse(typeof(TypeEnum), split[adjusted - 1], true);
             for (int i = 0; i < adjusted - 1; i++)
             {
@@ -105,7 +105,7 @@ namespace Il2Cpp_Modding_Codegen.Data.DumpHandling
                 // If the type is a value type, it has no parent.
                 // If the type is a reference type, it has parent Il2CppObject
                 if (Info.TypeFlags == TypeFlags.ReferenceType)
-                    Parent = TypeDefinition.ObjectType;
+                    Parent = TypeRef.ObjectType;
             }
         }
 
@@ -193,7 +193,7 @@ namespace Il2Cpp_Modding_Codegen.Data.DumpHandling
         {
             _config = config;
             // Extract namespace from line
-            This = new TypeDefinition();
+            This = new TypeRef();
             This.Namespace = fs.ReadLine().Substring(NamespaceStartOffset).Trim();
             ParseAttributes(fs);
             ParseTypeName(fs);

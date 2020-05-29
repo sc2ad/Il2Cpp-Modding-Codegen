@@ -13,7 +13,7 @@ namespace Il2Cpp_Modding_Codegen.Data.DumpHandling
         public string Name => "Dump Data";
         public List<IImage> Images { get; } = new List<IImage>();
         public List<ITypeData> Types { get; } = new List<ITypeData>();
-        private Dictionary<TypeDefinition, TypeDefinition> _resolvedTypeNames { get; } = new Dictionary<TypeDefinition, TypeDefinition>();
+        private Dictionary<TypeRef, TypeRef> _resolvedTypeNames { get; } = new Dictionary<TypeRef, TypeRef>();
         private DumpConfig _config;
 
         private void ParseImages(PeekableStreamReader fs)
@@ -87,19 +87,19 @@ namespace Il2Cpp_Modding_Codegen.Data.DumpHandling
             return s;
         }
 
-        public ITypeData Resolve(TypeDefinition typeDefinition)
+        public ITypeData Resolve(TypeRef TypeRef)
         {
             // TODO: Resolve only among our types that we actually plan on serializing
             // Basically, check it against our whitelist/blacklist
-            var te = Types.FirstOrDefault(t => t.This.Equals(typeDefinition) || t.This.Name == typeDefinition.Name);
+            var te = Types.FirstOrDefault(t => t.This.Equals(TypeRef) || t.This.Name == TypeRef.Name);
             return te;
         }
 
-        // Resolves the TypeDefinition def in the current context and returns a TypeDefinition that is guaranteed unique
-        public TypeDefinition ResolvedTypeDefinition(TypeDefinition def)
+        // Resolves the TypeRef def in the current context and returns a TypeRef that is guaranteed unique
+        public TypeRef ResolvedTypeRef(TypeRef def)
         {
             // If the type we are looking for exactly matches a type we have resolved
-            if (_resolvedTypeNames.TryGetValue(def, out TypeDefinition v))
+            if (_resolvedTypeNames.TryGetValue(def, out TypeRef v))
             {
                 return v;
             }
@@ -109,7 +109,7 @@ namespace Il2Cpp_Modding_Codegen.Data.DumpHandling
             var safeName = def.SafeName();
             int i = 1;
 
-            TypeDefinition td = new TypeDefinition { Name = safeName, Namespace = safeNamespace };
+            TypeRef td = new TypeRef { Name = safeName, Namespace = safeNamespace };
             while (_resolvedTypeNames.ContainsValue(td))
             {
                 // The type we are trying to add a reference to is already resolved, but is not referenced.

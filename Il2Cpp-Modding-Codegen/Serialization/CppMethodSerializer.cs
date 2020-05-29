@@ -62,7 +62,7 @@ namespace Il2Cpp_Modding_Codegen.Serialization
             // Returns an optional
             // TODO: Should be configurable
             var retStr = _resolvedTypeNames[method];
-            if (!method.ReturnType.Equals(TypeDefinition.VoidType))
+            if (!method.ReturnType.Equals(TypeRef.VoidType))
             {
                 if (_config.OutputStyle == OutputStyle.Normal)
                     retStr = "std::optional<" + retStr + ">";
@@ -129,7 +129,7 @@ namespace Il2Cpp_Modding_Codegen.Serialization
                 var macro = "RET_V_UNLESS(";
                 if (_config.OutputStyle == OutputStyle.CrashUnless)
                     macro = "CRASH_UNLESS(";
-                if (!method.ReturnType.Equals(TypeDefinition.VoidType))
+                if (!method.ReturnType.Equals(TypeRef.VoidType))
                 {
                     s = "return ";
                     innard = $"<{_resolvedTypeNames[method]}>";

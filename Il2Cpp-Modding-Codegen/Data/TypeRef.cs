@@ -5,20 +5,20 @@ using System.Security.Principal;
 
 namespace Il2Cpp_Modding_Codegen.Data
 {
-    public class TypeDefinition
+    public class TypeRef
     {
-        public static readonly TypeDefinition VoidType = new TypeDefinition("void");
-        public static readonly TypeDefinition ObjectType = new TypeDefinition("object");
+        public static readonly TypeRef VoidType = new TypeRef("void");
+        public static readonly TypeRef ObjectType = new TypeRef("object");
         public string Namespace { get; internal set; } = "";
         public string Name { get; internal set; }
 
         public bool Generic { get; private set; }
-        public List<TypeDefinition> GenericParameters { get; } = new List<TypeDefinition>();
-        public TypeDefinition DeclaringType { get; internal set; }
+        public List<TypeRef> GenericParameters { get; } = new List<TypeRef>();
+        public TypeRef DeclaringType { get; internal set; }
 
         private ITypeData _resolvedType;
 
-        internal TypeDefinition()
+        internal TypeRef()
         {
         }
 
@@ -65,13 +65,13 @@ namespace Il2Cpp_Modding_Codegen.Data
                         s += ", " + spl[i];
                         i++;
                     }
-                    GenericParameters.Add(new TypeDefinition(s, false));
+                    GenericParameters.Add(new TypeRef(s, false));
                 }
                 var declInd = typeName.LastIndexOf('.');
                 if (declInd != -1)
                 {
-                    // Create a new TypeDefinition for the declaring type, it should recursively create more declaring types
-                    DeclaringType = new TypeDefinition();
+                    // Create a new TypeRef for the declaring type, it should recursively create more declaring types
+                    DeclaringType = new TypeRef();
                     DeclaringType.Set(typeName.Substring(0, declInd));
                 }
                 Name = typeName.Substring(declInd + 1, ind);
@@ -81,15 +81,15 @@ namespace Il2Cpp_Modding_Codegen.Data
                 var declInd = typeName.LastIndexOf('.');
                 if (declInd != -1)
                 {
-                    // Create a new TypeDefinition for the declaring type, it should recursively create more declaring types
-                    DeclaringType = new TypeDefinition();
+                    // Create a new TypeRef for the declaring type, it should recursively create more declaring types
+                    DeclaringType = new TypeRef();
                     DeclaringType.Set(typeName.Substring(0, declInd));
                 }
                 Name = typeName.Substring(declInd + 1);
             }
         }
 
-        public TypeDefinition(string qualifiedName, bool qualified = true)
+        public TypeRef(string qualifiedName, bool qualified = true)
         {
             if (qualified)
             {
@@ -176,7 +176,7 @@ namespace Il2Cpp_Modding_Codegen.Data
         // Namespace is actually NOT useful for comparisons!
         public override bool Equals(object obj)
         {
-            var o = obj as TypeDefinition;
+            var o = obj as TypeRef;
             return o?.Namespace + o?.Name == Namespace + Name
                 && o?.Generic == Generic
                 && GenericParameters.SequenceEqual(o?.GenericParameters);

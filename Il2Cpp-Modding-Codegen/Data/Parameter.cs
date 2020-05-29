@@ -6,7 +6,7 @@ namespace Il2Cpp_Modding_Codegen.Data
 {
     public class Parameter
     {
-        public TypeDefinition Type { get; }
+        public TypeRef Type { get; }
 
         public string Name { get; } = null;
         public ParameterFlags Flags { get; } = ParameterFlags.None;
@@ -33,7 +33,7 @@ namespace Il2Cpp_Modding_Codegen.Data
                 typeIndex = 0;
             }
 
-            Type = new TypeDefinition(TypeDefinition.FromMultiple(spl, typeIndex, out int res, 1, " "), false);
+            Type = new TypeRef(TypeRef.FromMultiple(spl, typeIndex, out int res, 1, " "), false);
             if (res + 1 < spl.Length)
             {
                 Name = spl[res + 1];

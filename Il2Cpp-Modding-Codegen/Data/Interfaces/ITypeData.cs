@@ -6,12 +6,12 @@ namespace Il2Cpp_Modding_Codegen.Data
 {
     public interface ITypeData
     {
-        TypeDefinition This { get; }
+        TypeRef This { get; }
         TypeEnum Type { get; }
         TypeInfo Info { get; }
-        TypeDefinition Parent { get; }
-        List<TypeDefinition> ImplementingInterfaces { get; }
-        int TypeDefIndex { get; }
+        TypeRef Parent { get; }
+        List<TypeRef> ImplementingInterfaces { get; }
+        int TypeRefIndex { get; }
         List<IAttribute> Attributes { get; }
         List<ISpecifier> Specifiers { get; }
         List<IField> Fields { get; }
