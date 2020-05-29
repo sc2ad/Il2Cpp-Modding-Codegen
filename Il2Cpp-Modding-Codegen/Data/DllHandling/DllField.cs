@@ -8,9 +8,6 @@ namespace Il2Cpp_Modding_Codegen.Data.DllHandling
 {
     internal class DllField : IField
     {
-        private FieldDefinition f;
-        private TypeDefinition def;
-
         public List<IAttribute> Attributes { get; } = new List<IAttribute>();
         public List<ISpecifier> Specifiers { get; } = new List<ISpecifier>();
         public TypeRef Type { get; }
@@ -18,44 +15,15 @@ namespace Il2Cpp_Modding_Codegen.Data.DllHandling
         public string Name { get; }
         public int Offset { get; }
 
-        public DllField(TypeRef declaring, PeekableStreamReader fs)
-        {
-            DeclaringType = declaring;
-            string line = fs.PeekLine().Trim();
-            while (line.StartsWith("["))
-            {
-                Attributes.Add(new DllAttribute(fs));
-                line = fs.PeekLine().Trim();
-            }
-            line = fs.ReadLine().Trim();
-            var split = line.Split(' ');
-            // Offset is at the end
-            if (split.Length < 4)
-            {
-                throw new InvalidOperationException($"Line {fs.CurrentLineIndex}: Field cannot be created from: \"{line.Trim()}\"");
-            }
-            Offset = Convert.ToInt32(split[split.Length - 1], 16);
-            int start = split.Length - 3;
-            for (int i = start; i > 1; i--)
-            {
-                if (split[i] == "=")
-                {
-                    start = i - 1;
-                    break;
-                }
-            }
-            Name = split[start].TrimEnd(';');
-            Type = new TypeRef(TypeRef.FromMultiple(split, start - 1, out int res, -1, " "), false);
-            for (int i = 0; i < res; i++)
-            {
-                Specifiers.Add(new DllSpecifier(split[i]));
-            }
-        }
-
         public DllField(FieldDefinition f, TypeDefinition def)
         {
-            this.f = f;
-            this.def = def;
+            DeclaringType = new TypeRef(def);
+            Attributes.AddRange(DllAttribute.From(f));
+
+            Offset = f.Offset;
+            Name = f.Name;
+            Type = new TypeRef(f.FieldType);
+            Specifiers.AddRange(DllSpecifier.From(f));
         }
 
         public override string ToString()

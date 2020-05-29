@@ -47,6 +47,7 @@ namespace Il2Cpp_Modding_Codegen.Data.DllHandling
             if (def.IsInterface) return TypeEnum.Interface;
             if (def.IsClass) return TypeEnum.Class;
             Console.WriteLine($"Warning: assuming {def.FullName} is a struct!");
+            // TODO: use def.IsPrimitive?
             return TypeEnum.Struct;
         }
 

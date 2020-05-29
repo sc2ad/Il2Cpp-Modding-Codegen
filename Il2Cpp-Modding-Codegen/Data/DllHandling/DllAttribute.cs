@@ -27,6 +27,11 @@ namespace Il2Cpp_Modding_Codegen.Data.DllHandling
         internal static IEnumerable<IAttribute> From(TypeDefinition def)
         {
             List<DllAttribute> list = new List<DllAttribute>();
+            foreach (var attr in def.CustomAttributes)
+            {
+                list.Add(new DllAttribute(attr.AttributeType.FullName));
+            }
+            // TODO: how many of these are actual attributes?
             foreach (TypeAttributes flag in Enum.GetValues(typeof(TypeAttributes)))
             {
                 if (def.Attributes.HasFlag(flag))
@@ -34,11 +39,12 @@ namespace Il2Cpp_Modding_Codegen.Data.DllHandling
                     list.Add(new DllAttribute(flag.ToString()));
                 }
             }
-            foreach (var attr in def.CustomAttributes)
-            {
-                list.Add(new DllAttribute(attr.AttributeType.FullName));
-            }
             return list;
+        }
+
+        internal static IEnumerable<IAttribute> From(FieldDefinition f)
+        {
+            throw new NotImplementedException();
         }
     }
 }
