@@ -24,13 +24,19 @@ namespace Il2Cpp_Modding_Codegen.Data.DllHandling
             return $"[{Name}] // Offset: 0x{Offset:X}";
         }
 
-        internal static IEnumerable<IAttribute> From(TypeDefinition def)
+        internal static List<DllAttribute> From(IEnumerable<CustomAttribute> attrs)
         {
             List<DllAttribute> list = new List<DllAttribute>();
-            foreach (var attr in def.CustomAttributes)
+            foreach (var attr in attrs)
             {
                 list.Add(new DllAttribute(attr.AttributeType.FullName));
             }
+            return list;
+        }
+
+        internal static IEnumerable<IAttribute> From(TypeDefinition def)
+        {
+            List<DllAttribute> list = From(def.CustomAttributes);
             // TODO: how many of these are actual attributes?
             foreach (TypeAttributes flag in Enum.GetValues(typeof(TypeAttributes)))
             {
@@ -44,7 +50,7 @@ namespace Il2Cpp_Modding_Codegen.Data.DllHandling
 
         internal static IEnumerable<IAttribute> From(FieldDefinition f)
         {
-            throw new NotImplementedException();
+            return From(f.CustomAttributes);
         }
     }
 }

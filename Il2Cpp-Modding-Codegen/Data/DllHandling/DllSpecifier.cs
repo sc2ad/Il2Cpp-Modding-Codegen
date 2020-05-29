@@ -13,14 +13,15 @@ namespace Il2Cpp_Modding_Codegen.Data.DllHandling
         public bool Internal => Value == "internal";
         public bool Public => Value == "public";
         public bool Sealed => Value == "sealed";
-        // TODO: should be a property of methods, properties, indexers and events instead
+        // TODO: should apply to methods, properties, indexers and events
         // https://docs.microsoft.com/en-us/dotnet/csharp/language-reference/keywords/override
         public bool Override => Value == "override";
-        // TODO: should be a property of field/property? "IsInitOnly"?
+
+        // TODO: should apply to field/properties "IsInitOnly"?
         // https://docs.microsoft.com/en-us/dotnet/csharp/language-reference/keywords/readonly
         // How to determine readonly struct?
         public bool Readonly => Value == "readonly";
-        // TODO: should be a property of only fields or variables
+        // TODO: should apply to only fields or variables
         // https://docs.microsoft.com/en-us/dotnet/csharp/language-reference/keywords/const
         public bool Const => Value == "const";
 
@@ -53,6 +54,25 @@ namespace Il2Cpp_Modding_Codegen.Data.DllHandling
             else if (def.IsNestedPrivate) list.Add(new DllSpecifier("private"));
 
             // TODO: readonly struct?
+            return list;
+        }
+
+        internal static IEnumerable<ISpecifier> From(FieldDefinition def)
+        {
+            List<DllSpecifier> list = new List<DllSpecifier>();
+            if (def.IsStatic) list.Add(new DllSpecifier("static"));
+            if (def.IsPublic) list.Add(new DllSpecifier("public"));
+            else if (def.IsFamily || def.IsFamilyOrAssembly)
+            {
+                list.Add(new DllSpecifier("protected"));
+                if (def.IsFamilyOrAssembly) list.Add(new DllSpecifier("internal"));
+            }
+            else if (def.IsPrivate) list.Add(new DllSpecifier("private"));
+
+            if (def.IsInitOnly)
+                // https://stackoverflow.com/questions/56179043/how-to-get-initial-value-of-field-by-mono-cecil ?
+                if (def.HasConstant) list.Add(new DllSpecifier("const"));
+                else list.Add(new DllSpecifier("readonly"));
             return list;
         }
     }
