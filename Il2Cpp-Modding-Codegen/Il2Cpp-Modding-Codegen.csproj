@@ -4,4 +4,8 @@
     <TargetFramework>netstandard2.0</TargetFramework>
     <RootNamespace>Il2Cpp_Modding_Codegen</RootNamespace>
   </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Mono.Cecil" Version="0.11.2" />
+  </ItemGroup>
 </Project>
