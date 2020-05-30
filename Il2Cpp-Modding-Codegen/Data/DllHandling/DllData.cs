@@ -5,6 +5,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Reflection;
 using System.Text;
 
 namespace Il2Cpp_Modding_Codegen.Data.DllHandling
@@ -17,71 +18,31 @@ namespace Il2Cpp_Modding_Codegen.Data.DllHandling
         private Dictionary<TypeRef, TypeRef> _resolvedTypeNames { get; } = new Dictionary<TypeRef, TypeRef>();
         private DllConfig _config;
 
-        private void ParseImages(PeekableStreamReader fs)
+        public DllData(string dirname, DllConfig config)
         {
-            var line = fs.PeekLine();
-            while (line.StartsWith("// Image"))
+            _config = config;
+            var root = Path.GetDirectoryName(dirname);
+            root = Path.Combine(root, "DummyDll");
+            foreach (var d in Directory.GetFiles(root))
             {
-                if (_config.ParseImages)
-                    Images.Add(new DllImage(fs));
-                line = fs.PeekLine();
-            }
-        }
-
-        public void Parse(PeekableStreamReader fs, string dllDir)
-        {
-            ParseImages(fs);
-            foreach (var image in Images)
-            {
-                var dll = Path.Combine(dllDir, image.Name);
-                var assemb = AssemblyDefinition.ReadAssembly(dll);
-                RegisterAssembly(assemb);
-                foreach (var module in assemb.Modules)
+                if (!d.EndsWith(".dll"))
+                    continue;
+                if (!_config.BlacklistDlls.Contains(d))
                 {
-                    foreach (var t in module.Types)
+                    var asm = AssemblyDefinition.ReadAssembly(Path.Combine(root, d));
+                    asm.Modules.ToList().ForEach(m => m.Types.ToList().ForEach(t =>
                     {
-                        Types.Add(new DllTypeData(t, _config));
-                    }
+                        if (_config.ParseTypes && !_config.BlacklistTypes.Contains(t.Name))
+                            Types.Add(new DllTypeData(t, _config));
+                    }));
                 }
             }
-        }
-
-        public DllData(string fileName, DllConfig config)
-        {
-            _config = config;
-            var root = Path.GetDirectoryName(fileName);
-            root = Path.Combine(root, "DummyDll");
-            using (var fs = new PeekableStreamReader(fileName))
-            {
-                Parse(fs, root);
-            }
-        }
-
-        public DllData(Stream stream, DllConfig config)
-        {
-            throw new NotImplementedException();
-            /*
-            _config = config;
-            using (var fs = new PeekableStreamReader(stream))
-            {
-                Parse(fs);
-            }
-            */
+            // Ignore images for now.
         }
 
         public override string ToString()
         {
-            var s = "";
-            for (int i = 0; i < Images.Count; i++)
-            {
-                s += $"// Image {i}: {Images[i]}\n";
-            }
-            s += "\n";
-            foreach (var t in Types)
-            {
-                s += $"{t}\n";
-            }
-            return s;
+            return $"Types: {Types.Count}";
         }
 
         public ITypeData Resolve(TypeRef TypeRef)

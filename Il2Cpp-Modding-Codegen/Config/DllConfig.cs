@@ -13,5 +13,7 @@ namespace Il2Cpp_Modding_Codegen.Config
         public bool ParseTypeFields { get; set; } = true;
         public bool ParseTypeProperties { get; set; } = true;
         public bool ParseTypeMethods { get; set; } = true;
+        public HashSet<string> BlacklistDlls { get; set; } = new HashSet<string>();
+        public HashSet<string> BlacklistTypes { get; set; } = new HashSet<string>();
     }
 }

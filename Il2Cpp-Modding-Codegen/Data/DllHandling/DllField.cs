@@ -2,15 +2,13 @@
 using Mono.Cecil;
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Text;
 
 namespace Il2Cpp_Modding_Codegen.Data.DllHandling
 {
     internal class DllField : IField
     {
-        private FieldDefinition f;
-        private TypeDefinition def;
-
         public List<IAttribute> Attributes { get; } = new List<IAttribute>();
         public List<ISpecifier> Specifiers { get; } = new List<ISpecifier>();
         public TypeRef Type { get; }
@@ -18,59 +16,34 @@ namespace Il2Cpp_Modding_Codegen.Data.DllHandling
         public string Name { get; }
         public int Offset { get; }
 
-        public DllField(TypeRef declaring, PeekableStreamReader fs)
+        public DllField(FieldDefinition f)
         {
-            DeclaringType = declaring;
-            string line = fs.PeekLine().Trim();
-            while (line.StartsWith("["))
+            DeclaringType = new TypeRef(f.DeclaringType);
+            Type = new TypeRef(f.FieldType);
+            Name = f.Name;
+            Offset = -1;
+            if (f.HasCustomAttributes)
             {
-                Attributes.Add(new DllAttribute(fs));
-                line = fs.PeekLine().Trim();
-            }
-            line = fs.ReadLine().Trim();
-            var split = line.Split(' ');
-            // Offset is at the end
-            if (split.Length < 4)
-            {
-                throw new InvalidOperationException($"Line {fs.CurrentLineIndex}: Field cannot be created from: \"{line.Trim()}\"");
-            }
-            Offset = Convert.ToInt32(split[split.Length - 1], 16);
-            int start = split.Length - 3;
-            for (int i = start; i > 1; i--)
-            {
-                if (split[i] == "=")
+                foreach (var ca in f.CustomAttributes)
                 {
-                    start = i - 1;
-                    break;
+                    if (ca.AttributeType.Name == "FieldOffsetAttribute")
+                    {
+                        if (ca.Fields.Count > 0)
+                            Offset = Convert.ToInt32(ca.Fields.FirstOrDefault().Argument.Value as string, 16);
+                    }
+                    else
+                    {
+                        // Ignore the DummyDll attributes
+                        Attributes.Add(new DllAttribute(ca));
+                    }
                 }
             }
-            Name = split[start].TrimEnd(';');
-            Type = new TypeRef(TypeRef.FromMultiple(split, start - 1, out int res, -1, " "), false);
-            for (int i = 0; i < res; i++)
-            {
-                Specifiers.Add(new DllSpecifier(split[i]));
-            }
-        }
-
-        public DllField(FieldDefinition f, TypeDefinition def)
-        {
-            this.f = f;
-            this.def = def;
+            // We can safely ignore Specifiers... They shouldn't exist for DLL data at all.
         }
 
         public override string ToString()
         {
-            var s = "";
-            foreach (var atr in Attributes)
-            {
-                s += $"{atr}\n\t";
-            }
-            foreach (var spec in Specifiers)
-            {
-                s += $"{spec} ";
-            }
-            s += $"{Type} {Name}; // 0x{Offset:X}";
-            return s;
+            return $"{Type} {DeclaringType}.{Name}; // Offset: 0x{Offset:X}";
         }
     }
 }

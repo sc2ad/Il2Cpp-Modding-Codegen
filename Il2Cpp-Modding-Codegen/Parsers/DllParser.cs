@@ -18,19 +18,19 @@ namespace Il2Cpp_Modding_Codegen
             _config = config;
         }
 
-        public IParsedData Parse(string fileName)
+        public IParsedData Parse(string dirname)
         {
-            return new DllData(fileName, _config);
+            return new DllData(dirname, _config);
         }
 
         public IParsedData Parse(Stream stream)
         {
-            return new DllData(stream, _config);
+            throw new InvalidOperationException("Cannot DllParse a stream! Must DllParse a directory!");
         }
 
         public bool ValidFile(string filename)
         {
-            return Path.GetFileName(filename) == "dump.cs";
+            return Directory.Exists(filename);
         }
     }
 }

@@ -14,31 +14,29 @@ namespace Il2Cpp_Modding_Codegen.Data.DllHandling
         public int Offset { get; }
         public int VA { get; }
 
-        public DllAttribute(string name)
+        public DllAttribute(CustomAttribute attribute)
         {
-            Name = name;
+            // These parameters are unknown for attributes besides the attribute that has all three in its constructor
+            // Name is the name field of the attribute
+            Name = string.Empty;
+            RVA = -1;
+            Offset = -1;
+            VA = -1;
+            if (attribute.Fields.Count == 3)
+            {
+                foreach (var f in attribute.Fields)
+                {
+                    if (f.Name == "Name")
+                        Name = f.Argument.Value as string;
+                    if (f.Name == "RVA" || f.Name == "Offset" || f.Name == "VA")
+                        RVA = Convert.ToInt32(f.Argument.Value as string, 16);
+                }
+            }
         }
 
         public override string ToString()
         {
             return $"[{Name}] // Offset: 0x{Offset:X}";
-        }
-
-        internal static IEnumerable<IAttribute> From(TypeDefinition def)
-        {
-            List<DllAttribute> list = new List<DllAttribute>();
-            foreach (TypeAttributes flag in Enum.GetValues(typeof(TypeAttributes)))
-            {
-                if (def.Attributes.HasFlag(flag))
-                {
-                    list.Add(new DllAttribute(flag.ToString()));
-                }
-            }
-            foreach (var attr in def.CustomAttributes)
-            {
-                list.Add(new DllAttribute(attr.AttributeType.FullName));
-            }
-            return list;
         }
     }
 }

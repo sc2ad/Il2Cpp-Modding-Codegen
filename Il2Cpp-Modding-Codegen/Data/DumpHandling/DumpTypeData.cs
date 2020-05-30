@@ -19,17 +19,12 @@ namespace Il2Cpp_Modding_Codegen.Data.DumpHandling
         public TypeRef This { get; }
         public TypeRef Parent { get; private set; }
         public List<TypeRef> ImplementingInterfaces { get; } = new List<TypeRef>();
-        public int TypeRefIndex { get; private set; }
+        public int TypeDefIndex { get; private set; }
         public List<IAttribute> Attributes { get; } = new List<IAttribute>();
         public List<ISpecifier> Specifiers { get; } = new List<ISpecifier>();
         public List<IField> Fields { get; } = new List<IField>();
         public List<IProperty> Properties { get; } = new List<IProperty>();
         public List<IMethod> Methods { get; } = new List<IMethod>();
-
-        /// <summary>
-        /// List of dependency TypeRefs to resolve in the type
-        /// </summary>
-        internal HashSet<TypeRef> References { get; } = new HashSet<TypeRef>();
 
         private DumpConfig _config;
 
@@ -50,7 +45,7 @@ namespace Il2Cpp_Modding_Codegen.Data.DumpHandling
         {
             string line = fs.ReadLine();
             var split = line.Split(' ');
-            TypeRefIndex = int.Parse(split[split.Length - 1]);
+            TypeDefIndex = int.Parse(split[split.Length - 1]);
             // : at least 4 from end
             int start = 4;
             bool found = false;

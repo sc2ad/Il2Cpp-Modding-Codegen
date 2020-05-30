@@ -11,7 +11,7 @@ namespace Il2Cpp_Modding_Codegen.Data
         TypeInfo Info { get; }
         TypeRef Parent { get; }
         List<TypeRef> ImplementingInterfaces { get; }
-        int TypeRefIndex { get; }
+        int TypeDefIndex { get; }
         List<IAttribute> Attributes { get; }
         List<ISpecifier> Specifiers { get; }
         List<IField> Fields { get; }

@@ -4,108 +4,55 @@ using Mono.Cecil;
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Text;
 
 namespace Il2Cpp_Modding_Codegen.Data.DllHandling
 {
     internal class DllTypeData : ITypeData
     {
-        /// <summary>
-        /// Number of characters the namespace name starts on
-        /// </summary>
-        private const int NamespaceStartOffset = 13;
-
-        private TypeDefinition _def;
-
-        public TypeEnum Type { get; private set; }
-        public TypeInfo Info { get; private set; }
+        public TypeEnum Type { get; }
+        public TypeInfo Info { get; }
         public TypeRef This { get; }
-        public TypeRef Parent { get; private set; }
+        public TypeRef Parent { get; }
         public List<TypeRef> ImplementingInterfaces { get; } = new List<TypeRef>();
-        public int TypeRefIndex { get; private set; }
+        public int TypeDefIndex { get; }
         public List<IAttribute> Attributes { get; } = new List<IAttribute>();
         public List<ISpecifier> Specifiers { get; } = new List<ISpecifier>();
         public List<IField> Fields { get; } = new List<IField>();
         public List<IProperty> Properties { get; } = new List<IProperty>();
         public List<IMethod> Methods { get; } = new List<IMethod>();
 
-        /// <summary>
-        /// List of dependency TypeRefs to resolve in the type
-        /// </summary>
-        internal HashSet<TypeRef> References { get; } = new HashSet<TypeRef>();
-
         private DllConfig _config;
-
-        private void ParseAttributes(TypeDefinition def)
-        {
-            Attributes.AddRange(DllAttribute.From(def));
-        }
-
-        static TypeEnum ExtractTypeEnum(TypeDefinition def)
-        {
-            if (def.IsEnum) return TypeEnum.Enum;
-            if (def.IsInterface) return TypeEnum.Interface;
-            if (def.IsClass) return TypeEnum.Class;
-            Console.WriteLine($"Warning: assuming {def.FullName} is a struct!");
-            return TypeEnum.Struct;
-        }
-
-        // Sets: TypeRefIndex and above
-        private void ParseTypeName(TypeDefinition def)
-        {
-            // TODO: extract TypeDefIndex?
-            foreach (var i in def.Interfaces)
-            {
-                ImplementingInterfaces.Add(new TypeRef(i));
-            }
-            Parent = new TypeRef(def.BaseType);
-
-            This.Set(TypeRef.From(def));
-
-            Type = ExtractTypeEnum(def);
-            Specifiers.AddRange(DllSpecifier.From(def));
-            Info = new TypeInfo
-            {
-                TypeFlags = Type == TypeEnum.Class || Type == TypeEnum.Interface ? TypeFlags.ReferenceType : TypeFlags.ValueType
-            };
-        }
-
-        private void ParseFields(TypeDefinition def)
-        {
-            foreach (var f in def.Fields)
-            {
-                Fields.Add(new DllField(f, def));
-            }
-        }
-
-        private void ParseProperties(TypeDefinition def)
-        {
-            foreach (var p in def.Properties)
-            {
-                Properties.Add(new DllProperty(p, def));
-            }
-        }
-
-        private void ParseMethods(TypeDefinition def)
-        {
-            foreach (var m in def.Methods)
-            {
-                Methods.Add(new DllMethod(m, def));
-            }
-        }
 
         public DllTypeData(TypeDefinition def, DllConfig config)
         {
             _config = config;
-            _def = def;
+            foreach (var i in def.Interfaces)
+            {
+                ImplementingInterfaces.Add(new TypeRef(i));
+            }
+            if (def.BaseType != null)
+                Parent = new TypeRef(def.BaseType);
 
-            This = new TypeRef();
-            This.Namespace = def.Namespace;
-            ParseAttributes(def);
-            ParseTypeName(def);
-            ParseFields(def);
-            ParseProperties(def);
-            ParseMethods(def);
+            This = new TypeRef(def);
+            Type = def.IsEnum ? TypeEnum.Enum : def.IsInterface ? TypeEnum.Interface : def.IsClass ? TypeEnum.Class : TypeEnum.Struct;
+            Info = new TypeInfo
+            {
+                TypeFlags = Type == TypeEnum.Class || Type == TypeEnum.Interface ? TypeFlags.ReferenceType : TypeFlags.ValueType
+            };
+
+            // TODO: Parse this eventually
+            TypeDefIndex = -1;
+            if (def.HasCustomAttributes && _config.ParseTypeAttributes)
+                Attributes.AddRange(def.CustomAttributes.Select(ca => new DllAttribute(ca)));
+
+            if (_config.ParseTypeFields)
+                Fields.AddRange(def.Fields.Select(f => new DllField(f)));
+            if (_config.ParseTypeProperties)
+                Properties.AddRange(def.Properties.Select(p => new DllProperty(p)));
+            if (_config.ParseTypeMethods)
+                Methods.AddRange(def.Methods.Select(m => new DllMethod(m)));
         }
 
         public override string ToString()

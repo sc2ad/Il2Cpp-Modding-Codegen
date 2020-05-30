@@ -1,4 +1,5 @@
-﻿using System;
+﻿using Mono.Cecil;
+using System;
 using System.Collections.Generic;
 using System.Text;
 
@@ -38,6 +39,15 @@ namespace Il2Cpp_Modding_Codegen.Data
             {
                 Name = spl[res + 1];
             }
+        }
+
+        public Parameter(ParameterDefinition def)
+        {
+            Type = new TypeRef(def.ParameterType);
+            Name = def.Name;
+            Flags |= def.IsIn ? ParameterFlags.In : ParameterFlags.None;
+            Flags |= def.IsOut ? ParameterFlags.Out : ParameterFlags.None;
+            Flags |= def.ParameterType.IsByReference ? ParameterFlags.Ref : ParameterFlags.None;
         }
 
         public override string ToString()
