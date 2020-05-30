@@ -75,10 +75,10 @@ namespace Il2Cpp_Modding_Codegen.Data.DllHandling
 
         public static IEnumerable<ISpecifier> From(PropertyDefinition def)
         {
-            var list = new List<DumpSpecifier>();
-            if (!def.HasThis) list.Add(new DumpSpecifier("static"));
-            if (def.HasConstant) list.Add(new DumpSpecifier("const"));
-            return list;
+            if (def.GetMethod != null)
+                return From(def.GetMethod);
+            else
+                return From(def.SetMethod);
         }
     }
 }
