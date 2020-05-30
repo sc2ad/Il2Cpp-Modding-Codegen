@@ -10,8 +10,11 @@ namespace Il2Cpp_Modding_Codegen.Serialization
 {
     public class CppSerializerContext : ISerializerContext
     {
-        public HashSet<TypeRef> ForwardDeclares { get; } = new HashSet<TypeRef>();
-        public HashSet<TypeRef> NamespaceForwardDeclares { get; } = new HashSet<TypeRef>();
+        public HashSet<TypeName> ForwardDeclares { get; } = new HashSet<TypeName>();
+
+        // For same namespace forward declares
+        public HashSet<TypeName> NamespaceForwardDeclares { get; } = new HashSet<TypeName>();
+
         public HashSet<string> Includes { get; } = new HashSet<string>();
         public string FileName { get; private set; }
         public string TypeNamespace { get; }
@@ -237,23 +240,11 @@ namespace Il2Cpp_Modding_Codegen.Serialization
                     // Pointer type for Il2Cpp types on default
                     if (s != null && s.StartsWith("Il2Cpp"))
                     {
-                        ForwardDeclares.Add(new TypeRef()
-                        {
-                            Name = s,
-                            Namespace = "",
-                        });
+                        ForwardDeclares.Add(new TypeName("", s));
                         return s + "*";
                     }
                     return s;
             }
         }
-    }
-
-    internal class AdaptiveTypeName
-    {
-        public string TypeName { get; private set; }
-        public string AsPointer { get; private set; }
-        public string AsValue { get; private set; }
-        public string AsRef { get; private set; }
     }
 }

@@ -20,7 +20,7 @@ namespace Il2Cpp_Modding_Codegen.Serialization
             _context = context;
         }
 
-        private void WriteForwardDeclare(IndentedTextWriter writer, TypeRef fd, bool putNamespace = true)
+        private void WriteForwardDeclare(IndentedTextWriter writer, TypeName fd, bool putNamespace = true)
         {
             if (fd.Namespace.Length == 0) putNamespace = false;
             if (putNamespace)

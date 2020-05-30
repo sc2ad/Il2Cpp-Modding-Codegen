@@ -8,8 +8,8 @@ namespace Il2Cpp_Modding_Codegen.Data
 {
     public class TypeRef
     {
-        public static readonly TypeRef VoidType = new TypeRef("void");
         public static readonly TypeRef ObjectType = new TypeRef("object");
+        public static readonly TypeRef VoidType = new TypeRef("void");
         public string Namespace { get; internal set; } = "";
         public string Name { get; internal set; }
 
@@ -18,13 +18,17 @@ namespace Il2Cpp_Modding_Codegen.Data
         public TypeRef DeclaringType { get; internal set; }
 
         private ITypeData _resolvedType;
-        private TypeReference baseType;
-        private InterfaceImplementation i;
 
-        internal TypeRef()
-        {
-        }
-
+        /// <summary>
+        /// For use with text dumps. Takes a given split array that contains a type at index ind and
+        /// returns the full typename and index where the end of the typename is while traversing the split array with direction and sep.
+        /// </summary>
+        /// <param name="spl"></param>
+        /// <param name="ind"></param>
+        /// <param name="adjustedIndex"></param>
+        /// <param name="direction"></param>
+        /// <param name="sep"></param>
+        /// <returns></returns>
         internal static string FromMultiple(string[] spl, int ind, out int adjustedIndex, int direction = -1, string sep = " ")
         {
             adjustedIndex = ind;
@@ -74,8 +78,7 @@ namespace Il2Cpp_Modding_Codegen.Data
                 if (declInd != -1)
                 {
                     // Create a new TypeRef for the declaring type, it should recursively create more declaring types
-                    DeclaringType = new TypeRef();
-                    DeclaringType.Set(typeName.Substring(0, declInd));
+                    DeclaringType = new TypeRef(typeName.Substring(0, declInd));
                 }
                 Name = typeName.Substring(declInd + 1, ind);
             }
@@ -85,19 +88,19 @@ namespace Il2Cpp_Modding_Codegen.Data
                 if (declInd != -1)
                 {
                     // Create a new TypeRef for the declaring type, it should recursively create more declaring types
-                    DeclaringType = new TypeRef();
-                    DeclaringType.Set(typeName.Substring(0, declInd));
+                    DeclaringType = new TypeRef(typeName.Substring(0, declInd));
                 }
                 Name = typeName.Substring(declInd + 1);
             }
         }
 
-        internal static string From(TypeDefinition def)
+        public TypeRef(string @namespace, string name)
         {
-            throw new NotImplementedException();
+            Namespace = @namespace;
+            Set(name);
         }
 
-        public TypeRef(string qualifiedName, bool qualified = true)
+        public TypeRef(string qualifiedName, bool qualified = false)
         {
             if (qualified)
             {
@@ -120,14 +123,17 @@ namespace Il2Cpp_Modding_Codegen.Data
             }
         }
 
-        public TypeRef(TypeReference baseType)
+        public TypeRef(TypeReference type)
         {
-            this.baseType = baseType;
-        }
-
-        public TypeRef(InterfaceImplementation i)
-        {
-            this.i = i;
+            Namespace = type.Namespace;
+            Name = type.Name;
+            if (type.IsPointer)
+                Name += "*";
+            Generic = type.IsGenericInstance;
+            if (type.HasGenericParameters)
+                GenericParameters.AddRange(type.GenericParameters.Select(gp => new TypeRef(gp)));
+            if (type.DeclaringType != null)
+                DeclaringType = new TypeRef(type.DeclaringType);
         }
 
         /// <summary>
@@ -153,21 +159,6 @@ namespace Il2Cpp_Modding_Codegen.Data
             return _resolvedType?.Info.TypeFlags == TypeFlags.ReferenceType;
         }
 
-        public string SafeName()
-        {
-            return Name.Replace('<', '_').Replace('>', '_').Replace(".", "::");
-        }
-
-        public string SafeNamespace()
-        {
-            return Namespace.Replace('<', '_').Replace('>', '_').Replace(".", "::");
-        }
-
-        public string SafeFullName()
-        {
-            return SafeNamespace() + "_" + SafeName();
-        }
-
         public override string ToString()
         {
             if (!string.IsNullOrWhiteSpace(Namespace))
@@ -183,6 +174,21 @@ namespace Il2Cpp_Modding_Codegen.Data
             }
             s += ">";
             return s;
+        }
+
+        public string SafeName()
+        {
+            return Name.Replace('<', '_').Replace('>', '_').Replace(".", "::");
+        }
+
+        public string SafeNamespace()
+        {
+            return Namespace.Replace('<', '_').Replace('>', '_').Replace(".", "::");
+        }
+
+        public string SafeFullName()
+        {
+            return SafeNamespace() + "_" + SafeName();
         }
 
         // Namespace is actually NOT useful for comparisons!

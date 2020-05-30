@@ -15,7 +15,7 @@ namespace Il2Cpp_Modding_Codegen.Data.DllHandling
         public string Name => "Dll Data";
         public List<IImage> Images { get; } = new List<IImage>();
         public List<ITypeData> Types { get; } = new List<ITypeData>();
-        private Dictionary<TypeRef, TypeRef> _resolvedTypeNames { get; } = new Dictionary<TypeRef, TypeRef>();
+        private Dictionary<TypeRef, TypeName> _resolvedTypeNames { get; } = new Dictionary<TypeRef, TypeName>();
         private DllConfig _config;
 
         public DllData(string dirname, DllConfig config)
@@ -54,30 +54,28 @@ namespace Il2Cpp_Modding_Codegen.Data.DllHandling
         }
 
         // Resolves the TypeRef def in the current context and returns a TypeRef that is guaranteed unique
-        public TypeRef ResolvedTypeRef(TypeRef def)
+        public TypeName ResolvedTypeRef(TypeRef def)
         {
             // If the type we are looking for exactly matches a type we have resolved
-            if (_resolvedTypeNames.TryGetValue(def, out TypeRef v))
+            if (_resolvedTypeNames.TryGetValue(def, out TypeName v))
             {
                 return v;
             }
             // Otherwise, check our set of created names (values) until we are unique
 
-            var safeNamespace = def.SafeNamespace();
-            var safeName = def.SafeName();
             int i = 1;
 
-            TypeRef td = new TypeRef { Name = safeName, Namespace = safeNamespace };
-            while (_resolvedTypeNames.ContainsValue(td))
+            var tn = new TypeName(def);
+            while (_resolvedTypeNames.ContainsValue(tn))
             {
                 // The type we are trying to add a reference to is already resolved, but is not referenced.
                 // This means we have a duplicate typename. We will unique-ify this one by suffixing _{i} to the original typename
                 // until the typename is unique.
-                td.Name = safeName + $"_{i}";
+                tn = new TypeName(def, i);
                 i++;
             }
-            _resolvedTypeNames.Add(def, td);
-            return td;
+            _resolvedTypeNames.Add(def, tn);
+            return tn;
         }
     }
 }

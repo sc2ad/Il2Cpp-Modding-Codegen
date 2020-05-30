@@ -30,7 +30,7 @@ namespace Il2Cpp_Modding_Codegen.Data.DllHandling
             _config = config;
             foreach (var i in def.Interfaces)
             {
-                ImplementingInterfaces.Add(new TypeRef(i));
+                ImplementingInterfaces.Add(new TypeRef(i.InterfaceType));
             }
             if (def.BaseType != null)
                 Parent = new TypeRef(def.BaseType);

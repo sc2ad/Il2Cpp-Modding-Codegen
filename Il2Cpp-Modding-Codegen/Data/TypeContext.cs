@@ -11,6 +11,6 @@ namespace Il2Cpp_Modding_Codegen.Data
 
         ITypeData Resolve(TypeRef TypeRef);
 
-        TypeRef ResolvedTypeRef(TypeRef def);
+        TypeName ResolvedTypeRef(TypeRef def);
     }
 }

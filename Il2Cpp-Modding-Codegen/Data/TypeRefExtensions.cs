@@ -6,28 +6,28 @@ using System.Text;
 
 namespace Il2Cpp_Modding_Codegen.Data
 {
-    public static class TypeRefExtensions
+    public static class TypeNameExtensions
     {
         private const string NoNamespace = "GlobalNamespace";
 
-        public static string ConvertTypeToName(this TypeRef def)
+        public static string ConvertTypeToName(this TypeName def)
         {
             return def.Name;
         }
 
-        public static string ConvertTypeToNamespace(this TypeRef def)
+        public static string ConvertTypeToNamespace(this TypeName def)
         {
             if (string.IsNullOrWhiteSpace(def.Namespace))
                 return NoNamespace;
             return def.Namespace;
         }
 
-        public static string ConvertTypeToQualifiedName(this TypeRef def)
+        public static string ConvertTypeToQualifiedName(this TypeName def)
         {
             return ConvertTypeToNamespace(def) + "::" + ConvertTypeToName(def);
         }
 
-        public static string ConvertTypeToInclude(this TypeRef def)
+        public static string ConvertTypeToInclude(this TypeName def)
         {
             // TODO: instead split on :: and Path.Combine?
             var fileName = string.Join("-", ConvertTypeToName(def).Replace("::", "_").Split(Path.GetInvalidFileNameChars()));
@@ -35,7 +35,7 @@ namespace Il2Cpp_Modding_Codegen.Data
             return Path.Combine(directory, fileName);
         }
 
-        public static string ConvertTypeToIl2CppMetadata(this TypeRef def)
+        public static string ConvertTypeToIl2CppMetadata(this TypeName def)
         {
             var s = "";
             var tmp = def;
@@ -47,7 +47,7 @@ namespace Il2Cpp_Modding_Codegen.Data
                 if (tmp.DeclaringType.Generic && (tmp.DeclaringType.DeclaringType == null || !tmp.DeclaringType.DeclaringType.Generic))
                     genericStr = "`" + tmp.DeclaringType.GenericParameters.Count;
                 s = tmp.DeclaringType.Name + genericStr + "/" + s;
-                tmp = tmp.DeclaringType;
+                tmp = new TypeName(tmp.DeclaringType);
             }
             return s;
         }

@@ -16,7 +16,7 @@ namespace Il2Cpp_Modding_Codegen.Data.DumpHandling
 
         public TypeEnum Type { get; private set; }
         public TypeInfo Info { get; private set; }
-        public TypeRef This { get; }
+        public TypeRef This { get; private set; }
         public TypeRef Parent { get; private set; }
         public List<TypeRef> ImplementingInterfaces { get; } = new List<TypeRef>();
         public int TypeDefIndex { get; private set; }
@@ -41,7 +41,7 @@ namespace Il2Cpp_Modding_Codegen.Data.DumpHandling
             }
         }
 
-        private void ParseTypeName(PeekableStreamReader fs)
+        private void ParseTypeName(string @namespace, PeekableStreamReader fs)
         {
             string line = fs.ReadLine();
             var split = line.Split(' ');
@@ -84,7 +84,7 @@ namespace Il2Cpp_Modding_Codegen.Data.DumpHandling
             // -5 is type enum
             // all others are specifiers
             // This will have DeclaringType set on it
-            This.Set(TypeRef.FromMultiple(split, start, out int adjusted, -1, " "));
+            This = new TypeRef(@namespace, TypeRef.FromMultiple(split, start, out int adjusted, -1, " "));
             Type = (TypeEnum)Enum.Parse(typeof(TypeEnum), split[adjusted - 1], true);
             for (int i = 0; i < adjusted - 1; i++)
             {
@@ -188,10 +188,9 @@ namespace Il2Cpp_Modding_Codegen.Data.DumpHandling
         {
             _config = config;
             // Extract namespace from line
-            This = new TypeRef();
-            This.Namespace = fs.ReadLine().Substring(NamespaceStartOffset).Trim();
+            var @namespace = fs.ReadLine().Substring(NamespaceStartOffset).Trim();
             ParseAttributes(fs);
-            ParseTypeName(fs);
+            ParseTypeName(@namespace, fs);
             // Empty type
             if (fs.PeekLine() == "{}")
             {
