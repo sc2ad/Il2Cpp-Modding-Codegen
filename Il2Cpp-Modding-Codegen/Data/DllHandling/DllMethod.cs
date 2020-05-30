@@ -9,9 +9,6 @@ namespace Il2Cpp_Modding_Codegen.Data.DllHandling
 {
     internal class DllMethod : IMethod
     {
-        private MethodDefinition m;
-        private TypeDefinition def;
-
         public List<IAttribute> Attributes { get; } = new List<IAttribute>();
         public List<ISpecifier> Specifiers { get; } = new List<ISpecifier>();
         public int RVA { get; }
@@ -24,24 +21,18 @@ namespace Il2Cpp_Modding_Codegen.Data.DllHandling
         public string Name { get; }
         public List<Parameter> Parameters { get; } = new List<Parameter>();
 
-        public DllMethod(TypeRef declaring, PeekableStreamReader fs)
+        public DllMethod(MethodDefinition def, TypeDefinition declaring)
         {
-            DeclaringType = declaring;
-            // Read Attributes
-            string line = fs.PeekLine().Trim();
-            while (line.StartsWith("["))
-            {
-                Attributes.Add(new DllAttribute(fs));
-                line = fs.PeekLine().Trim();
-            }
-            // Read prefix comment
-            line = fs.ReadLine().Trim();
-            var split = line.Split(' ');
-            if (split.Length < 5)
-            {
-                throw new InvalidOperationException($"Line {fs.CurrentLineIndex}: Method cannot be created from: \"{line.Trim()}\"");
-            }
-            int start = split.Length - 1;
+            DeclaringType = new TypeRef(declaring);
+            Attributes.AddRange(DllAttribute.From(def));
+
+            RVA = def.RVA;
+
+            // TODO: extract Slot
+            // is https://fossies.org/linux/mono-addins/Mono.Addins.CecilReflector/Mono.Cecil/Mono.Cecil/AssemblyReader.cs relevant?
+
+            def.MetadataToken.TokenType
+
             if (split[split.Length - 2] == "Slot:")
             {
                 Slot = int.Parse(split[split.Length - 1]);
@@ -63,15 +54,9 @@ namespace Il2Cpp_Modding_Codegen.Data.DllHandling
                     Offset = Convert.ToInt32(split[start], 16);
                 start -= 2;
             }
-            if (split[start - 1] == "RVA")
-            {
-                if (split[start] == "-1")
-                    RVA = -1;
-                else
-                    RVA = Convert.ToInt32(split[start], 16);
-            }
+
             // Read parameters
-            line = fs.ReadLine().Trim();
+            line = def.ReadLine().Trim();
             int end = line.LastIndexOf(')');
             int startSubstr = line.LastIndexOf('(', end - 1);
             string paramLine = line.Substring(startSubstr + 1, end - startSubstr - 1);
@@ -99,11 +84,13 @@ namespace Il2Cpp_Modding_Codegen.Data.DllHandling
                     var finalDot = typeStr.LastIndexOf('.');
                     ImplementedFrom = new TypeRef(typeStr.Substring(0, finalDot));
                     Name = typeStr.Substring(finalDot + 1);
-                } else
+                }
+                else
                 {
                     Name = methodSplit[methodSplit.Length - 1];
                 }
-            } else
+            }
+            else
             {
                 Name = methodSplit[methodSplit.Length - 1].Substring(startIndex + 1);
             }
@@ -112,12 +99,6 @@ namespace Il2Cpp_Modding_Codegen.Data.DllHandling
             {
                 Specifiers.Add(new DllSpecifier(methodSplit[i]));
             }
-        }
-
-        public DllMethod(MethodDefinition m, TypeDefinition def)
-        {
-            this.m = m;
-            this.def = def;
         }
 
         public override string ToString()
