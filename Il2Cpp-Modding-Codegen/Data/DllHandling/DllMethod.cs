@@ -58,7 +58,7 @@ namespace Il2Cpp_Modding_Codegen.Data.DllHandling
                 }
             }
             Parameters.AddRange(m.Parameters.Select(p => new Parameter(p)));
-            // We can safely ignore Specifiers... They shouldn't exist for DLL data at all.
+            Specifiers.AddRange(DllSpecifierHelpers.From(m));
         }
 
         public override string ToString()

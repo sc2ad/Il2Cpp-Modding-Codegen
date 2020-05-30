@@ -26,7 +26,7 @@ namespace Il2Cpp_Modding_Codegen.Data.DllHandling
             SetMethod = p.SetMethod != null;
             if (p.HasCustomAttributes)
                 Attributes.AddRange(p.CustomAttributes.Select(ca => new DllAttribute(ca)));
-            // We can safely ignore Specifiers... They shouldn't exist for DLL data at all.
+            Specifiers.AddRange(DllSpecifierHelpers.From(p));
         }
 
         public override string ToString()
