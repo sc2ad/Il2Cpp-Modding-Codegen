@@ -80,7 +80,7 @@ namespace Il2Cpp_Modding_Codegen.Data
                     // Create a new TypeRef for the declaring type, it should recursively create more declaring types
                     DeclaringType = new TypeRef(typeName.Substring(0, declInd));
                 }
-                Name = typeName.Substring(declInd + 1, ind);
+                Name = typeName.Substring(declInd + 1);
             }
             else
             {

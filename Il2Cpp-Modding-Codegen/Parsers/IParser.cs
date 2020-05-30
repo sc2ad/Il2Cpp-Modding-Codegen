@@ -3,7 +3,7 @@ using System.IO;
 
 namespace Il2Cpp_Modding_Codegen.Parsers
 {
-    internal interface IParser
+    public interface IParser
     {
         bool ValidFile(string fileName);
 

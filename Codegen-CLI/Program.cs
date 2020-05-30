@@ -1,5 +1,7 @@
 using Il2Cpp_Modding_Codegen;
 using Il2Cpp_Modding_Codegen.Config;
+using Il2Cpp_Modding_Codegen.Data;
+using Il2Cpp_Modding_Codegen.Parsers;
 using Il2Cpp_Modding_Codegen.Serialization;
 using System;
 using System.Diagnostics;
@@ -17,13 +19,35 @@ namespace Codegen_CLI
                 path = @"C:\Users\Sc2ad\Desktop\Code\Android Modding\BeatSaber\1.8.0\partial.cs";
             else
                 path = Console.ReadLine();
-            var parser = new DumpParser(new DumpConfig());
+            bool parseDlls = false;
+            IParser parser;
+            if (Directory.Exists(path))
+            {
+                var parseConfig = new DllConfig()
+                {
+                };
+                parser = new DllParser(parseConfig);
+                parseDlls = true;
+            }
+            else
+            {
+                var parseConfig = new DumpConfig()
+                {
+                };
+                parser = new DumpParser(parseConfig);
+            }
 
-            using var stream = File.OpenRead(path);
             Console.WriteLine("Parsing...");
             Stopwatch watch = new Stopwatch();
             watch.Start();
-            var parsed = parser.Parse(stream);
+            IParsedData parsed;
+            if (parseDlls)
+                parsed = parser.Parse(path);
+            else
+            {
+                using var stream = File.OpenRead(path);
+                parsed = parser.Parse(stream);
+            }
             watch.Stop();
             //Console.WriteLine(parsed);
             Console.WriteLine($"Parsing took: {watch.ElapsedMilliseconds}ms");
@@ -67,7 +91,9 @@ namespace Codegen_CLI
                 serializer.PreSerialize(null, parsed);
                 watch.Stop();
                 Console.WriteLine($"Serialization Complete, took: {watch.Elapsed}!");
-            } catch (Exception e) {
+            }
+            catch (Exception e)
+            {
                 Console.WriteLine(e);
             }
             Console.ReadLine();
