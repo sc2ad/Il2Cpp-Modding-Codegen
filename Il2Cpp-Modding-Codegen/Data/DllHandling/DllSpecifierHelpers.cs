@@ -17,10 +17,24 @@ namespace Il2Cpp_Modding_Codegen.Data.DllHandling
         public static IEnumerable<ISpecifier> From(TypeDefinition def)
         {
             var list = new List<DumpSpecifier>();
-            if (def.IsSealed) list.Add(new DumpSpecifier("sealed"));
-            if (def.IsPublic) list.Add(new DumpSpecifier("public"));
-            // Assume that private classes are nested classes ONLY.
-            else list.Add(new DumpSpecifier("internal"));
+            if (def.IsSealed)
+            {
+                // https://groups.google.com/forum/#!topic/mono-cecil/MtRTwHjPNu4
+                if (def.IsAbstract) list.Add(new DumpSpecifier("static"));
+                else list.Add(new DumpSpecifier("sealed"));
+            }
+
+            // http://www.programmersought.com/article/6494173120/
+            if (def.IsPublic || def.IsNestedPublic) list.Add(new DumpSpecifier("public"));
+            else if (!def.IsNested) list.Add(new DumpSpecifier("internal"));
+            else if (def.IsNestedFamily || def.IsNestedFamilyOrAssembly)
+            {
+                list.Add(new DumpSpecifier("protected"));
+                if (def.IsNestedFamilyOrAssembly) list.Add(new DumpSpecifier("internal"));
+            }
+            else if (def.IsNestedPrivate) list.Add(new DumpSpecifier("private"));
+
+            // TODO: readonly struct?
             return list;
         }
 
