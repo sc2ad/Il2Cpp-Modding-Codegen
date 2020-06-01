@@ -126,7 +126,7 @@ namespace Il2Cpp_Modding_Codegen.Data
 
         private static Dictionary<TypeReference, TypeRef> cache = new Dictionary<TypeReference, TypeRef>();
 
-        private TypeRef(TypeReference type, bool declaringType = true)
+        private TypeRef(TypeReference type, bool declaringType)
         {
             Namespace = type.Namespace;
             Name = type.Name;
@@ -134,8 +134,8 @@ namespace Il2Cpp_Modding_Codegen.Data
                 Name += "*";
             Generic = type.IsGenericInstance;
             if (type.HasGenericParameters)
-                GenericParameters.AddRange(type.GenericParameters.Select(gp => TypeRef.From(gp)));
-            if (type.DeclaringType != null)
+                GenericParameters.AddRange(type.GenericParameters.Select(gp => TypeRef.From(gp, false)));
+            if (declaringType && type.DeclaringType != null && !type.DeclaringType.Equals(type))
                 DeclaringType = TypeRef.From(type.DeclaringType);
         }
 
