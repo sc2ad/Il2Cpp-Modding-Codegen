@@ -43,7 +43,7 @@ namespace Il2Cpp_Modding_Codegen.Data
 
         public Parameter(ParameterDefinition def)
         {
-            Type = new TypeRef(def.ParameterType);
+            Type = TypeRef.From(def.ParameterType);
             Name = def.Name;
             Flags |= def.IsIn ? ParameterFlags.In : ParameterFlags.None;
             Flags |= def.IsOut ? ParameterFlags.Out : ParameterFlags.None;

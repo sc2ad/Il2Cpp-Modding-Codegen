@@ -42,6 +42,9 @@ namespace Il2Cpp_Modding_Codegen.Data.DllHandling
                 if (_config.ParseTypes && !_config.BlacklistTypes.Contains(t.Name))
                     Types.Add(new DllTypeData(t, _config));
             }));
+
+            int total = TypeRef.hits + TypeRef.misses;
+            Console.WriteLine($"TypeRef cache hits: {TypeRef.hits} / {total} = {100.0f * TypeRef.hits / total}");
             // Ignore images for now.
         }
 
