@@ -17,42 +17,41 @@ namespace Il2Cpp_Modding_Codegen.Data.DllHandling
         public List<ITypeData> Types { get; } = new List<ITypeData>();
         private Dictionary<TypeRef, TypeName> _resolvedTypeNames { get; } = new Dictionary<TypeRef, TypeName>();
         private DllConfig _config;
+        private string _dir;
+        private ReaderParameters _readerParams;
 
         private HashSet<TypeDefinition> cache = new HashSet<TypeDefinition>();
 
-        public DllData(string dirname, DllConfig config)
+        public DllData(string dir, DllConfig config)
         {
             _config = config;
-            var root = Path.GetDirectoryName(dirname);
-            root = Path.Combine(root, "DummyDll");
-            foreach (var file in Directory.GetFiles(root))
+            _dir = dir;
+            this.AddSearchDirectory(dir);
+            _readerParams = new ReaderParameters { AssemblyResolver = this };
+
+            var modules = new List<ModuleDefinition>();
+            foreach (var file in Directory.GetFiles(dir))
             {
                 if (!file.EndsWith(".dll"))
                     continue;
                 if (!_config.BlacklistDlls.Contains(file))
                 {
-                    var assemb = AssemblyDefinition.ReadAssembly(Path.Combine(root, file));
-                    //assemb.Modules.ForEach(m => m.Types.ToList().ForEach(t =>
-                    //{
-                    //    if (_config.ParseTypes && !_config.BlacklistTypes.Contains(t.Name))
-                    //        Types.Add(new DllTypeData(t, _config));
-                    //}));
-                    RegisterAssembly(assemb);
-                    foreach (var module in assemb.Modules)
+                    modules.Add(ModuleDefinition.ReadModule(file, _readerParams));
+                }
+            }
+            foreach (var module in modules)
+            {
+                foreach (var t in module.Types)
+                {
+                    if (_config.ParseTypes && !_config.BlacklistTypes.Contains(t.Name))
                     {
-                        foreach (var t in module.Types)
+                        if (cache.Contains(t))
                         {
-                            if (_config.ParseTypes && !_config.BlacklistTypes.Contains(t.Name))
-                            {
-                                if (cache.Contains(t))
-                                {
-                                    Console.WriteLine($"Prevented repeat parsing of {t} from {module}");
-                                    continue;
-                                }
-                                Types.Add(new DllTypeData(t, _config));
-                                cache.Add(t);
-                            }
+                            Console.WriteLine($"Prevented repeat parsing of {t} from {module}");
+                            continue;
                         }
+                        Types.Add(new DllTypeData(t, _config));
+                        cache.Add(t);
                     }
                 }
             }

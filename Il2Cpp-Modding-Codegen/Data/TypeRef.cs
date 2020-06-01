@@ -1,5 +1,6 @@
 ﻿using Mono.Cecil;
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using System.Security.Principal;
@@ -123,7 +124,9 @@ namespace Il2Cpp_Modding_Codegen.Data
             }
         }
 
-        public TypeRef(TypeReference type)
+        private static Dictionary<TypeReference, TypeRef> cache = new Dictionary<TypeReference, TypeRef>();
+
+        private TypeRef(TypeReference type, bool declaringType = true)
         {
             Namespace = type.Namespace;
             Name = type.Name;
@@ -134,6 +137,15 @@ namespace Il2Cpp_Modding_Codegen.Data
                 GenericParameters.AddRange(type.GenericParameters.Select(gp => new TypeRef(gp)));
             if (type.DeclaringType != null)
                 DeclaringType = new TypeRef(type.DeclaringType);
+        }
+
+        public static TypeRef From(TypeReference type, bool declaringType = true)
+        {
+            TypeRef value;
+            if (cache.TryGetValue(type, out value)) return value;
+            value = new TypeRef(type, declaringType);
+            cache.Add(type, value);
+            return value;
         }
 
         /// <summary>
