@@ -18,23 +18,42 @@ namespace Il2Cpp_Modding_Codegen.Data.DllHandling
         private Dictionary<TypeRef, TypeName> _resolvedTypeNames { get; } = new Dictionary<TypeRef, TypeName>();
         private DllConfig _config;
 
+        private HashSet<TypeDefinition> cache = new HashSet<TypeDefinition>();
+
         public DllData(string dirname, DllConfig config)
         {
             _config = config;
             var root = Path.GetDirectoryName(dirname);
             root = Path.Combine(root, "DummyDll");
-            foreach (var d in Directory.GetFiles(root))
+            foreach (var file in Directory.GetFiles(root))
             {
-                if (!d.EndsWith(".dll"))
+                if (!file.EndsWith(".dll"))
                     continue;
-                if (!_config.BlacklistDlls.Contains(d))
+                if (!_config.BlacklistDlls.Contains(file))
                 {
-                    var asm = AssemblyDefinition.ReadAssembly(Path.Combine(root, d));
-                    asm.Modules.ToList().ForEach(m => m.Types.ToList().ForEach(t =>
+                    var assemb = AssemblyDefinition.ReadAssembly(Path.Combine(root, file));
+                    //assemb.Modules.ForEach(m => m.Types.ToList().ForEach(t =>
+                    //{
+                    //    if (_config.ParseTypes && !_config.BlacklistTypes.Contains(t.Name))
+                    //        Types.Add(new DllTypeData(t, _config));
+                    //}));
+                    RegisterAssembly(assemb);
+                    foreach (var module in assemb.Modules)
                     {
-                        if (_config.ParseTypes && !_config.BlacklistTypes.Contains(t.Name))
-                            Types.Add(new DllTypeData(t, _config));
-                    }));
+                        foreach (var t in module.Types)
+                        {
+                            if (_config.ParseTypes && !_config.BlacklistTypes.Contains(t.Name))
+                            {
+                                if (cache.Contains(t))
+                                {
+                                    Console.WriteLine($"Prevented repeat parsing of {t} from {module}");
+                                    continue;
+                                }
+                                Types.Add(new DllTypeData(t, _config));
+                                cache.Add(t);
+                            }
+                        }
+                    }
                 }
             }
             // Ignore images for now.
