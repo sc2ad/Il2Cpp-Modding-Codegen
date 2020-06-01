@@ -139,10 +139,18 @@ namespace Il2Cpp_Modding_Codegen.Data
                 DeclaringType = TypeRef.From(type.DeclaringType);
         }
 
+        public static int hits = 0;
+        public static int misses = 0;
+
         public static TypeRef From(TypeReference type, bool declaringType = true)
         {
             TypeRef value;
-            if (cache.TryGetValue(type, out value)) return value;
+            if (cache.TryGetValue(type, out value))
+            {
+                hits++;
+                return value;
+            }
+            misses++;
             value = new TypeRef(type, declaringType);
             cache.Add(type, value);
             return value;

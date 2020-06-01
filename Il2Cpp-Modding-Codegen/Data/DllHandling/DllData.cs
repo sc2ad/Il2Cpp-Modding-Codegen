@@ -46,6 +46,7 @@ namespace Il2Cpp_Modding_Codegen.Data.DllHandling
                     {
                         if (cache.Contains(t))
                         {
+                            // Note: I've yet to see this trigger. It might not be possible given ODR. Remove cache?
                             Console.WriteLine($"Prevented repeat parsing of {t} from {module}");
                             continue;
                         }
@@ -54,6 +55,7 @@ namespace Il2Cpp_Modding_Codegen.Data.DllHandling
                     }
                 }
             }
+            Console.WriteLine($"TypeRef cache hits: {TypeRef.hits} / {TypeRef.hits + TypeRef.misses}");
             // Ignore images for now.
         }
 
