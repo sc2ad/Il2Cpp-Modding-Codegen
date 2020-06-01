@@ -18,42 +18,30 @@ namespace Il2Cpp_Modding_Codegen.Data.DllHandling
         private Dictionary<TypeRef, TypeName> _resolvedTypeNames { get; } = new Dictionary<TypeRef, TypeName>();
         private DllConfig _config;
         private string _dir;
-
-        public override AssemblyDefinition Resolve(AssemblyNameReference name)
-        {
-            try
-            {
-                return base.Resolve(name);
-            }
-            catch (Mono.Cecil.AssemblyResolutionException)
-            {
-                var file = Path.Combine(_dir, name.Name + ".dll");
-                if (!File.Exists(file)) throw new FileNotFoundException(file);
-                var assemb = AssemblyDefinition.ReadAssembly(file);
-                RegisterAssembly(assemb);
-                return assemb;
-            }
-        }
+        private ReaderParameters _readerParams;
 
         public DllData(string dir, DllConfig config)
         {
             _config = config;
             _dir = dir;
-            var readerParams = new ReaderParameters { AssemblyResolver = this };
+            this.AddSearchDirectory(dir);
+            _readerParams = new ReaderParameters { AssemblyResolver = this };
+
+            var modules = new List<ModuleDefinition>();
             foreach (var file in Directory.GetFiles(dir))
             {
                 if (!file.EndsWith(".dll"))
                     continue;
                 if (!_config.BlacklistDlls.Contains(file))
                 {
-                    var module = ModuleDefinition.ReadModule(file, readerParams);
-                    module.Types.ToList().ForEach(t =>
-                    {
-                        if (_config.ParseTypes && !_config.BlacklistTypes.Contains(t.Name))
-                            Types.Add(new DllTypeData(t, _config));
-                    });
+                    modules.Add(ModuleDefinition.ReadModule(file, _readerParams));
                 }
             }
+            modules.ForEach(m => m.Types.ToList().ForEach(t =>
+            {
+                if (_config.ParseTypes && !_config.BlacklistTypes.Contains(t.Name))
+                    Types.Add(new DllTypeData(t, _config));
+            }));
             // Ignore images for now.
         }
 
