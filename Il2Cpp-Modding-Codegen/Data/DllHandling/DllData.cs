@@ -55,7 +55,8 @@ namespace Il2Cpp_Modding_Codegen.Data.DllHandling
                     }
                 }
             }
-            Console.WriteLine($"TypeRef cache hits: {TypeRef.hits} / {TypeRef.hits + TypeRef.misses}");
+            int total = TypeRef.hits + TypeRef.misses;
+            Console.WriteLine($"TypeRef cache hits: {TypeRef.hits} / {total} = {100.0f * TypeRef.hits / total}");
             // Ignore images for now.
         }
 

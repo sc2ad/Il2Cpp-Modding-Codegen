@@ -124,25 +124,36 @@ namespace Il2Cpp_Modding_Codegen.Data
             }
         }
 
-        private static Dictionary<TypeReference, TypeRef> cache = new Dictionary<TypeReference, TypeRef>();
-
-        private TypeRef(TypeReference type, bool declaringType)
+        #region TypeReferenceToTypeRef
+        private TypeReference typeRef;
+        private TypeRef(TypeReference type)
         {
+            typeRef = type;
+            // fields will be populated by SetFieldsFromTypeReference()
+        }
+
+        private void SetFieldsFromTypeReference()
+        {
+            var type = this.typeRef;
             Namespace = type.Namespace;
             Name = type.Name;
             if (type.IsPointer)
                 Name += "*";
             Generic = type.IsGenericInstance;
             if (type.HasGenericParameters)
-                GenericParameters.AddRange(type.GenericParameters.Select(gp => TypeRef.From(gp, false)));
-            if (declaringType && type.DeclaringType != null && !type.DeclaringType.Equals(type))
-                DeclaringType = TypeRef.From(type.DeclaringType);
+                GenericParameters.AddRange(type.GenericParameters.Select(gp => TypeRef.FromInternal(gp)));
+            if (type.DeclaringType != null && !type.DeclaringType.Equals(type))
+                DeclaringType = TypeRef.FromInternal(type.DeclaringType);
         }
+
+        private static Dictionary<TypeReference, TypeRef> cache = new Dictionary<TypeReference, TypeRef>();
+        // Should ONLY have contents during TypeRef functions!
+        private static Stack<TypeRef> toPopulate = new Stack<TypeRef>();
 
         public static int hits = 0;
         public static int misses = 0;
 
-        public static TypeRef From(TypeReference type, bool declaringType = true)
+        private static TypeRef FromInternal(TypeReference type)
         {
             TypeRef value;
             if (cache.TryGetValue(type, out value))
@@ -151,10 +162,30 @@ namespace Il2Cpp_Modding_Codegen.Data
                 return value;
             }
             misses++;
-            value = new TypeRef(type, declaringType);
+
+            // Creates TypeRef to be populated later
+            value = new TypeRef(type);
+            // Ensures the placeholder TypeRef will be resolved as THE TypeRef for this TypeReference
             cache.Add(type, value);
+            // Queues the TypeRef for population as the new First
+            toPopulate.Push(value);
             return value;
         }
+
+        public static TypeRef From(TypeReference type)
+        {
+            // Initiates and queues only the requested TypeRef
+            TypeRef ret = FromInternal(type);
+            // We must populate ALL un-populated TypeRefs before leaving TypeRef execution!
+            while (toPopulate.Count() > 0)
+            {
+                TypeRef t = toPopulate.Pop();
+                // Populates t and queues any uncached TypeRefs among its fields
+                t.SetFieldsFromTypeReference();
+            }
+            return ret;
+        }
+        #endregion
 
         /// <summary>
         /// Resolves the type in the given context
