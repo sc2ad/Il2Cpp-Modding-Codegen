@@ -21,7 +21,6 @@ namespace Il2Cpp_Modding_Codegen.Data.DllHandling
         private ReaderParameters _readerParams;
 
         private HashSet<TypeDefinition> cache = new HashSet<TypeDefinition>();
-
         public DllData(string dir, DllConfig config)
         {
             _config = config;
@@ -50,8 +49,8 @@ namespace Il2Cpp_Modding_Codegen.Data.DllHandling
                             Console.WriteLine($"Prevented repeat parsing of {t} from {module}");
                             continue;
                         }
-                        Types.Add(new DllTypeData(t, _config));
                         cache.Add(t);
+                        Types.Add(new DllTypeData(t, _config));
                     }
                 }
             }
