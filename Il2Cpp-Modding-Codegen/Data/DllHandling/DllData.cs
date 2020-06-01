@@ -20,7 +20,6 @@ namespace Il2Cpp_Modding_Codegen.Data.DllHandling
         private string _dir;
         private ReaderParameters _readerParams;
 
-        private HashSet<TypeDefinition> cache = new HashSet<TypeDefinition>();
         public DllData(string dir, DllConfig config)
         {
             _config = config;
@@ -38,23 +37,12 @@ namespace Il2Cpp_Modding_Codegen.Data.DllHandling
                     modules.Add(ModuleDefinition.ReadModule(file, _readerParams));
                 }
             }
-            foreach (var module in modules)
+            modules.ForEach(m => m.Types.ToList().ForEach(t =>
             {
-                foreach (var t in module.Types)
-                {
-                    if (_config.ParseTypes && !_config.BlacklistTypes.Contains(t.Name))
-                    {
-                        if (cache.Contains(t))
-                        {
-                            // Note: I've yet to see this trigger. It might not be possible given ODR. Remove cache?
-                            Console.WriteLine($"Prevented repeat parsing of {t} from {module}");
-                            continue;
-                        }
-                        cache.Add(t);
-                        Types.Add(new DllTypeData(t, _config));
-                    }
-                }
-            }
+                if (_config.ParseTypes && !_config.BlacklistTypes.Contains(t.Name))
+                    Types.Add(new DllTypeData(t, _config));
+            }));
+
             int total = TypeRef.hits + TypeRef.misses;
             Console.WriteLine($"TypeRef cache hits: {TypeRef.hits} / {total} = {100.0f * TypeRef.hits / total}");
             // Ignore images for now.
