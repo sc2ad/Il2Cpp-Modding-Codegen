@@ -123,7 +123,7 @@ namespace Il2Cpp_Modding_Codegen.Data
             }
         }
 
-        public TypeRef(TypeReference type)
+        public TypeRef(TypeReference type, bool declaringType = true)
         {
             Namespace = type.Namespace;
             Name = type.Name;
@@ -131,8 +131,8 @@ namespace Il2Cpp_Modding_Codegen.Data
                 Name += "*";
             Generic = type.IsGenericInstance;
             if (type.HasGenericParameters)
-                GenericParameters.AddRange(type.GenericParameters.Select(gp => new TypeRef(gp)));
-            if (type.DeclaringType != null)
+                GenericParameters.AddRange(type.GenericParameters.Select(gp => new TypeRef(gp, false)));
+            if (declaringType && type.DeclaringType != null && !type.DeclaringType.Equals(type))
                 DeclaringType = new TypeRef(type.DeclaringType);
         }
 
