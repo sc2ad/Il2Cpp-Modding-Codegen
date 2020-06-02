@@ -17,6 +17,20 @@ namespace Il2Cpp_Modding_Codegen.Data.DumpHandling
         public override TypeRef DeclaringType { get; }
         public override TypeRef ElementType { get; }
 
+        public override bool IsPointer(ITypeContext context)
+        {
+            if (Name.EndsWith("*"))
+            {
+                return true;
+            }
+            return base.IsPointer(context);
+        }
+
+        public override bool IsArray()
+        {
+            return Name.EndsWith("[]");
+        }
+
         /// <summary>
         /// For use with text dumps. Takes a given split array that contains a type at index ind and
         /// returns the full typename and index where the end of the typename is while traversing the split array with direction and sep.
@@ -52,11 +66,12 @@ namespace Il2Cpp_Modding_Codegen.Data.DumpHandling
         public DumpTypeRef(string @namespace, string typeName)
         {
             Namespace = @namespace;
-            var GenericParams = new List<TypeRef>();
 
             if (typeName.EndsWith(">") && !typeName.StartsWith("<"))
             {
                 Generic = true;
+                var GenericParams = new List<TypeRef>();
+
                 var ind = typeName.IndexOf("<");
                 var types = typeName.Substring(ind + 1, typeName.Length - ind - 2);
                 var spl = types.Split(new string[] { ", " }, StringSplitOptions.None);
@@ -82,6 +97,7 @@ namespace Il2Cpp_Modding_Codegen.Data.DumpHandling
                     DeclaringType = new DumpTypeRef(typeName.Substring(0, declInd));
                 }
                 Name = typeName.Substring(declInd + 1);
+                GenericParameters = GenericParams;
             }
             else
             {
@@ -91,14 +107,13 @@ namespace Il2Cpp_Modding_Codegen.Data.DumpHandling
                     // Create a new TypeRef for the declaring type, it should recursively create more declaring types
                     DeclaringType = new DumpTypeRef(typeName.Substring(0, declInd));
                 }
-                if (typeName.EndsWith("[]"))
+                Name = typeName.Substring(declInd + 1);
+                if (IsArray())
                 {
                     ElementType = new DumpTypeRef(typeName.Substring(0, typeName.Length - 2));
                     // TODO: else set ElementType to `this` as Mono.Cecil does?
                 }
-                Name = typeName.Substring(declInd + 1);
             }
-            GenericParameters = GenericParams;
         }
 
         public DumpTypeRef(string qualifiedName) : this("", qualifiedName) { }

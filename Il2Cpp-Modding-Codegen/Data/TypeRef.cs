@@ -38,14 +38,12 @@ namespace Il2Cpp_Modding_Codegen.Data
 
         public virtual bool IsPointer(ITypeContext context)
         {
-            if (Name.EndsWith("*"))
-            {
-                return true;
-            }
             // Resolve type, if type is not a value type, it is a pointer
             Resolve(context);
             return _resolvedType?.Info.TypeFlags == TypeFlags.ReferenceType;
         }
+
+        public abstract bool IsArray();
 
         public override string ToString()
         {

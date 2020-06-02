@@ -37,6 +37,11 @@ namespace Il2Cpp_Modding_Codegen.Data.DllHandling
             return This.IsPointer;
         }
 
+        public override bool IsArray()
+        {
+            return This.IsArray;
+        }
+
         private static readonly Dictionary<TypeReference, DllTypeRef> cache = new Dictionary<TypeReference, DllTypeRef>();
 
         public static int hits = 0;
@@ -61,77 +66,6 @@ namespace Il2Cpp_Modding_Codegen.Data.DllHandling
             value = new DllTypeRef(type);
             cache.Add(type, value);
             return value;
-        }
-
-        public string ResolvePrimitive(CppSerializerContext context, ForceAsType force)
-        {
-            var name = Name.ToLower();
-            if (name == "void")
-                return "void";
-            else if (name == "void*")
-                return "void*";
-
-            string s = null;
-            if (name == "object")
-                s = "Il2CppObject";
-            else if (name == "string")
-                s = "Il2CppString";
-            else if (name == "int")
-                s = "int";
-            else if (name == "single")
-                s = "float";
-            else if (name == "double")
-                s = "double";
-            else if (name == "uint")
-                s = "uint";
-            else if (name == "char")
-                s = "uint16_t";
-            else if (name == "byte")
-                s = "int8_t";
-            else if (name == "sbyte")
-                s = "uint8_t";
-            else if (name == "bool")
-                s = "bool";
-            else if (name == "short")
-                s = "int16_t";
-            else if (name == "ushort")
-                s = "uint16_t";
-            else if (name == "long")
-                s = "int64_t";
-            else if (name == "ulong")
-                s = "uint64_t";
-            else if (This.IsArray)
-            {
-                // Array
-                // TODO: Make this use Array<ElementType> instead of Il2CppArray
-                s = $"Array<{context.GetNameFromReference(ElementType, ForceAsType.None, true, true)}>";
-            }
-            switch (force)
-            {
-                case ForceAsType.Pointer:
-                    return s != null ? s + "*" : null;
-
-                case ForceAsType.Reference:
-                    return s != null ? s + "&" : null;
-
-                case ForceAsType.Literal:
-                    // Special cases for Il2Cpp types, need to forward declare/include typedefs.h iff force valuetype
-                    if (s != null && (s.StartsWith("Il2Cpp") || s.StartsWith("Array<")))
-                    {
-                        context.Includes.Add("utils/typedefs.h");
-                        return s;
-                    }
-                    return s;
-
-                default:
-                    // Pointer type for Il2Cpp types on default
-                    if (s != null && (s.StartsWith("Il2Cpp") || s.StartsWith("Array<")))
-                    {
-                        context.ForwardDeclares.Add(new TypeName("", s));
-                        return s + "*";
-                    }
-                    return s;
-            }
         }
     }
 }

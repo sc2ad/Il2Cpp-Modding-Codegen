@@ -217,10 +217,8 @@ namespace Il2Cpp_Modding_Codegen.Serialization
                 s = "int64_t";
             else if (name == "ulong")
                 s = "uint64_t";
-            else if (name.EndsWith("[]"))
+            else if (def.IsArray())
             {
-                // Array
-                // TODO: Make this use Array<ElementType> instead of Il2CppArray
                 s = $"Array<{GetNameFromReference(def.ElementType, ForceAsType.None, true, true)}>";
             }
             switch (force)
