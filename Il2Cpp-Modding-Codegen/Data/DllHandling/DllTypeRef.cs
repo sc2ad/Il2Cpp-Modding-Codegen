@@ -32,6 +32,11 @@ namespace Il2Cpp_Modding_Codegen.Data.DllHandling
             get { return From(This.GetElementType()); }
         }
 
+        public override bool IsPointer(ITypeContext context)
+        {
+            return This.IsPointer;
+        }
+
         private static readonly Dictionary<TypeReference, DllTypeRef> cache = new Dictionary<TypeReference, DllTypeRef>();
 
         public static int hits = 0;

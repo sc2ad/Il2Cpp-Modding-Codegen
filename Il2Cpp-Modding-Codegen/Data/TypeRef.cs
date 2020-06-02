@@ -36,7 +36,7 @@ namespace Il2Cpp_Modding_Codegen.Data
             return Name.Equals("void", StringComparison.OrdinalIgnoreCase);
         }
 
-        public bool IsPointer(ITypeContext context)
+        public virtual bool IsPointer(ITypeContext context)
         {
             if (Name.EndsWith("*"))
             {
