@@ -29,7 +29,7 @@ namespace Il2Cpp_Modding_Codegen.Data.DllHandling
         {
         }
 
-        private static DllTypeRef GenericFromInternal(TypeReference type)
+        private static DllTypeRef GenericT(TypeReference type)
         {
             return new DllTypeRef
             {
@@ -79,8 +79,10 @@ namespace Il2Cpp_Modding_Codegen.Data.DllHandling
             Namespace = reference.Namespace;
             Name = reference.Name;
             Generic = reference.IsGenericInstance;
-            if (reference.HasGenericParameters)
-                GenericParameters.AddRange(reference.GenericParameters.Select(gp => GenericFromInternal(gp)));
+            if (Generic)
+                GenericParameters.AddRange(reference.GenericParameters.Select(gp => FromInternal(gp)));
+            else if (reference.HasGenericParameters)
+                GenericParameters.AddRange(reference.GenericParameters.Select(gp => GenericT(gp)));
             if (reference.DeclaringType != null && !reference.DeclaringType.Equals(reference))
                 DeclaringType = FromInternal(reference.DeclaringType);
         }
