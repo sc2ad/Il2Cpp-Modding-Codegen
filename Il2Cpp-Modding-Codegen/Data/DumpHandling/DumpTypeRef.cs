@@ -15,6 +15,7 @@ namespace Il2Cpp_Modding_Codegen.Data.DumpHandling
         public override List<TypeRef> GenericParameters { get; } = new List<TypeRef>();
 
         public override TypeRef DeclaringType { get; protected set; }
+        public override TypeRef ElementType { get; protected set; }
 
         /// <summary>
         /// For use with text dumps. Takes a given split array that contains a type at index ind and
@@ -86,6 +87,11 @@ namespace Il2Cpp_Modding_Codegen.Data.DumpHandling
                 {
                     // Create a new TypeRef for the declaring type, it should recursively create more declaring types
                     DeclaringType = new DumpTypeRef(typeName.Substring(0, declInd));
+                }
+                if (typeName.EndsWith("[]"))
+                {
+                    ElementType = new DumpTypeRef(typeName.Substring(0, typeName.Length - 2));
+                    // TODO: else set ElementType to `this` as Mono.Cecil does?
                 }
                 Name = typeName.Substring(declInd + 1);
             }

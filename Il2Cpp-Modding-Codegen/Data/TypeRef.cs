@@ -15,6 +15,7 @@ namespace Il2Cpp_Modding_Codegen.Data
         public abstract bool Generic { get; protected set; }
         public abstract List<TypeRef> GenericParameters { get; }
         public abstract TypeRef DeclaringType { get; protected set; }
+        public abstract TypeRef ElementType { get; protected set; }
 
         private ITypeData _resolvedType;
 

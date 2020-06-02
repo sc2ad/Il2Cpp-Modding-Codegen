@@ -15,6 +15,7 @@ namespace Il2Cpp_Modding_Codegen.Data.DllHandling
         public override List<TypeRef> GenericParameters { get; } = new List<TypeRef>();
 
         public override TypeRef DeclaringType { get; protected set; }
+        public override TypeRef ElementType { get; protected set; }
 
         private static readonly Dictionary<TypeReference, DllTypeRef> cache = new Dictionary<TypeReference, DllTypeRef>();
 
@@ -85,6 +86,9 @@ namespace Il2Cpp_Modding_Codegen.Data.DllHandling
                 GenericParameters.AddRange(reference.GenericParameters.Select(gp => GenericT(gp)));
             if (reference.DeclaringType != null && !reference.DeclaringType.Equals(reference))
                 DeclaringType = FromInternal(reference.DeclaringType);
+            var etype = reference.GetElementType();
+            if (etype != null && !etype.Equals(reference))
+                ElementType = FromInternal(etype);
         }
     }
 }
