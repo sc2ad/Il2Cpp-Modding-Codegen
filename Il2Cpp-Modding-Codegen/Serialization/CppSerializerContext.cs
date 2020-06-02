@@ -111,11 +111,12 @@ namespace Il2Cpp_Modding_Codegen.Serialization
                 if (genericParams)
                 {
                     typeStr = "<";
-                    for (int i = 0; i < found.GenericParameters.Count; i++)
+                    bool first = true;
+                    foreach (var genParam in found.GenericParameters)
                     {
-                        typeStr += GetNameFromReference(found.GenericParameters[i], ForceAsType.None, true, true);
-                        if (i != found.GenericParameters.Count - 1)
-                            typeStr += ", ";
+                        if (!first) typeStr += ", ";
+                        typeStr += GetNameFromReference(genParam, ForceAsType.None, true, true);
+                        first = false;
                     }
                     typeStr += ">";
                 }
@@ -136,11 +137,12 @@ namespace Il2Cpp_Modding_Codegen.Serialization
             if (def.Generic && genericParams)
             {
                 types = "<";
-                for (int i = 0; i < def.GenericParameters.Count; i++)
+                bool first = true;
+                foreach (var genParam in def.GenericParameters)
                 {
-                    types += GetNameFromReference(def.GenericParameters[i], ForceAsType.None, true, true);
-                    if (i != def.GenericParameters.Count - 1)
-                        types += ", ";
+                    if (!first) types += ", ";
+                    types += GetNameFromReference(genParam, ForceAsType.None, true, true);
+                    first = false;
                 }
                 types += ">";
                 // Modify resolved type definition's name to include generic arguments

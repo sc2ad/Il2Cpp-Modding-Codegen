@@ -45,7 +45,7 @@ namespace Il2Cpp_Modding_Codegen.Data
                     throw new InvalidOperationException($"{tmp.DeclaringType} is generic, but nested class {tmp} does not have the same generic parameters!");
                 var genericStr = "";
                 if (tmp.DeclaringType.Generic && (tmp.DeclaringType.DeclaringType == null || !tmp.DeclaringType.DeclaringType.Generic))
-                    genericStr = "`" + tmp.DeclaringType.GenericParameters.Count;
+                    genericStr = "`" + tmp.DeclaringType.GenericParameters.Count();
                 s = tmp.DeclaringType.Name + genericStr + "/" + s;
                 tmp = new TypeName(tmp.DeclaringType);
             }

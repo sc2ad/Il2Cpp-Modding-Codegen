@@ -105,7 +105,7 @@ namespace Il2Cpp_Modding_Codegen.Data.DumpHandling
             {
                 Name = methodSplit[methodSplit.Length - 1].Substring(startIndex + 1);
             }
-            ReturnType = new DumpTypeRef(DumpTypeRef.FromMultiple(methodSplit, nameIdx - 1, out nameIdx, -1, " "), false);
+            ReturnType = new DumpTypeRef(DumpTypeRef.FromMultiple(methodSplit, nameIdx - 1, out nameIdx, -1, " "));
             for (int i = 0; i < nameIdx - 1; i++)
             {
                 Specifiers.Add(new DumpSpecifier(methodSplit[i]));

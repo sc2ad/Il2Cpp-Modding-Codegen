@@ -8,14 +8,14 @@ namespace Il2Cpp_Modding_Codegen.Data.DumpHandling
     public class DumpTypeRef : TypeRef
     {
         public static readonly DumpTypeRef ObjectType = new DumpTypeRef("object");
-        public override string Namespace { get; protected set; } = string.Empty;
-        public override string Name { get; protected set; }
-        public override bool Generic { get; protected set; }
+        public override string Namespace { get; } = string.Empty;
+        public override string Name { get; }
+        public override bool Generic { get; }
 
-        public override List<TypeRef> GenericParameters { get; } = new List<TypeRef>();
+        public override IEnumerable<TypeRef> GenericParameters { get; }
 
-        public override TypeRef DeclaringType { get; protected set; }
-        public override TypeRef ElementType { get; protected set; }
+        public override TypeRef DeclaringType { get; }
+        public override TypeRef ElementType { get; }
 
         /// <summary>
         /// For use with text dumps. Takes a given split array that contains a type at index ind and
@@ -49,8 +49,11 @@ namespace Il2Cpp_Modding_Codegen.Data.DumpHandling
             return direction > 0 ? s.Substring(sep.Length) : s.Substring(0, s.Length - sep.Length);
         }
 
-        public void Set(string typeName)
+        public DumpTypeRef(string @namespace, string typeName)
         {
+            Namespace = @namespace;
+            var GenericParams = new List<TypeRef>();
+
             if (typeName.EndsWith(">") && !typeName.StartsWith("<"))
             {
                 Generic = true;
@@ -70,7 +73,7 @@ namespace Il2Cpp_Modding_Codegen.Data.DumpHandling
                         s += ", " + spl[i];
                         i++;
                     }
-                    GenericParameters.Add(new DumpTypeRef(s));
+                    GenericParams.Add(new DumpTypeRef(s));
                 }
                 var declInd = typeName.LastIndexOf('.');
                 if (declInd != -1)
@@ -95,18 +98,9 @@ namespace Il2Cpp_Modding_Codegen.Data.DumpHandling
                 }
                 Name = typeName.Substring(declInd + 1);
             }
+            GenericParameters = GenericParams;
         }
 
-        public DumpTypeRef(string @namespace, string name)
-        {
-            Namespace = @namespace;
-            Set(name);
-        }
-
-        public DumpTypeRef(string qualifiedName)
-        {
-            Set(qualifiedName);
-            Namespace = "";
-        }
+        public DumpTypeRef(string qualifiedName) : this("", qualifiedName) { }
     }
 }

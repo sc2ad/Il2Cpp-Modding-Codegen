@@ -9,13 +9,13 @@ namespace Il2Cpp_Modding_Codegen.Data
 {
     public abstract class TypeRef
     {
-        public abstract string Namespace { get; protected set; }
-        public abstract string Name { get; protected set; }
+        public abstract string Namespace { get; }
+        public abstract string Name { get; }
 
-        public abstract bool Generic { get; protected set; }
-        public abstract List<TypeRef> GenericParameters { get; }
-        public abstract TypeRef DeclaringType { get; protected set; }
-        public abstract TypeRef ElementType { get; protected set; }
+        public abstract bool Generic { get; }
+        public abstract IEnumerable<TypeRef> GenericParameters { get; }
+        public abstract TypeRef DeclaringType { get; }
+        public abstract TypeRef ElementType { get; }
 
         private ITypeData _resolvedType;
 
@@ -54,11 +54,12 @@ namespace Il2Cpp_Modding_Codegen.Data
             if (!Generic)
                 return $"{Name}";
             var s = Name + "<";
-            for (int i = 0; i < GenericParameters.Count; i++)
+            bool first = true;
+            foreach (var param in GenericParameters)
             {
-                s += GenericParameters[i].ToString();
-                if (i != GenericParameters.Count - 1)
-                    s += ", ";
+                if (!first) s += ", ";
+                s += param.ToString();
+                first = false;
             }
             s += ">";
             return s;

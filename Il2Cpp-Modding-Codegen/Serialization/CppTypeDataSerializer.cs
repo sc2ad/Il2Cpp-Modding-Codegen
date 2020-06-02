@@ -106,11 +106,12 @@ namespace Il2Cpp_Modding_Codegen.Serialization
                 if (type.This.Generic)
                 {
                     var templateStr = "template<";
-                    for (int i = 0; i < type.This.GenericParameters.Count; i++)
+                    bool first = true;
+                    foreach (var genParam in type.This.GenericParameters)
                     {
-                        templateStr += "typename " + type.This.GenericParameters[i].Name;
-                        if (i != type.This.GenericParameters.Count - 1)
-                            templateStr += ", ";
+                        if (!first) templateStr += ", ";
+                        templateStr += "typename " + genParam.Name;
+                        first = false;
                     }
                     writer.WriteLine(_prefix + templateStr + ">");
                     typeHeader = "struct " + _typeName + s;
