@@ -78,8 +78,6 @@ namespace Il2Cpp_Modding_Codegen.Data.DllHandling
         {
             Namespace = reference.Namespace;
             Name = reference.Name;
-            if (reference.IsPointer)
-                Name += "*";
             Generic = reference.IsGenericInstance;
             if (reference.HasGenericParameters)
                 GenericParameters.AddRange(reference.GenericParameters.Select(gp => GenericFromInternal(gp)));
