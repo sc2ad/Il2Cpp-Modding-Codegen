@@ -18,8 +18,8 @@ namespace Il2Cpp_Modding_Codegen.Data.DllHandling
 
         public DllField(FieldDefinition f)
         {
-            DeclaringType = TypeRef.From(f.DeclaringType);
-            Type = TypeRef.From(f.FieldType);
+            DeclaringType = DllTypeRef.From(f.DeclaringType);
+            Type = DllTypeRef.From(f.FieldType);
             Name = f.Name;
             Offset = -1;
             if (f.HasCustomAttributes)

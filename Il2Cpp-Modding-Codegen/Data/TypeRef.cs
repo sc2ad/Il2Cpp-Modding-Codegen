@@ -7,185 +7,16 @@ using System.Security.Principal;
 
 namespace Il2Cpp_Modding_Codegen.Data
 {
-    public class TypeRef
+    public abstract class TypeRef
     {
-        public static readonly TypeRef ObjectType = new TypeRef("object");
-        public static readonly TypeRef VoidType = new TypeRef("void");
-        public string Namespace { get; internal set; } = "";
-        public string Name { get; internal set; }
+        public abstract string Namespace { get; protected set; }
+        public abstract string Name { get; protected set; }
 
-        public bool Generic { get; private set; }
-        public List<TypeRef> GenericParameters { get; } = new List<TypeRef>();
-        public TypeRef DeclaringType { get; internal set; }
+        public abstract bool Generic { get; protected set; }
+        public abstract List<TypeRef> GenericParameters { get; }
+        public abstract TypeRef DeclaringType { get; protected set; }
 
         private ITypeData _resolvedType;
-
-        /// <summary>
-        /// For use with text dumps. Takes a given split array that contains a type at index ind and
-        /// returns the full typename and index where the end of the typename is while traversing the split array with direction and sep.
-        /// </summary>
-        /// <param name="spl"></param>
-        /// <param name="ind"></param>
-        /// <param name="adjustedIndex"></param>
-        /// <param name="direction"></param>
-        /// <param name="sep"></param>
-        /// <returns></returns>
-        internal static string FromMultiple(string[] spl, int ind, out int adjustedIndex, int direction = -1, string sep = " ")
-        {
-            adjustedIndex = ind;
-            if (direction < 0 ? !spl[ind].Contains(">") : !spl[ind].Contains("<"))
-            {
-                adjustedIndex = ind;
-                return spl[ind];
-            }
-            int countToClose = 0;
-            string s = "";
-            for (; direction > 0 ? ind < spl.Length : ind >= 0; ind += direction, adjustedIndex += direction)
-            {
-                // Depending which way we are travelling, either decrease or increase countToClose
-                countToClose -= direction * spl[ind].Count(c => c == '>');
-                countToClose += direction * spl[ind].Count(c => c == '<');
-                s = direction > 0 ? s + sep + spl[ind] : spl[ind] + sep + s;
-                if (countToClose == 0)
-                    break;
-            }
-            return direction > 0 ? s.Substring(sep.Length) : s.Substring(0, s.Length - sep.Length);
-        }
-
-        public void Set(string typeName)
-        {
-            if (typeName.EndsWith(">") && !typeName.StartsWith("<"))
-            {
-                Generic = true;
-                var ind = typeName.IndexOf("<");
-                var types = typeName.Substring(ind + 1, typeName.Length - ind - 2);
-                var spl = types.Split(new string[] { ", " }, StringSplitOptions.None);
-                for (int i = 0; i < spl.Length;)
-                {
-                    string s = spl[i];
-                    int unclosed = s.Count(c => c == '<');
-                    unclosed -= s.Count(c => c == '>');
-                    i++;
-                    while (unclosed > 0)
-                    {
-                        unclosed += spl[i].Count(c => c == '<');
-                        unclosed -= spl[i].Count(c => c == '>');
-                        s += ", " + spl[i];
-                        i++;
-                    }
-                    GenericParameters.Add(new TypeRef(s, false));
-                }
-                var declInd = typeName.LastIndexOf('.');
-                if (declInd != -1)
-                {
-                    // Create a new TypeRef for the declaring type, it should recursively create more declaring types
-                    DeclaringType = new TypeRef(typeName.Substring(0, declInd));
-                }
-                Name = typeName.Substring(declInd + 1);
-            }
-            else
-            {
-                var declInd = typeName.LastIndexOf('.');
-                if (declInd != -1)
-                {
-                    // Create a new TypeRef for the declaring type, it should recursively create more declaring types
-                    DeclaringType = new TypeRef(typeName.Substring(0, declInd));
-                }
-                Name = typeName.Substring(declInd + 1);
-            }
-        }
-
-        public TypeRef(string @namespace, string name)
-        {
-            Namespace = @namespace;
-            Set(name);
-        }
-
-        public TypeRef(string qualifiedName, bool qualified = false)
-        {
-            if (qualified)
-            {
-                int dotLocation = qualifiedName.LastIndexOf('.');
-                if (dotLocation == -1)
-                {
-                    Set(qualifiedName);
-                    Namespace = "";
-                }
-                else
-                {
-                    Namespace = qualifiedName.Substring(0, dotLocation);
-                    Set(qualifiedName.Substring(dotLocation + 1));
-                }
-            }
-            else
-            {
-                Set(qualifiedName);
-                Namespace = "";
-            }
-        }
-
-        #region TypeReferenceToTypeRef
-        private TypeReference typeRef;
-        private TypeRef(TypeReference type)
-        {
-            typeRef = type;
-            // fields will be populated by SetFieldsFromTypeReference()
-        }
-
-        private void SetFieldsFromTypeReference()
-        {
-            var type = this.typeRef;
-            Namespace = type.Namespace;
-            Name = type.Name;
-            if (type.IsPointer)
-                Name += "*";
-            Generic = type.IsGenericInstance;
-            if (type.HasGenericParameters)
-                GenericParameters.AddRange(type.GenericParameters.Select(gp => TypeRef.FromInternal(gp)));
-            if (type.DeclaringType != null && !type.DeclaringType.Equals(type))
-                DeclaringType = TypeRef.FromInternal(type.DeclaringType);
-        }
-
-        private static Dictionary<TypeReference, TypeRef> cache = new Dictionary<TypeReference, TypeRef>();
-        // Should ONLY have contents during TypeRef functions!
-        private static Stack<TypeRef> toPopulate = new Stack<TypeRef>();
-
-        public static int hits = 0;
-        public static int misses = 0;
-
-        private static TypeRef FromInternal(TypeReference type)
-        {
-            TypeRef value;
-            if (cache.TryGetValue(type, out value))
-            {
-                hits++;
-                return value;
-            }
-            misses++;
-
-            // Creates TypeRef to be populated later
-            value = new TypeRef(type);
-            // Ensures the placeholder TypeRef will be resolved as THE TypeRef for this TypeReference
-            cache.Add(type, value);
-            // Queues the TypeRef for population as the new First
-            toPopulate.Push(value);
-            return value;
-        }
-
-        public static TypeRef From(TypeReference type)
-        {
-            // Initiates and queues only the requested TypeRef
-            TypeRef ret = FromInternal(type);
-            // We must populate ALL un-populated TypeRefs before leaving TypeRef execution!
-            while (toPopulate.Count() > 0)
-            {
-                TypeRef t = toPopulate.Pop();
-                // Populates t and queues any uncached TypeRefs among its fields
-                t.SetFieldsFromTypeReference();
-            }
-            return ret;
-        }
-        #endregion
 
         /// <summary>
         /// Resolves the type in the given context
@@ -197,6 +28,11 @@ namespace Il2Cpp_Modding_Codegen.Data
                 _resolvedType = context.Resolve(this);
             }
             return _resolvedType;
+        }
+
+        public bool IsVoid()
+        {
+            return Name.Equals("void", StringComparison.OrdinalIgnoreCase);
         }
 
         public bool IsPointer(ITypeContext context)

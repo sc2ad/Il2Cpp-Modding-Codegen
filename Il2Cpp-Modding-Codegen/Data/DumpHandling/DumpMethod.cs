@@ -76,7 +76,7 @@ namespace Il2Cpp_Modding_Codegen.Data.DumpHandling
                 var spl = paramLine.Split(new string[] { ", " }, StringSplitOptions.None);
                 for (int i = 0; i < spl.Length; i++)
                 {
-                    var fullParamString = TypeRef.FromMultiple(spl, i, out int adjust, 1, ", ");
+                    var fullParamString = DumpTypeRef.FromMultiple(spl, i, out int adjust, 1, ", ");
                     Parameters.Add(new Parameter(fullParamString));
                     i = adjust;
                 }
@@ -91,19 +91,21 @@ namespace Il2Cpp_Modding_Codegen.Data.DumpHandling
                 startIndex = methodSplit[methodSplit.Length - 1].LastIndexOf(".");
                 if (startIndex != -1)
                 {
-                    var typeStr = TypeRef.FromMultiple(methodSplit, methodSplit.Length - 1, out nameIdx, -1, " ");
+                    var typeStr = DumpTypeRef.FromMultiple(methodSplit, methodSplit.Length - 1, out nameIdx, -1, " ");
                     var finalDot = typeStr.LastIndexOf('.');
-                    ImplementedFrom = new TypeRef(typeStr.Substring(0, finalDot));
+                    ImplementedFrom = new DumpTypeRef(typeStr.Substring(0, finalDot));
                     Name = typeStr.Substring(finalDot + 1);
-                } else
+                }
+                else
                 {
                     Name = methodSplit[methodSplit.Length - 1];
                 }
-            } else
+            }
+            else
             {
                 Name = methodSplit[methodSplit.Length - 1].Substring(startIndex + 1);
             }
-            ReturnType = new TypeRef(TypeRef.FromMultiple(methodSplit, nameIdx - 1, out nameIdx, -1, " "), false);
+            ReturnType = new DumpTypeRef(DumpTypeRef.FromMultiple(methodSplit, nameIdx - 1, out nameIdx, -1, " "), false);
             for (int i = 0; i < nameIdx - 1; i++)
             {
                 Specifiers.Add(new DumpSpecifier(methodSplit[i]));

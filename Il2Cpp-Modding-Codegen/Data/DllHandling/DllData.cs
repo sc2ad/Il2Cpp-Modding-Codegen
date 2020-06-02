@@ -24,7 +24,7 @@ namespace Il2Cpp_Modding_Codegen.Data.DllHandling
         {
             _config = config;
             _dir = dir;
-            this.AddSearchDirectory(dir);
+            AddSearchDirectory(dir);
             _readerParams = new ReaderParameters { AssemblyResolver = this };
 
             var modules = new List<ModuleDefinition>();
@@ -43,8 +43,8 @@ namespace Il2Cpp_Modding_Codegen.Data.DllHandling
                     Types.Add(new DllTypeData(t, _config));
             }));
 
-            int total = TypeRef.hits + TypeRef.misses;
-            Console.WriteLine($"TypeRef cache hits: {TypeRef.hits} / {total} = {100.0f * TypeRef.hits / total}");
+            int total = DllTypeRef.hits + DllTypeRef.misses;
+            Console.WriteLine($"{nameof(DllTypeRef)} cache hits: {DllTypeRef.hits} / {total} = {100.0f * DllTypeRef.hits / total}");
             // Ignore images for now.
         }
 

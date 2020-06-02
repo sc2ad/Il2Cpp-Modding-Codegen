@@ -1,4 +1,6 @@
-﻿using Mono.Cecil;
+﻿using Il2Cpp_Modding_Codegen.Data.DllHandling;
+using Il2Cpp_Modding_Codegen.Data.DumpHandling;
+using Mono.Cecil;
 using System;
 using System.Collections.Generic;
 using System.Text;
@@ -34,7 +36,7 @@ namespace Il2Cpp_Modding_Codegen.Data
                 typeIndex = 0;
             }
 
-            Type = new TypeRef(TypeRef.FromMultiple(spl, typeIndex, out int res, 1, " "), false);
+            Type = new DumpTypeRef(DumpTypeRef.FromMultiple(spl, typeIndex, out int res, 1, " "), false);
             if (res + 1 < spl.Length)
             {
                 Name = spl[res + 1];
@@ -43,7 +45,7 @@ namespace Il2Cpp_Modding_Codegen.Data
 
         public Parameter(ParameterDefinition def)
         {
-            Type = TypeRef.From(def.ParameterType);
+            Type = DllTypeRef.From(def.ParameterType);
             Name = def.Name;
             Flags |= def.IsIn ? ParameterFlags.In : ParameterFlags.None;
             Flags |= def.IsOut ? ParameterFlags.Out : ParameterFlags.None;

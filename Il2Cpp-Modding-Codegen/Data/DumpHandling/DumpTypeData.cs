@@ -64,15 +64,15 @@ namespace Il2Cpp_Modding_Codegen.Data.DumpHandling
                 // 1 after is Parent
                 // We will assume that if the Parent type starts with an I, it is an interface
                 // TODO: Fix this assumption, perhaps by resolving the types forcibly and ensuring they are interfaces?
-                var parentCandidate = TypeRef.FromMultiple(split, start + 2, out int tmp, 1, " ").TrimEnd(',');
+                var parentCandidate = DumpTypeRef.FromMultiple(split, start + 2, out int tmp, 1, " ").TrimEnd(',');
                 if (parentCandidate.StartsWith("I"))
-                    ImplementingInterfaces.Add(new TypeRef(parentCandidate, false));
+                    ImplementingInterfaces.Add(new DumpTypeRef(parentCandidate, false));
                 else
-                    Parent = new TypeRef(parentCandidate, false);
+                    Parent = new DumpTypeRef(parentCandidate, false);
                 // Go from 2 after : to length - 3
                 for (int i = tmp + 1; i < split.Length - 3; i++)
                 {
-                    ImplementingInterfaces.Add(new TypeRef(TypeRef.FromMultiple(split, i, out tmp, 1, " ").TrimEnd(','), false));
+                    ImplementingInterfaces.Add(new DumpTypeRef(DumpTypeRef.FromMultiple(split, i, out tmp, 1, " ").TrimEnd(','), false));
                     i = tmp;
                 }
             }
@@ -84,7 +84,7 @@ namespace Il2Cpp_Modding_Codegen.Data.DumpHandling
             // -5 is type enum
             // all others are specifiers
             // This will have DeclaringType set on it
-            This = new TypeRef(@namespace, TypeRef.FromMultiple(split, start, out int adjusted, -1, " "));
+            This = new DumpTypeRef(@namespace, DumpTypeRef.FromMultiple(split, start, out int adjusted, -1, " "));
             Type = (TypeEnum)Enum.Parse(typeof(TypeEnum), split[adjusted - 1], true);
             for (int i = 0; i < adjusted - 1; i++)
             {
@@ -100,7 +100,7 @@ namespace Il2Cpp_Modding_Codegen.Data.DumpHandling
                 // If the type is a value type, it has no parent.
                 // If the type is a reference type, it has parent Il2CppObject
                 if (Info.TypeFlags == TypeFlags.ReferenceType)
-                    Parent = TypeRef.ObjectType;
+                    Parent = DumpTypeRef.ObjectType;
             }
         }
 

@@ -50,7 +50,7 @@ namespace Il2Cpp_Modding_Codegen.Data.DumpHandling
                 }
             }
             Name = split[split.Length - 3 - i];
-            Type = new TypeRef(TypeRef.FromMultiple(split, split.Length - 4 - i, out int adjust, -1, " "), false);
+            Type = new DumpTypeRef(DumpTypeRef.FromMultiple(split, split.Length - 4 - i, out int adjust, -1, " "), false);
             for (int j = 0; j < adjust; j++)
             {
                 Specifiers.Add(new DumpSpecifier(split[j]));

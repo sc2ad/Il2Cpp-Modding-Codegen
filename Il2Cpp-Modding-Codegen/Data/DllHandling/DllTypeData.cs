@@ -30,12 +30,12 @@ namespace Il2Cpp_Modding_Codegen.Data.DllHandling
             _config = config;
             foreach (var i in def.Interfaces)
             {
-                ImplementingInterfaces.Add(TypeRef.From(i.InterfaceType));
+                ImplementingInterfaces.Add(DllTypeRef.From(i.InterfaceType));
             }
             if (def.BaseType != null)
-                Parent = TypeRef.From(def.BaseType);
+                Parent = DllTypeRef.From(def.BaseType);
 
-            This = TypeRef.From(def);
+            This = DllTypeRef.From(def);
             Type = def.IsEnum ? TypeEnum.Enum : def.IsInterface ? TypeEnum.Interface : def.IsClass ? TypeEnum.Class : TypeEnum.Struct;
             Info = new TypeInfo
             {

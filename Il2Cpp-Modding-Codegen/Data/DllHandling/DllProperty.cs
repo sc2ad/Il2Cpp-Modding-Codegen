@@ -19,8 +19,8 @@ namespace Il2Cpp_Modding_Codegen.Data.DllHandling
 
         public DllProperty(PropertyDefinition p)
         {
-            DeclaringType = TypeRef.From(p.DeclaringType);
-            Type = TypeRef.From(p.PropertyType);
+            DeclaringType = DllTypeRef.From(p.DeclaringType);
+            Type = DllTypeRef.From(p.PropertyType);
             Name = p.Name;
             GetMethod = p.GetMethod != null;
             SetMethod = p.SetMethod != null;

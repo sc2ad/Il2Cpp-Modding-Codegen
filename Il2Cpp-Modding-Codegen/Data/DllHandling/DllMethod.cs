@@ -24,11 +24,11 @@ namespace Il2Cpp_Modding_Codegen.Data.DllHandling
 
         public DllMethod(MethodDefinition m)
         {
-            ReturnType = TypeRef.From(m.ReturnType);
-            DeclaringType = TypeRef.From(m.DeclaringType);
+            ReturnType = DllTypeRef.From(m.ReturnType);
+            DeclaringType = DllTypeRef.From(m.DeclaringType);
             var baseMethod = m.GetBaseMethod();
             if (baseMethod != null)
-                ImplementedFrom = TypeRef.From(baseMethod.DeclaringType);
+                ImplementedFrom = DllTypeRef.From(baseMethod.DeclaringType);
             Name = m.Name;
             RVA = -1;
             Offset = -1;
