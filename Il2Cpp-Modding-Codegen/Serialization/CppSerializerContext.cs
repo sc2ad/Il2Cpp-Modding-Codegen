@@ -222,10 +222,10 @@ namespace Il2Cpp_Modding_Codegen.Serialization
             switch (force)
             {
                 case ForceAsType.Pointer:
-                    return s != null ? s += "*" : null;
+                    return s != null ? s + "*" : null;
 
                 case ForceAsType.Reference:
-                    return s != null ? s += "&" : null;
+                    return s != null ? s + "&" : null;
 
                 case ForceAsType.Literal:
                     // Special cases for Il2Cpp types, need to forward declare/include typedefs.h iff force valuetype
