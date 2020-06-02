@@ -36,7 +36,7 @@ namespace Il2Cpp_Modding_Codegen.Data
                 typeIndex = 0;
             }
 
-            Type = new DumpTypeRef(DumpTypeRef.FromMultiple(spl, typeIndex, out int res, 1, " "), false);
+            Type = new DumpTypeRef(DumpTypeRef.FromMultiple(spl, typeIndex, out int res, 1, " "));
             if (res + 1 < spl.Length)
             {
                 Name = spl[res + 1];

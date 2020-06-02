@@ -66,13 +66,13 @@ namespace Il2Cpp_Modding_Codegen.Data.DumpHandling
                 // TODO: Fix this assumption, perhaps by resolving the types forcibly and ensuring they are interfaces?
                 var parentCandidate = DumpTypeRef.FromMultiple(split, start + 2, out int tmp, 1, " ").TrimEnd(',');
                 if (parentCandidate.StartsWith("I"))
-                    ImplementingInterfaces.Add(new DumpTypeRef(parentCandidate, false));
+                    ImplementingInterfaces.Add(new DumpTypeRef(parentCandidate));
                 else
-                    Parent = new DumpTypeRef(parentCandidate, false);
+                    Parent = new DumpTypeRef(parentCandidate);
                 // Go from 2 after : to length - 3
                 for (int i = tmp + 1; i < split.Length - 3; i++)
                 {
-                    ImplementingInterfaces.Add(new DumpTypeRef(DumpTypeRef.FromMultiple(split, i, out tmp, 1, " ").TrimEnd(','), false));
+                    ImplementingInterfaces.Add(new DumpTypeRef(DumpTypeRef.FromMultiple(split, i, out tmp, 1, " ").TrimEnd(',')));
                     i = tmp;
                 }
             }

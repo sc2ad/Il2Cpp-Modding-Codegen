@@ -69,7 +69,7 @@ namespace Il2Cpp_Modding_Codegen.Data.DumpHandling
                         s += ", " + spl[i];
                         i++;
                     }
-                    GenericParameters.Add(new DumpTypeRef(s, false));
+                    GenericParameters.Add(new DumpTypeRef(s));
                 }
                 var declInd = typeName.LastIndexOf('.');
                 if (declInd != -1)
@@ -97,27 +97,10 @@ namespace Il2Cpp_Modding_Codegen.Data.DumpHandling
             Set(name);
         }
 
-        public DumpTypeRef(string qualifiedName, bool qualified = false)
+        public DumpTypeRef(string qualifiedName)
         {
-            if (qualified)
-            {
-                int dotLocation = qualifiedName.LastIndexOf('.');
-                if (dotLocation == -1)
-                {
-                    Set(qualifiedName);
-                    Namespace = "";
-                }
-                else
-                {
-                    Namespace = qualifiedName.Substring(0, dotLocation);
-                    Set(qualifiedName.Substring(dotLocation + 1));
-                }
-            }
-            else
-            {
-                Set(qualifiedName);
-                Namespace = "";
-            }
+            Set(qualifiedName);
+            Namespace = "";
         }
     }
 }
