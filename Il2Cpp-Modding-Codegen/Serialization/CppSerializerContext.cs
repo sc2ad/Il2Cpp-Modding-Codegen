@@ -180,40 +180,42 @@ namespace Il2Cpp_Modding_Codegen.Serialization
 
         private string ResolvePrimitive(TypeRef def, ForceAsType force)
         {
-            if (def.Name == "void")
+            var name = def.Name.ToLower();
+            if (name == "void")
                 return "void";
-            else if (def.Name == "void*")
+            else if (name == "void*")
                 return "void*";
+
             string s = null;
-            if (def.Name == "object")
+            if (name == "object")
                 s = "Il2CppObject";
-            else if (def.Name == "string")
+            else if (name == "string")
                 s = "Il2CppString";
-            else if (def.Name == "int")
+            else if (name == "int")
                 s = "int";
-            else if (def.Name == "float")
+            else if (name == "float" || name == "single")
                 s = "float";
-            else if (def.Name == "double")
+            else if (name == "double")
                 s = "double";
-            else if (def.Name == "uint")
+            else if (name == "uint")
                 s = "uint";
-            else if (def.Name == "char")
+            else if (name == "char")
                 s = "uint16_t";
-            else if (def.Name == "byte")
+            else if (name == "byte")
                 s = "int8_t";
-            else if (def.Name == "sbyte")
+            else if (name == "sbyte")
                 s = "uint8_t";
-            else if (def.Name == "bool")
+            else if (name == "bool")
                 s = "bool";
-            else if (def.Name == "short")
+            else if (name == "short")
                 s = "int16_t";
-            else if (def.Name == "ushort")
+            else if (name == "ushort")
                 s = "uint16_t";
-            else if (def.Name == "long")
+            else if (name == "long")
                 s = "int64_t";
-            else if (def.Name == "ulong")
+            else if (name == "ulong")
                 s = "uint64_t";
-            else if (def.Name.EndsWith("[]"))
+            else if (name.EndsWith("[]"))
             {
                 // Array
                 // TODO: Make this use Array<ElementType> instead of Il2CppArray
