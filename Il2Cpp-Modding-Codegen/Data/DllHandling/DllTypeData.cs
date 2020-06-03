@@ -42,8 +42,6 @@ namespace Il2Cpp_Modding_Codegen.Data.DllHandling
 
             if (def.BaseType != null)
                 Parent = DllTypeRef.From(def.BaseType);
-            else if (Info.TypeFlags == TypeFlags.ReferenceType)
-                Parent = DllTypeRef.ObjectType;
 
             // TODO: Parse this eventually
             TypeDefIndex = -1;

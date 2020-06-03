@@ -10,7 +10,6 @@ namespace Il2Cpp_Modding_Codegen.Data.DllHandling
 {
     public class DllTypeRef : TypeRef
     {
-        public static DllTypeRef ObjectType = new DllTypeRef(null);
         private TypeReference This;
         public override string Namespace {
             get { return This.Namespace; }
@@ -52,15 +51,11 @@ namespace Il2Cpp_Modding_Codegen.Data.DllHandling
         private DllTypeRef(TypeReference reference)
         {
             This = reference;
-            if (reference.Name == "Object" && reference.Namespace == "System")
-            {
-                if (ObjectType.This is null || (!ObjectType.This.IsDefinition && reference.IsDefinition))
-                    ObjectType.This = reference;
-            }
         }
 
         public static DllTypeRef From(TypeReference type)
         {
+            if (type is null) return null;
             if (cache.TryGetValue(type, out var value))
             {
                 hits++;

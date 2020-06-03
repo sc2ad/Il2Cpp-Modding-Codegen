@@ -153,7 +153,7 @@ namespace Il2Cpp_Modding_Codegen.Serialization
                 writer.WriteLine(_prefix + "  " + $"DEFINE_IL2CPP_ARG_TYPE({_qualifiedName}, \"{type.This.Namespace}\", \"{type.This.Name}\");");
             }
             if (_asHeader)
-                writer.WriteLine(_prefix + "}" + (type.This.Generic ? "" : " " + _typeName) + ";");
+                writer.WriteLine(_prefix + "};");
             writer.Flush();
         }
     }

@@ -123,7 +123,12 @@ namespace Il2Cpp_Modding_Codegen.Serialization
                 writer.Indent--;
                 writer.WriteLine("}");
                 if (!data.This.Generic)
-                    writer.WriteLine($"DEFINE_IL2CPP_ARG_TYPE({_context.QualifiedTypeName}, \"{data.This.Namespace}\", \"{data.This.Name}\");");
+                {
+                    string arg0 = _context.QualifiedTypeName;
+                    if (data.Info.TypeFlags == TypeFlags.ReferenceType)
+                        arg0 += "*";
+                    writer.WriteLine($"DEFINE_IL2CPP_ARG_TYPE({arg0}, \"{data.This.Namespace}\", \"{data.This.Name}\");");
+                }
                 writer.Flush();
                 using (var fs = File.OpenWrite(headerLocation))
                 {
