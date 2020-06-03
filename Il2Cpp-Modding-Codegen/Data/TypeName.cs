@@ -40,7 +40,7 @@ namespace Il2Cpp_Modding_Codegen.Data
         // Namespace is actually NOT useful for comparisons!
         public override bool Equals(object obj)
         {
-            var o = obj as TypeRef;
+            var o = obj as TypeName;
             return o?.Namespace + o?.Name == Namespace + Name
                 && o?.Generic == Generic
                 && GenericParameters.SequenceEqual(o?.GenericParameters);
