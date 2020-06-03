@@ -194,30 +194,30 @@ namespace Il2Cpp_Modding_Codegen.Serialization
                 s = "Il2CppObject";
             else if (name == "string")
                 s = "Il2CppString";
-            else if (def.Name == "int" || def.Name == "Int32")
-                s = "int";
-            else if (def.Name == "float" || def.Name == "Single")
-                s = "float";
-            else if (name == "double")
-                s = "double";
-            else if (def.Name == "uint" || def.Name == "UInt32")
-                s = "uint";
             else if (name == "char")
-                s = "uint16_t";
+                s = "Il2CppChar";
+            else if (def.Name == "bool" || def.Name == "Boolean")
+                s = "bool";
             else if (name == "byte")
                 s = "int8_t";
             else if (name == "sbyte")
                 s = "uint8_t";
-            else if (def.Name == "bool" || def.Name == "Boolean")
-                s = "bool";
             else if (def.Name == "short" || def.Name == "Int16")
                 s = "int16_t";
             else if (def.Name == "ushort" || def.Name == "UInt16")
                 s = "uint16_t";
+            else if (def.Name == "int" || def.Name == "Int32")
+                s = "int";
+            else if (def.Name == "uint" || def.Name == "UInt32")
+                s = "uint";
             else if (def.Name == "long" || def.Name == "Int64")
                 s = "int64_t";
             else if (def.Name == "ulong" || def.Name == "UInt64")
                 s = "uint64_t";
+            else if (def.Name == "float" || def.Name == "Single")
+                s = "float";
+            else if (name == "double")
+                s = "double";
             else if (def.IsArray())
             {
                 s = $"Array<{GetNameFromReference(def.ElementType, ForceAsType.None, true, true)}>";
@@ -245,7 +245,7 @@ namespace Il2Cpp_Modding_Codegen.Serialization
                     {
                         // TODO: resolve Array's types as generic?
                         ForwardDeclares.Add(new TypeName("", s));
-                        return s + "*";
+                        if (s != "Il2CppChar") return s + "*";
                     }
                     return s;
             }
