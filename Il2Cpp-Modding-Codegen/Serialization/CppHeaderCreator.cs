@@ -30,7 +30,7 @@ namespace Il2Cpp_Modding_Codegen.Serialization
             }
             if (fd.Generic)
             {
-                // If the forward declare is generic, we need to write the template type
+                // If the forward declare is a generic instance, we need to write the template type
                 var s = "template<";
                 for (int i = 0; i < fd.GenericParameters.Count; i++)
                 {
@@ -41,6 +41,12 @@ namespace Il2Cpp_Modding_Codegen.Serialization
                 s += ">";
                 writer.WriteLine(s);
             }
+            // TODO: remove this temp fix when Array<blah> can be properly handled by the above generic handling
+            else if (fd.Name.Contains("<") && fd.Name.Contains(">"))
+            {
+                writer.WriteLine("template<>");
+            }
+            // TODO write class instead if we did so for the definition
             writer.WriteLine($"struct {fd.Name};");
             if (putNamespace)
             {
