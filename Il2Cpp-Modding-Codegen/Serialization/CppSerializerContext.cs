@@ -129,7 +129,8 @@ namespace Il2Cpp_Modding_Codegen.Serialization
                 // We have no way of resolving this type definition
                 return null;
 
-            // If we have not, map the type definition to a safe, unique name (TypeRef)
+            // TODO: instead, just use type
+            // If we have not, map the type definition to a safe, unique name (TypeName)
             var resolvedTd = _context.ResolvedTypeRef(type.This);
 
             // If this is a generic type, we need to ensure we are providing correct type parameters
@@ -154,11 +155,16 @@ namespace Il2Cpp_Modding_Codegen.Serialization
                 return ForceName(type.Info, (qualified ? resolvedTd.ConvertTypeToQualifiedName() : resolvedTd.ConvertTypeToName()) + types, force);
             }
 
-            // If the type exists:
-            // AND it is a reference type AND it is being asked to be used NOT as a literal or as a reference:
+            // If we are the context for a header:
+            // AND the type is our child
             // OR, if the type is being asked to be used as a POINTER
+            // OR, it is a reference type AND it is being asked to be used NOT(as a literal or as a reference):
             // Forward declare
-            if (!_cpp && (force == ForceAsType.Pointer || (type.Info.TypeFlags == TypeFlags.ReferenceType && force != ForceAsType.Literal && force != ForceAsType.Reference)))
+            if (!_cpp && (
+                type.Parent.Equals(_localType.This)
+                || force == ForceAsType.Pointer
+                || (type.Info.TypeFlags == TypeFlags.ReferenceType && force != ForceAsType.Literal && force != ForceAsType.Reference)
+            ))
             {
                 if (resolvedTd.Namespace == TypeNamespace)
                     NamespaceForwardDeclares.Add(resolvedTd);
