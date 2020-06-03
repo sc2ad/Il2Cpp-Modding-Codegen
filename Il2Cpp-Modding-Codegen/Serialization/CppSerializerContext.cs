@@ -220,7 +220,7 @@ namespace Il2Cpp_Modding_Codegen.Serialization
                 s = "double";
             else if (def.IsArray())
             {
-                s = $"CsArray<{GetNameFromReference(def.ElementType, ForceAsType.None, true, true)}>";
+                s = $"Array<{GetNameFromReference(def.ElementType, ForceAsType.None, true, true)}>";
             }
             switch (force)
             {
@@ -232,7 +232,7 @@ namespace Il2Cpp_Modding_Codegen.Serialization
 
                 case ForceAsType.Literal:
                     // Special cases for Il2Cpp types, need to forward declare/include typedefs.h iff force valuetype
-                    if (s != null && (s.StartsWith("Il2Cpp") || s.StartsWith("CsArray<")))
+                    if (s != null && (s.StartsWith("Il2Cpp") || s.StartsWith("Array<")))
                     {
                         Includes.Add("utils/typedefs.h");
                         return s;
@@ -241,7 +241,7 @@ namespace Il2Cpp_Modding_Codegen.Serialization
 
                 default:
                     // Pointer type for Il2Cpp types on default
-                    if (s != null && ((s.StartsWith("Il2Cpp") && (s != "Il2CppChar")) || s.StartsWith("CsArray<")))
+                    if (s != null && ((s.StartsWith("Il2Cpp") && (s != "Il2CppChar")) || s.StartsWith("Array<")))
                     {
                         // TODO: resolve Array's types as generic?
                         ForwardDeclares.Add(new TypeName("", s));
