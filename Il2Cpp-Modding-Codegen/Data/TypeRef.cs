@@ -65,17 +65,17 @@ namespace Il2Cpp_Modding_Codegen.Data
 
         public string SafeName()
         {
-            return Name.Replace('<', '_').Replace('>', '_').Replace(".", "::");
+            return Name.Replace('<', '_').Replace('>', '_').Replace('`', '_').Replace(".", "::");
         }
 
         public string SafeNamespace()
         {
-            return Namespace.Replace('<', '_').Replace('>', '_').Replace(".", "::");
+            return Namespace.Replace('<', '_').Replace('>', '_').Replace('`', '_').Replace(".", "::");
         }
 
         public string SafeFullName()
         {
-            return SafeNamespace() + "_" + SafeName();
+            return SafeNamespace() + "::" + SafeName();
         }
 
         // Namespace is actually NOT useful for comparisons!
