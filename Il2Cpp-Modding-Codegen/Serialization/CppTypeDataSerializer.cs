@@ -102,7 +102,7 @@ namespace Il2Cpp_Modding_Codegen.Serialization
                 string s = "";
                 if (_parentName != null)
                     s = $" : {_parentName}";
-                var typeHeader = "typedef struct " + _typeName + s;
+                // TODO: add implementing interfaces to s
                 if (type.This.Generic)
                 {
                     var templateStr = "template<";
@@ -114,8 +114,10 @@ namespace Il2Cpp_Modding_Codegen.Serialization
                         first = false;
                     }
                     writer.WriteLine(_prefix + templateStr + ">");
-                    typeHeader = "struct " + _typeName + s;
                 }
+
+                // TODO: print enums as actual C++ smart enums? backing type is type of _value and A = #, should work for the lines inside the enum
+                var typeHeader = type.Type == TypeEnum.Struct ? "struct " : "class " + _typeName + s;
                 writer.WriteLine(_prefix + typeHeader + " {");
                 writer.Flush();
                 if (type.Type != TypeEnum.Interface)
@@ -146,7 +148,7 @@ namespace Il2Cpp_Modding_Codegen.Serialization
             }
             // Write type closing "};"
             // if the type is generic, write the DEFINE_IL2CPP_ARG_TYPE within the typedef
-            if (type.This.Generic)
+            if (type.This.Generic && type.Type == TypeEnum.Struct || type.Type == TypeEnum.Enum)
             {
                 writer.WriteLine(_prefix + "  " + $"DEFINE_IL2CPP_ARG_TYPE({_qualifiedName}, \"{type.This.Namespace}\", \"{type.This.Name}\");");
             }

@@ -32,8 +32,6 @@ namespace Il2Cpp_Modding_Codegen.Data.DllHandling
             {
                 ImplementingInterfaces.Add(DllTypeRef.From(i.InterfaceType));
             }
-            if (def.BaseType != null)
-                Parent = DllTypeRef.From(def.BaseType);
 
             This = DllTypeRef.From(def);
             Type = def.IsEnum ? TypeEnum.Enum : def.IsInterface ? TypeEnum.Interface : def.IsClass ? TypeEnum.Class : TypeEnum.Struct;
@@ -42,11 +40,16 @@ namespace Il2Cpp_Modding_Codegen.Data.DllHandling
                 TypeFlags = Type == TypeEnum.Class || Type == TypeEnum.Interface ? TypeFlags.ReferenceType : TypeFlags.ValueType
             };
 
+            if (def.BaseType != null)
+                Parent = DllTypeRef.From(def.BaseType);
+            else if (Info.TypeFlags == TypeFlags.ReferenceType)
+                Parent = DllTypeRef.ObjectType;
+
             // TODO: Parse this eventually
             TypeDefIndex = -1;
-            if (def.HasCustomAttributes && _config.ParseTypeAttributes)
-                Attributes.AddRange(def.CustomAttributes.Select(ca => new DllAttribute(ca)));
 
+            if (_config.ParseTypeAttributes && def.HasCustomAttributes)
+                Attributes.AddRange(def.CustomAttributes.Select(ca => new DllAttribute(ca)));
             if (_config.ParseTypeFields)
                 Fields.AddRange(def.Fields.Select(f => new DllField(f)));
             if (_config.ParseTypeProperties)
