@@ -22,6 +22,10 @@ namespace Il2Cpp_Modding_Codegen.Serialization
 
         private void WriteForwardDeclare(IndentedTextWriter writer, TypeName fd, bool putNamespace = true)
         {
+            // TODO: handle this better?
+            if (fd.Name == "Il2CppChar")  // cannot forward declare a primitive typedef without exactly copying typedef which is a bad idea
+                return;
+
             if (fd.Namespace.Length == 0) putNamespace = false;
             if (putNamespace)
             {
