@@ -101,7 +101,7 @@ namespace Il2Cpp_Modding_Codegen.Serialization
                 }
                 string s = "";
                 if (_parentName != null)
-                    s = $" : {_parentName}";
+                    s = $" : public {_parentName}";
                 // TODO: add implementing interfaces to s
                 if (type.This.Generic)
                 {
