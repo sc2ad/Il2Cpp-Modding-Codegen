@@ -104,18 +104,18 @@ namespace Il2Cpp_Modding_Codegen.Data.DumpHandling
                 return v;
             }
             // Otherwise, check our set of created names (values) until we are unique
-
-            int i = 1;
-
             var tn = new TypeName(def);
+
+            int i = 0;
             while (_resolvedTypeNames.ContainsValue(tn))
             {
                 // The type we are trying to add a reference to is already resolved, but is not referenced.
                 // This means we have a duplicate typename. We will unique-ify this one by suffixing _{i} to the original typename
                 // until the typename is unique.
-                tn = new TypeName(def, i);
                 i++;
+                tn = new TypeName(def, i);
             }
+            if (i > 0) Console.WriteLine($"Unique-ified to {tn}");
             _resolvedTypeNames.Add(def, tn);
             return tn;
         }

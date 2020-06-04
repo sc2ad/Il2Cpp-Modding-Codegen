@@ -91,9 +91,9 @@ namespace Il2Cpp_Modding_Codegen.Serialization
                     first = false;
                 }
                 typeStr += ">";
+                if (typeStr.Length == 2)
+                    Console.WriteLine($"GenericParamsToStr failed for type {type}: no generic parameters found? {String.Join(", ", type.GenericParameters)}");
             }
-            if (typeStr.Length == 2)
-                Console.WriteLine($"GenericParamsToStr failed for type {type}: no generic parameters found? {String.Join(", ", type.GenericParameters)}");
             return typeStr;
         }
 
@@ -115,10 +115,13 @@ namespace Il2Cpp_Modding_Codegen.Serialization
                 return ForceName(new TypeInfo() { TypeFlags = TypeFlags.ValueType }, def.Name, force);
 
             // TODO: Need to determine a better way of resolving special names
-            var primitiveName = ResolvePrimitive(def, force);
-            // Primitives are automatically resolved via this call
-            if (primitiveName != null)
-                return primitiveName;
+            if (!_localType.This.Equals(def))
+            {
+                var primitiveName = ResolvePrimitive(def, force);
+                // Primitives are automatically resolved via this call
+                if (primitiveName != null)
+                    return primitiveName;
+            }
 
             // If we have already resolved it, simply return the name as one of the forced types
             if (_references.TryGetValue(def, out (TypeInfo, string) resolvedName))
@@ -132,7 +135,6 @@ namespace Il2Cpp_Modding_Codegen.Serialization
                 if (!found.Generic)
                     return ForceName(_references[found].Item1, _references[found].Item2, force);
                 var typeStr = GenericParamsToStr(found, genericParams);
-                if (typeStr.Length == 2) Console.WriteLine("Line 132");
                 return ForceName(_references[found].Item1, _references[found].Item2 + typeStr, force);
             }
 
@@ -151,7 +153,6 @@ namespace Il2Cpp_Modding_Codegen.Serialization
             if (def.Generic && genericParams)
             {
                 types = GenericParamsToStr(def, genericParams);
-                if (types.Length == 2) Console.WriteLine("Line 151");
                 // Modify resolved type definition's name to include generic arguments
             }
 
@@ -232,7 +233,7 @@ namespace Il2Cpp_Modding_Codegen.Serialization
                 s = "double";
             else if (def.IsArray())
             {
-                s = $"Array<{GetNameFromReference(def.ElementType, ForceAsType.None, true, true)}>";
+                s = $"Array<{GetNameFromReference(def.ElementType)}>";
             }
 
             if (s is null) return null;

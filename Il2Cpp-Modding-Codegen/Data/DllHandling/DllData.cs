@@ -20,13 +20,18 @@ namespace Il2Cpp_Modding_Codegen.Data.DllHandling
         private DllConfig _config;
         private string _dir;
         private ReaderParameters _readerParams;
+        private IMetadataResolver _metadataResolver;
 
         public DllData(string dir, DllConfig config)
         {
             _config = config;
             _dir = dir;
             AddSearchDirectory(dir);
-            _readerParams = new ReaderParameters { AssemblyResolver = this };
+            _metadataResolver = new MetadataResolver(this);
+            _readerParams = new ReaderParameters(ReadingMode.Immediate) {
+                AssemblyResolver = this,
+                MetadataResolver = _metadataResolver
+            };
 
             var modules = new List<ModuleDefinition>();
             foreach (var file in Directory.GetFiles(dir))
