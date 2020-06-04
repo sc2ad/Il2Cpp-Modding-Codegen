@@ -18,7 +18,7 @@ namespace Il2Cpp_Modding_Codegen.Data.DllHandling
             get { return This.Name; }
         }
         public override bool Generic {
-            get { return This.HasGenericParameters; }
+            get { return This.IsGenericInstance || This.HasGenericParameters; }
         }
 
         public override IEnumerable<TypeRef> GenericParameters {
