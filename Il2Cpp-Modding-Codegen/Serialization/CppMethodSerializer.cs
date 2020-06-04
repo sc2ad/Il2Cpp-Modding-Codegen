@@ -59,8 +59,7 @@ namespace Il2Cpp_Modding_Codegen.Serialization
                 ns = _declaringFullyQualified + "::";
             if (!namespaceQualified && staticFunc)
                 staticString = "static ";
-            // Returns an optional
-            // TODO: Should be configurable
+            // Setup return type
             var retStr = _resolvedTypeNames[method];
             if (!method.ReturnType.IsVoid())
             {

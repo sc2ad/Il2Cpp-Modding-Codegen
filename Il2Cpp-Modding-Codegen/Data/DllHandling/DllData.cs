@@ -14,6 +14,7 @@ namespace Il2Cpp_Modding_Codegen.Data.DllHandling
     {
         public string Name => "Dll Data";
         public List<IImage> Images { get; } = new List<IImage>();
+        private Dictionary<TypeDefinition, ITypeData> cache = new Dictionary<TypeDefinition, ITypeData>();
         public List<ITypeData> Types { get; } = new List<ITypeData>();
         private Dictionary<TypeRef, TypeName> _resolvedTypeNames { get; } = new Dictionary<TypeRef, TypeName>();
         private DllConfig _config;
@@ -34,14 +35,19 @@ namespace Il2Cpp_Modding_Codegen.Data.DllHandling
                     continue;
                 if (!_config.BlacklistDlls.Contains(file))
                 {
-                    modules.Add(ModuleDefinition.ReadModule(file, _readerParams));
+                    var assemb = AssemblyDefinition.ReadAssembly(file, _readerParams);
+                    foreach (var module in assemb.Modules)
+                    {
+                        modules.Add(module);
+                    }
                 }
             }
             modules.ForEach(m => m.Types.ToList().ForEach(t =>
             {
                 if (_config.ParseTypes && !_config.BlacklistTypes.Contains(t.Name))
-                    Types.Add(new DllTypeData(t, _config));
+                    cache.Add(t, new DllTypeData(t, _config));
             }));
+            Types = cache.Values.ToList();
 
             int total = DllTypeRef.hits + DllTypeRef.misses;
             Console.WriteLine($"{nameof(DllTypeRef)} cache hits: {DllTypeRef.hits} / {total} = {100.0f * DllTypeRef.hits / total}");
@@ -53,11 +59,25 @@ namespace Il2Cpp_Modding_Codegen.Data.DllHandling
             return $"Types: {Types.Count}";
         }
 
-        public ITypeData Resolve(TypeRef TypeRef)
+        public ITypeData Resolve(TypeRef typeRef)
         {
+            var dllRef = typeRef as DllTypeRef;
             // TODO: Resolve only among our types that we actually plan on serializing
             // Basically, check it against our whitelist/blacklist
-            var te = Types.FirstOrDefault(t => t.This.Equals(TypeRef) || t.This.Name == TypeRef.Name);
+            var reference = dllRef.This;
+            var def = reference.Resolve();
+            if (def is null)
+            {
+                Console.WriteLine($"Failed to resolve {reference.DeclaringType}'s {reference}");
+                return null;
+            }
+            ITypeData te;
+            if (cache.TryGetValue(def, out te))
+                return te;
+            te = new DllTypeData(def, _config);
+            cache.Add(def, te);
+            Types.Add(te);
+            Console.WriteLine($"Late resolved {def}");
             return te;
         }
 

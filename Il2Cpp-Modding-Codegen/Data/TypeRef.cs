@@ -56,7 +56,7 @@ namespace Il2Cpp_Modding_Codegen.Data
             foreach (var param in GenericParameters)
             {
                 if (!first) s += ", ";
-                s += param.ToString();
+                s += param?.ToString();
                 first = false;
             }
             s += ">";

@@ -36,11 +36,12 @@ namespace Il2Cpp_Modding_Codegen.Serialization
             {
                 // If the forward declare is a generic instance, we need to write the template type
                 var s = "template<";
-                for (int i = 0; i < fd.GenericParameters.Count; i++)
+                bool first = true;
+                foreach (var genParam in fd.GenericParameters)
                 {
-                    s += "typename " + fd.GenericParameters[i].Name;
-                    if (i != fd.GenericParameters.Count - 1)
-                        s += ", ";
+                    if (!first) s += ", ";
+                    s += "typename " + genParam.Name;
+                    first = false;
                 }
                 s += ">";
                 writer.WriteLine(s);

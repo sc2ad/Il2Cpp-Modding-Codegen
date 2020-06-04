@@ -10,7 +10,7 @@ namespace Il2Cpp_Modding_Codegen.Data.DllHandling
 {
     public class DllTypeRef : TypeRef
     {
-        private TypeReference This;
+        internal TypeReference This;
         public override string Namespace {
             get { return This.Namespace; }
         }
@@ -22,7 +22,7 @@ namespace Il2Cpp_Modding_Codegen.Data.DllHandling
         }
 
         public override IEnumerable<TypeRef> GenericParameters {
-            get { return This.GenericParameters.Select(t => DllTypeRef.From(t)); }
+            get { return This.Resolve()?.GenericParameters.Select(t => t.Resolve()).Select(DllTypeRef.From); }
         }
 
         public override TypeRef DeclaringType {
@@ -56,6 +56,7 @@ namespace Il2Cpp_Modding_Codegen.Data.DllHandling
         public static DllTypeRef From(TypeReference type)
         {
             if (type is null) return null;
+            type.Resolve();
             if (cache.TryGetValue(type, out var value))
             {
                 hits++;

@@ -30,8 +30,9 @@ namespace Il2Cpp_Modding_Codegen.Serialization
 
         public void PreSerialize(ISerializerContext context, IParsedData data)
         {
-            foreach (var t in data.Types)
+            for (int i = 0; i < data.Types.Count; i++)
             {
+                var t = data.Types[i];
                 // We need to create both a header and a non-header serializer (and a context for each)
                 // Cache all of these
                 // and ofc call PreSerialize on each of the types

@@ -73,6 +73,30 @@ namespace Il2Cpp_Modding_Codegen.Serialization
             }
         }
 
+        private string GenericParamsToStr(TypeRef type, bool genericParams)
+        {
+            var typeStr = "";
+            if (genericParams)
+            {
+                typeStr = "<";
+                bool first = true;
+                foreach (var genParam in type.GenericParameters)
+                {
+                    if (!first)
+                        typeStr += ", ";
+                    if (genParam is null)
+                        typeStr += "T";
+                    else
+                        typeStr += GetNameFromReference(genParam);
+                    first = false;
+                }
+                typeStr += ">";
+            }
+            if (typeStr.Length == 2)
+                Console.WriteLine($"GenericParamsToStr failed for type {type}: no generic parameters found? {String.Join(", ", type.GenericParameters)}");
+            return typeStr;
+        }
+
         /// <summary>
         /// Gets a string name from a type definition.
         /// Checks it against a private map.
@@ -82,7 +106,7 @@ namespace Il2Cpp_Modding_Codegen.Serialization
         /// <param name="def"></param>
         /// <param name="force"></param>
         /// <returns></returns>
-        public string GetNameFromReference(TypeRef def, ForceAsType force, bool qualified, bool genericParams)
+        public string GetNameFromReference(TypeRef def, ForceAsType force = ForceAsType.None, bool qualified = true, bool genericParams = true)
         {
             // For resolving generic type paramters
             // ex: TypeName<T1, T2>, GetNameFromReference(T1)
@@ -107,19 +131,8 @@ namespace Il2Cpp_Modding_Codegen.Serialization
             {
                 if (!found.Generic)
                     return ForceName(_references[found].Item1, _references[found].Item2, force);
-                var typeStr = "";
-                if (genericParams)
-                {
-                    typeStr = "<";
-                    bool first = true;
-                    foreach (var genParam in found.GenericParameters)
-                    {
-                        if (!first) typeStr += ", ";
-                        typeStr += GetNameFromReference(genParam, ForceAsType.None, true, true);
-                        first = false;
-                    }
-                    typeStr += ">";
-                }
+                var typeStr = GenericParamsToStr(found, genericParams);
+                if (typeStr.Length == 2) Console.WriteLine("Line 132");
                 return ForceName(_references[found].Item1, _references[found].Item2 + typeStr, force);
             }
 
@@ -137,15 +150,8 @@ namespace Il2Cpp_Modding_Codegen.Serialization
             var types = "";
             if (def.Generic && genericParams)
             {
-                types = "<";
-                bool first = true;
-                foreach (var genParam in def.GenericParameters)
-                {
-                    if (!first) types += ", ";
-                    types += GetNameFromReference(genParam, ForceAsType.None, true, true);
-                    first = false;
-                }
-                types += ">";
+                types = GenericParamsToStr(def, genericParams);
+                if (types.Length == 2) Console.WriteLine("Line 151");
                 // Modify resolved type definition's name to include generic arguments
             }
 
@@ -161,7 +167,7 @@ namespace Il2Cpp_Modding_Codegen.Serialization
             // OR, it is a reference type AND it is being asked to be used NOT(as a literal or as a reference):
             // Forward declare
             if (!_cpp && (
-                type.Parent.Equals(_localType.This)
+                _localType.This.Equals(type.Parent)
                 || force == ForceAsType.Pointer
                 || (type.Info.TypeFlags == TypeFlags.ReferenceType && force != ForceAsType.Literal && force != ForceAsType.Reference)
             ))
@@ -228,26 +234,27 @@ namespace Il2Cpp_Modding_Codegen.Serialization
             {
                 s = $"Array<{GetNameFromReference(def.ElementType, ForceAsType.None, true, true)}>";
             }
+
+            if (s is null) return null;
             switch (force)
             {
                 case ForceAsType.Pointer:
-                    return s != null ? s + "*" : null;
+                    return s + "*";
 
                 case ForceAsType.Reference:
-                    return s != null ? s + "&" : null;
+                    return s + "&";
 
                 case ForceAsType.Literal:
                     // Special cases for Il2Cpp types, need to forward declare/include typedefs.h iff force valuetype
-                    if (s != null && (s.StartsWith("Il2Cpp") || s.StartsWith("Array<")))
+                    if (s.StartsWith("Il2Cpp") || s.StartsWith("Array<"))
                     {
                         Includes.Add("utils/typedefs.h");
-                        return s;
                     }
                     return s;
 
                 default:
                     // Pointer type for Il2Cpp types on default
-                    if (s != null && ((s.StartsWith("Il2Cpp") && (s != "Il2CppChar")) || s.StartsWith("Array<")))
+                    if ((s.StartsWith("Il2Cpp") && (s != "Il2CppChar")) || s.StartsWith("Array<"))
                     {
                         // TODO: resolve Array's types as generic?
                         ForwardDeclares.Add(new TypeName("", s));
