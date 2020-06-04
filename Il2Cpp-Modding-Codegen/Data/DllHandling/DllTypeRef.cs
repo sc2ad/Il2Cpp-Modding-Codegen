@@ -22,7 +22,7 @@ namespace Il2Cpp_Modding_Codegen.Data.DllHandling
         }
 
         public override IEnumerable<TypeRef> GenericParameters {
-            get { return This.GenericParameters.Select(t => DllTypeRef.From(t)); }
+            get { return This.GenericParameters.Select(DllTypeRef.From); }
         }
 
         public override TypeRef DeclaringType {

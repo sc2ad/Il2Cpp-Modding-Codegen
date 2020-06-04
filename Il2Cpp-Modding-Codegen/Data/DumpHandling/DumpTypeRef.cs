@@ -67,10 +67,10 @@ namespace Il2Cpp_Modding_Codegen.Data.DumpHandling
         {
             Namespace = @namespace;
 
+            var GenericParams = new List<TypeRef>();
             if (typeName.EndsWith(">") && !typeName.StartsWith("<"))
             {
                 Generic = true;
-                var GenericParams = new List<TypeRef>();
 
                 var ind = typeName.IndexOf("<");
                 var types = typeName.Substring(ind + 1, typeName.Length - ind - 2);
@@ -97,7 +97,6 @@ namespace Il2Cpp_Modding_Codegen.Data.DumpHandling
                     DeclaringType = new DumpTypeRef(typeName.Substring(0, declInd));
                 }
                 Name = typeName.Substring(declInd + 1);
-                GenericParameters = GenericParams;
             }
             else
             {
@@ -114,6 +113,7 @@ namespace Il2Cpp_Modding_Codegen.Data.DumpHandling
                     // TODO: else set ElementType to `this` as Mono.Cecil does?
                 }
             }
+            GenericParameters = GenericParams;
         }
 
         public DumpTypeRef(string qualifiedName) : this("", qualifiedName) { }
