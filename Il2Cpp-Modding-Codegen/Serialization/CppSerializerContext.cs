@@ -167,7 +167,7 @@ namespace Il2Cpp_Modding_Codegen.Serialization
             // OR, it is a reference type AND it is being asked to be used NOT(as a literal or as a reference):
             // Forward declare
             if (!_cpp && (
-                type.Parent?.Equals(_localType.This) ?? true
+                _localType.This.Equals(type.Parent)
                 || force == ForceAsType.Pointer
                 || (type.Info.TypeFlags == TypeFlags.ReferenceType && force != ForceAsType.Literal && force != ForceAsType.Reference)
             ))
