@@ -53,8 +53,8 @@ namespace Il2Cpp_Modding_Codegen.Data.DllHandling
         {
             This = reference;
             _name = This.Name;
-            if (!(This.DeclaringType is null))
-                _name = This.DeclaringType.Name + "/" + _name;
+            if (!This.IsGenericParameter && !(This.DeclaringType is null))
+                _name = DllTypeRef.From(This.DeclaringType).Name + "/" + _name;
             // Remove *, &, [] from end of variable name
             _name = Regex.Replace(_name, @"\W+$", "");
 
@@ -78,6 +78,12 @@ namespace Il2Cpp_Modding_Codegen.Data.DllHandling
             value = new DllTypeRef(type);
             cache.Add(type, value);
             return value;
+        }
+
+        // For better comments
+        public override string ToString()
+        {
+            return This.ToString();
         }
     }
 }

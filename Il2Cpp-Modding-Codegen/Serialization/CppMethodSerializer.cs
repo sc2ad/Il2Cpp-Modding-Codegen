@@ -68,7 +68,7 @@ namespace Il2Cpp_Modding_Codegen.Serialization
                     retStr = "std::optional<" + retStr + ">";
             }
             // Handles i.e. ".ctor"
-            var nameStr = method.Name.Replace('.', '_');
+            var nameStr = method.Name.Replace('.', '_').Replace('<', '$').Replace('>', '$');
             return $"{staticString}{retStr} {ns}{nameStr}({paramString + method.Parameters.FormatParameters(_parameterMaps[method], FormatParameterMode.Names | FormatParameterMode.Types)})";
         }
 

@@ -198,10 +198,10 @@ namespace Il2Cpp_Modding_Codegen.Serialization
         private string ResolvePrimitive(TypeRef def, ForceAsType force)
         {
             var name = def.Name.ToLower();
-            if (name == "void")
-                return "void";
-            else if (name == "void*")
+            if (def.Name == "void*" || (def.Name == "Void" && def.IsPointer(_context)))
                 return "void*";
+            else if (name == "void")
+                return "void";
 
             // Note: names on the right side of an || are for Dll only
             string s = null;

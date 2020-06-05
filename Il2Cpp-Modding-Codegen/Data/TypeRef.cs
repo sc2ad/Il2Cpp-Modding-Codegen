@@ -67,12 +67,13 @@ namespace Il2Cpp_Modding_Codegen.Data
 
         public string SafeName()
         {
-            return Name.Replace('<', '_').Replace('>', '_').Replace('`', '_').Replace('/', '_').Replace(".", "::");
+            // TODO: make nested types actually nested by replacing / with :: instead
+            return Name.Replace('<', '_').Replace('>', '_').Replace('`', '_').Replace('/', '_');
         }
 
         public string SafeNamespace()
         {
-            return Namespace.Replace('<', '_').Replace('>', '_').Replace('`', '_').Replace(".", "::");
+            return Namespace.Replace('<', '_').Replace('>', '_').Replace('`', '_').Replace('/', '_').Replace(".", "::");
         }
 
         public string SafeFullName()
