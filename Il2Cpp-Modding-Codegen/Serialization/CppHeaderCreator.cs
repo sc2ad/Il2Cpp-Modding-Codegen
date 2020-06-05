@@ -34,7 +34,7 @@ namespace Il2Cpp_Modding_Codegen.Serialization
             }
 
             var name = fd.Name;
-            if (fd.Generic)
+            if (fd.Generic || name.Contains("<"))
             {
                 // If the forward declare is a generic instance, we need to write an empty version of the template type instead
                 if (fd.GenericParameters.Count > 0)  // better to forward declare nothing than something invalid
@@ -85,7 +85,8 @@ namespace Il2Cpp_Modding_Codegen.Serialization
                 writer.WriteLine($"// Created by Sc2ad");
                 writer.WriteLine("// =========================================================================");
                 writer.WriteLine("#pragma once");
-                writer.WriteLine("#pragma pack(8)");
+                // TODO: determine when/if we need this
+                writer.WriteLine("#pragma pack(push, 8)");
                 // Write includes
                 writer.WriteLine("// Includes");
                 writer.WriteLine("#include \"utils/il2cpp-utils.hpp\"");
@@ -152,6 +153,7 @@ namespace Il2Cpp_Modding_Codegen.Serialization
                         arg0 += "*";
                     writer.WriteLine($"DEFINE_IL2CPP_ARG_TYPE({arg0}, \"{data.This.Namespace}\", \"{data.This.Name}\");");
                 }
+                writer.WriteLine("#pragma pack(pop)");
                 writer.Flush();
                 using (var fs = File.OpenWrite(headerLocation))
                 {

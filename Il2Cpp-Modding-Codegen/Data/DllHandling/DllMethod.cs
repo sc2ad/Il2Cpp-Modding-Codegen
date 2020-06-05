@@ -45,8 +45,15 @@ namespace Il2Cpp_Modding_Codegen.Data.DllHandling
                             for (int i = 0; i < ca.Fields.Count; i++)
                             {
                                 var f = ca.Fields[i];
-                                if (f.Name == "RVA" || f.Name == "Offset" || f.Name == "VA" || f.Name == "Slot")
-                                    RVA = Convert.ToInt32(f.Argument.Value as string, 16);
+                                if (f.Name == "RVA" || f.Name == "Offset" || f.Name == "VA")
+                                {
+                                    var val = Convert.ToInt32(f.Argument.Value as string, 16);
+                                    if (f.Name == "RVA") RVA = val;
+                                    else if (f.Name == "Offset") Offset = val;
+                                    else if (f.Name == "VA") VA = val;
+                                }
+                                else if (f.Name == "Slot")
+                                    Slot = Convert.ToInt32(f.Argument.Value as string);
                             }
                         }
                     }

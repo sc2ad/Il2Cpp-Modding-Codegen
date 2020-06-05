@@ -50,5 +50,24 @@ namespace Il2Cpp_Modding_Codegen.Data
                 && (GenericArguments?.SequenceEqual(o.GenericArguments)
                 ?? GenericParameters.SequenceEqual(o.GenericParameters));
         }
+
+        public override string ToString()
+        {
+            if (!string.IsNullOrWhiteSpace(Namespace))
+                return $"{Namespace}::{Name}";
+            if (!Generic)
+                return $"{Name}";
+            var s = Name + "<";
+            bool first = true;
+            var generics = GenericArguments ?? GenericParameters;
+            foreach (var param in generics)
+            {
+                if (!first) s += ", ";
+                s += param.ToString();
+                first = false;
+            }
+            s += ">";
+            return s;
+        }
     }
 }

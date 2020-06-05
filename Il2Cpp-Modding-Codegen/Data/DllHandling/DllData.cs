@@ -21,6 +21,8 @@ namespace Il2Cpp_Modding_Codegen.Data.DllHandling
         private ReaderParameters _readerParams;
         private IMetadataResolver _metadataResolver;
 
+        Queue<TypeDefinition> frontier = new Queue<TypeDefinition>();
+
         public DllData(string dir, DllConfig config)
         {
             _config = config;
@@ -49,8 +51,14 @@ namespace Il2Cpp_Modding_Codegen.Data.DllHandling
             modules.ForEach(m => m.Types.ToList().ForEach(t =>
             {
                 if (_config.ParseTypes && !_config.BlacklistTypes.Contains(t.Name))
-                    Types.Add(new DllTypeData(t, _config));
+                    frontier.Enqueue(t);
             }));
+            while (frontier.Count > 0)
+            {
+                var t = frontier.Dequeue();
+                Types.Add(new DllTypeData(t, _config));
+                foreach (var nt in t.NestedTypes) frontier.Enqueue(nt);
+            }
 
             int total = DllTypeRef.hits + DllTypeRef.misses;
             Console.WriteLine($"{nameof(DllTypeRef)} cache hits: {DllTypeRef.hits} / {total} = {100.0f * DllTypeRef.hits / total}");
