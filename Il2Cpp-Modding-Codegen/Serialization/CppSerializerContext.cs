@@ -200,7 +200,11 @@ namespace Il2Cpp_Modding_Codegen.Serialization
 
             // Note: names on the right side of an || are for Dll only
             string s = null;
-            if (name == "object")
+            if (def.IsArray())
+                s = $"Array<{GetNameFromReference(def.ElementType)}>";
+            else if (def.IsPointer(_context))
+                s = $"{GetNameFromReference(def.ElementType)}*";
+            else if (name == "object")
                 s = "Il2CppObject";
             else if (name == "string")
                 s = "Il2CppString";
@@ -228,10 +232,6 @@ namespace Il2Cpp_Modding_Codegen.Serialization
                 s = "float";
             else if (name == "double")
                 s = "double";
-            else if (def.IsArray())
-                s = $"Array<{GetNameFromReference(def.ElementType)}>";
-            else if (def.IsPointer(_context))
-                s = $"{GetNameFromReference(def.ElementType)}*";
             if (s is null) return null;
 
             if (s.StartsWith("Il2Cpp") || s.StartsWith("Array<"))
