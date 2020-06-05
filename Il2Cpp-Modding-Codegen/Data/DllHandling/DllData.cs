@@ -56,6 +56,11 @@ namespace Il2Cpp_Modding_Codegen.Data.DllHandling
             while (frontier.Count > 0)
             {
                 var t = frontier.Dequeue();
+                if (t.Name.StartsWith("<") && t.Namespace.Length == 0 && t.DeclaringType is null) {
+                    if (!t.Name.StartsWith("<Module>") && !t.Name.StartsWith("<PrivateImplementationDetails>"))
+                        Console.Error.WriteLine($"Skipping TypeDefinition {t}");
+                    continue;
+                }
                 Types.Add(new DllTypeData(t, _config));
                 foreach (var nt in t.NestedTypes) frontier.Enqueue(nt);
             }

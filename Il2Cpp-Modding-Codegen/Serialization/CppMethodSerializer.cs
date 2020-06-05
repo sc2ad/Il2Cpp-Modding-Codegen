@@ -41,6 +41,7 @@ namespace Il2Cpp_Modding_Codegen.Serialization
             {
                 string s;
                 if (p.Flags != ParameterFlags.None)
+                    // TODO: ParameterFlags.In can be const&
                     s = context.GetNameFromReference(p.Type, ForceAsType.Reference);
                 else
                     s = context.GetNameFromReference(p.Type);

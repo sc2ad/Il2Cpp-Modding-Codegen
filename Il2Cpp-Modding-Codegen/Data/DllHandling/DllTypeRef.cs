@@ -30,7 +30,7 @@ namespace Il2Cpp_Modding_Codegen.Data.DllHandling
             get { return From(This.DeclaringType); }
         }
         public override TypeRef ElementType {
-            get { return From(This.GetElementType()); }
+            get { return From((This as TypeSpecification)?.ElementType); }
         }
 
         public override bool IsPointer(ITypeContext context)
@@ -52,11 +52,19 @@ namespace Il2Cpp_Modding_Codegen.Data.DllHandling
         private DllTypeRef(TypeReference reference)
         {
             This = reference;
+
+            if (This.IsByReference)
+            {
+                // TODO: Set as ByReference? For method params, the ref keyword is handled by Parameter.cs
+                This = (This as ByReferenceType).ElementType;
+            }
             _name = This.Name;
             if (!This.IsGenericParameter && !(This.DeclaringType is null))
                 _name = DllTypeRef.From(This.DeclaringType).Name + "/" + _name;
-            // Remove *, &, [] from end of variable name
+
+            // Remove *, [] from end of variable name
             _name = Regex.Replace(_name, @"\W+$", "");
+            // if (!char.IsLetterOrDigit(_name.Last())) Console.WriteLine(reference);
 
             if (This.IsGenericInstance)
                 GenericArguments = (This as GenericInstanceType).GenericArguments.Select(DllTypeRef.From).ToList();

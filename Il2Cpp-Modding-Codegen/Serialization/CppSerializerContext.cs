@@ -53,6 +53,8 @@ namespace Il2Cpp_Modding_Codegen.Serialization
 
         private string ForceName(TypeInfo info, string name, ForceAsType force)
         {
+            if (info.TypeFlags == TypeFlags.ReferenceType && force != ForceAsType.Literal)
+                name += "*";
             switch (force)
             {
                 case ForceAsType.Pointer:
@@ -60,14 +62,6 @@ namespace Il2Cpp_Modding_Codegen.Serialization
 
                 case ForceAsType.Reference:
                     return name + "&";
-
-                case ForceAsType.Literal:
-                    return name;
-
-                case ForceAsType.None:
-                    if (info.TypeFlags == TypeFlags.ReferenceType)
-                        return name + "*";
-                    return name;
 
                 default:
                     return name;
@@ -165,12 +159,13 @@ namespace Il2Cpp_Modding_Codegen.Serialization
             }
 
             // If we are the context for a header:
-            // AND the type is our child
+            // AND the type is our child OR a nested type
             // OR, if the type is being asked to be used as a POINTER
             // OR, it is a reference type AND it is being asked to be used NOT(as a literal or as a reference):
             // Forward declare
             if (!_cpp && (
                 _localType.This.Equals(type.Parent)
+                || _localType.This.Equals(def.DeclaringType)
                 || force == ForceAsType.Pointer
                 || (type.Info.TypeFlags == TypeFlags.ReferenceType && force != ForceAsType.Literal && force != ForceAsType.Reference)
             ))
@@ -234,34 +229,35 @@ namespace Il2Cpp_Modding_Codegen.Serialization
             else if (name == "double")
                 s = "double";
             else if (def.IsArray())
-            {
                 s = $"Array<{GetNameFromReference(def.ElementType)}>";
+            else if (def.IsPointer(_context))
+                s = $"{GetNameFromReference(def.ElementType)}*";
+            if (s is null) return null;
+
+            if (s.StartsWith("Il2Cpp") || s.StartsWith("Array<"))
+            {
+                if (_cpp || force == ForceAsType.Literal)  // for .cpp or as a parent
+                    Includes.Add("utils/typedefs.h");
+                else
+                    ForwardDeclares.Add(new TypeName("", s));
+
+                bool defaultPtr = false;
+                if (s != "Il2CppChar")
+                    defaultPtr = true;
+                // For Il2CppTypes, should refer to type as :: to avoid ambiguity
+                if (force != ForceAsType.Literal)
+                    s = "::" + s + (defaultPtr ? "*" : "");
             }
+
             switch (force)
             {
                 case ForceAsType.Pointer:
-                    return s != null ? s + "*" : null;
+                    return s + "*";
 
                 case ForceAsType.Reference:
-                    return s != null ? s + "&" : null;
-
-                case ForceAsType.Literal:
-                    // Special cases for Il2Cpp types, need to forward declare/include typedefs.h iff force valuetype
-                    if (s != null && (s.StartsWith("Il2Cpp") || s.StartsWith("Array<")))
-                    {
-                        Includes.Add("utils/typedefs.h");
-                        return s;
-                    }
-                    return s;
+                    return s + "&";
 
                 default:
-                    // Pointer type for Il2Cpp types on default
-                    if (s != null && ((s.StartsWith("Il2Cpp") && (s != "Il2CppChar")) || s.StartsWith("Array<")))
-                    {
-                        // TODO: resolve Array's types as generic?
-                        ForwardDeclares.Add(new TypeName("", s));
-                        return "::" + s + "*";
-                    }
                     return s;
             }
         }
