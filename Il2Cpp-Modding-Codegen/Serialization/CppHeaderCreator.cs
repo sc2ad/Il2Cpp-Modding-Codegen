@@ -42,7 +42,7 @@ namespace Il2Cpp_Modding_Codegen.Serialization
                     var s = "template<";
                     for (int i = 0; i < fd.GenericParameters.Count; i++)
                     {
-                        s += "typename " + fd.GenericParameters[i].Name;
+                        s += "typename " + fd.GenericParameters[i].SafeName();
                         if (i != fd.GenericParameters.Count - 1)
                             s += ", ";
                     }
@@ -151,6 +151,7 @@ namespace Il2Cpp_Modding_Codegen.Serialization
                     string arg0 = _context.QualifiedTypeName;
                     if (data.Info.TypeFlags == TypeFlags.ReferenceType)
                         arg0 += "*";
+                    // For this, we DO want all the `, /, etc
                     writer.WriteLine($"DEFINE_IL2CPP_ARG_TYPE({arg0}, \"{data.This.Namespace}\", \"{data.This.Name}\");");
                 }
                 writer.WriteLine("#pragma pack(pop)");

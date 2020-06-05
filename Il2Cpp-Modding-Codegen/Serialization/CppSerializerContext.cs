@@ -85,7 +85,7 @@ namespace Il2Cpp_Modding_Codegen.Serialization
                 {
                     if (!first)
                         typeStr += ", ";
-                    typeStr += GetNameFromReference(genParam) ?? genParam.Name;
+                    typeStr += GetNameFromReference(genParam) ?? genParam.SafeName();
                     first = false;
                 }
                 typeStr += ">";
@@ -139,8 +139,12 @@ namespace Il2Cpp_Modding_Codegen.Serialization
             // Resolve the type definition
             var type = def.Resolve(_context);
             if (type == null)
+            {
+                // for Dll parsing, should only happen for true generics (i.e. T, TValue, etc)
+                // Console.WriteLine($"GetNameFromReference: failed to resolve {def}");
                 // We have no way of resolving this type definition
                 return null;
+            }
 
             // TODO: instead, just use type
             // If we have not, map the type definition to a safe, unique name (TypeName)

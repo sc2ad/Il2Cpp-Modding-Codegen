@@ -5,6 +5,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
+using System.Text.RegularExpressions;
 
 namespace Il2Cpp_Modding_Codegen.Data.DllHandling
 {
@@ -12,10 +13,11 @@ namespace Il2Cpp_Modding_Codegen.Data.DllHandling
     {
         private TypeReference This;
         public override string Namespace {
-            get { return This.Namespace; }
+            get { return This.DeclaringType?.Namespace ?? This.Namespace; }
         }
+        readonly string _name;
         public override string Name {
-            get { return This.Name; }
+            get { return _name; }
         }
         public override bool Generic {
             get { return This.IsGenericInstance || This.HasGenericParameters; }
@@ -50,6 +52,12 @@ namespace Il2Cpp_Modding_Codegen.Data.DllHandling
         private DllTypeRef(TypeReference reference)
         {
             This = reference;
+            _name = This.Name;
+            if (!(This.DeclaringType is null))
+                _name = This.DeclaringType.Name + "/" + _name;
+            // Remove *, &, [] from end of variable name
+            _name = Regex.Replace(_name, @"\W+$", "");
+
             if (This.IsGenericInstance)
                 GenericArguments = (This as GenericInstanceType).GenericArguments.Select(DllTypeRef.From).ToList();
             if (This.HasGenericParameters)

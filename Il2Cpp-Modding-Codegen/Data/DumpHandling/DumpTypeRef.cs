@@ -91,32 +91,25 @@ namespace Il2Cpp_Modding_Codegen.Data.DumpHandling
                     }
                     GenericTypes.Add(new DumpTypeRef(s));
                 }
-                var declInd = typeName.LastIndexOf('.');
-                if (declInd != -1)
-                {
-                    // Create a new TypeRef for the declaring type, it should recursively create more declaring types
-                    DeclaringType = new DumpTypeRef(typeName.Substring(0, declInd));
-                }
-                Name = typeName.Substring(declInd + 1);
-            }
-            else
-            {
-                var declInd = typeName.LastIndexOf('.');
-                if (declInd != -1)
-                {
-                    // Create a new TypeRef for the declaring type, it should recursively create more declaring types
-                    DeclaringType = new DumpTypeRef(typeName.Substring(0, declInd));
-                }
-                Name = typeName.Substring(declInd + 1);
-                if (IsArray())
-                {
-                    ElementType = new DumpTypeRef(typeName.Substring(0, typeName.Length - 2));
-                    // TODO: else set ElementType to `this` as Mono.Cecil does?
-                }
             }
             // TODO: if this is a generic definition, assign only to GenericParameters?
             GenericArguments = GenericTypes;
             GenericParameters = GenericTypes;
+
+            var declInd = typeName.LastIndexOf('.');
+            if (declInd != -1)
+            {
+                // Create a new TypeRef for the declaring type, it should recursively create more declaring types
+                DeclaringType = new DumpTypeRef(typeName.Substring(0, declInd));
+                // TODO: need to resolve DeclaringType before this will make sense?
+                Namespace = DeclaringType.Namespace;
+            }
+            Name = typeName.Replace('.', '/');
+            if (IsArray())
+            {
+                ElementType = new DumpTypeRef(Name.Substring(0, Name.Length - 2));
+                // TODO: else set ElementType to `this` as Mono.Cecil does?
+            }
         }
 
         public DumpTypeRef(string qualifiedName) : this("", qualifiedName) { }
