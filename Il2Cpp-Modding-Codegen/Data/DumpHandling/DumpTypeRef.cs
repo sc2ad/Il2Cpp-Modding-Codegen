@@ -12,7 +12,8 @@ namespace Il2Cpp_Modding_Codegen.Data.DumpHandling
         public override string Name { get; }
         public override bool Generic { get; }
 
-        public override IEnumerable<TypeRef> GenericParameters { get; }
+        public override IEnumerable<TypeRef> GenericParameters { get; } = new List<TypeRef>();
+        public override IEnumerable<TypeRef> GenericArguments { get; } = null;
 
         public override TypeRef DeclaringType { get; }
         public override TypeRef ElementType { get; }
@@ -67,7 +68,7 @@ namespace Il2Cpp_Modding_Codegen.Data.DumpHandling
         {
             Namespace = @namespace;
 
-            var GenericParams = new List<TypeRef>();
+            var GenericTypes = new List<TypeRef>();
             if (typeName.EndsWith(">") && !typeName.StartsWith("<"))
             {
                 Generic = true;
@@ -88,7 +89,7 @@ namespace Il2Cpp_Modding_Codegen.Data.DumpHandling
                         s += ", " + spl[i];
                         i++;
                     }
-                    GenericParams.Add(new DumpTypeRef(s));
+                    GenericTypes.Add(new DumpTypeRef(s));
                 }
                 var declInd = typeName.LastIndexOf('.');
                 if (declInd != -1)
@@ -113,7 +114,9 @@ namespace Il2Cpp_Modding_Codegen.Data.DumpHandling
                     // TODO: else set ElementType to `this` as Mono.Cecil does?
                 }
             }
-            GenericParameters = GenericParams;
+            // TODO: if this is a generic definition, assign only to GenericParameters?
+            GenericArguments = GenericTypes;
+            GenericParameters = GenericTypes;
         }
 
         public DumpTypeRef(string qualifiedName) : this("", qualifiedName) { }

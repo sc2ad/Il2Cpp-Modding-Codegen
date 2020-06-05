@@ -14,6 +14,7 @@ namespace Il2Cpp_Modding_Codegen.Data
 
         public abstract bool Generic { get; }
         public abstract IEnumerable<TypeRef> GenericParameters { get; }
+        public abstract IEnumerable<TypeRef> GenericArguments { get; }
         public abstract TypeRef DeclaringType { get; }
         public abstract TypeRef ElementType { get; }
 
@@ -53,7 +54,8 @@ namespace Il2Cpp_Modding_Codegen.Data
                 return $"{Name}";
             var s = Name + "<";
             bool first = true;
-            foreach (var param in GenericParameters)
+            var generics = GenericArguments ?? GenericParameters;
+            foreach (var param in generics)
             {
                 if (!first) s += ", ";
                 s += param.ToString();
@@ -88,9 +90,12 @@ namespace Il2Cpp_Modding_Codegen.Data
         public override bool Equals(object obj)
         {
             var o = obj as TypeRef;
-            return o?.Namespace + o?.Name == Namespace + Name
-                && o?.Generic == Generic
-                && GenericParameters.SequenceEqual(o?.GenericParameters);
+            if (o is null) return false;
+            return o.Namespace + o.Name == Namespace + Name
+                && o.Generic == Generic
+                && ((GenericArguments is null) == (o.GenericArguments is null))
+                && (GenericArguments?.SequenceEqual(o.GenericArguments)
+                ?? GenericParameters.SequenceEqual(o.GenericParameters));
         }
     }
 }

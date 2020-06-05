@@ -22,6 +22,7 @@ namespace Il2Cpp_Modding_Codegen.Data.DllHandling
         }
 
         public override IEnumerable<TypeRef> GenericParameters { get; } = new List<TypeRef>();
+        public override IEnumerable<TypeRef> GenericArguments { get; } = null;
 
         public override TypeRef DeclaringType {
             get { return From(This.DeclaringType); }
@@ -49,10 +50,9 @@ namespace Il2Cpp_Modding_Codegen.Data.DllHandling
         private DllTypeRef(TypeReference reference)
         {
             This = reference;
-            // TODO: work out whether we need actual generic parameters and whether they should have separate properties
             if (This.IsGenericInstance)
-                GenericParameters = (This as GenericInstanceType).GenericArguments.Select(DllTypeRef.From).ToList();
-            else if (This.HasGenericParameters)
+                GenericArguments = (This as GenericInstanceType).GenericArguments.Select(DllTypeRef.From).ToList();
+            if (This.HasGenericParameters)
                 GenericParameters = This.GenericParameters.Select(DllTypeRef.From).ToList();
         }
 

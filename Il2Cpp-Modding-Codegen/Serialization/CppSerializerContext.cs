@@ -43,7 +43,8 @@ namespace Il2Cpp_Modding_Codegen.Serialization
             FileName = resolvedTd.ConvertTypeToInclude();
             if (data.This.Generic)
             {
-                foreach (var g in data.This.GenericParameters)
+                var generics = data.This?.GenericArguments ?? data.This.GenericParameters;
+                foreach (var g in generics)
                 {
                     _genericTypes.Add(g);
                 }
@@ -72,26 +73,24 @@ namespace Il2Cpp_Modding_Codegen.Serialization
                     return name;
             }
         }
-        private string GenericParamsToStr(TypeRef type, bool genericParams)
+        private string GenericArgsToStr(TypeRef type, bool genericArgs)
         {
             var typeStr = "";
-            if (genericParams)
+            if (genericArgs)
             {
                 typeStr = "<";
                 bool first = true;
-                foreach (var genParam in type.GenericParameters)
+                var generics = type.GenericArguments ?? type.GenericParameters;
+                foreach (var genParam in generics)
                 {
                     if (!first)
                         typeStr += ", ";
-                    if (genParam is null)
-                        typeStr += "T";
-                    else
-                        typeStr += GetNameFromReference(genParam);
+                    typeStr += GetNameFromReference(genParam) ?? genParam.Name;
                     first = false;
                 }
                 typeStr += ">";
                 if (typeStr.Length == 2)
-                    Console.WriteLine($"GenericParamsToStr failed for type {type}: no generic parameters found? {String.Join(", ", type.GenericParameters)}");
+                    Console.WriteLine($"GenericArgsToStr failed for type {type}: no generics found? {String.Join(", ", generics)}");
             }
             return typeStr;
         }
@@ -105,7 +104,7 @@ namespace Il2Cpp_Modding_Codegen.Serialization
         /// <param name="def"></param>
         /// <param name="force"></param>
         /// <returns></returns>
-        public string GetNameFromReference(TypeRef def, ForceAsType force = ForceAsType.None, bool qualified = true, bool genericParams = true)
+        public string GetNameFromReference(TypeRef def, ForceAsType force = ForceAsType.None, bool qualified = true, bool genericArgs = true)
         {
             // For resolving generic type paramters
             // ex: TypeName<T1, T2>, GetNameFromReference(T1)
@@ -133,7 +132,7 @@ namespace Il2Cpp_Modding_Codegen.Serialization
             {
                 if (!found.Generic)
                     return ForceName(_references[found].Item1, _references[found].Item2, force);
-                var typeStr = GenericParamsToStr(found, genericParams);
+                var typeStr = GenericArgsToStr(found, genericArgs);
                 return ForceName(_references[found].Item1, _references[found].Item2 + typeStr, force);
             }
 
@@ -149,9 +148,9 @@ namespace Il2Cpp_Modding_Codegen.Serialization
 
             // If this is a generic type, we need to ensure we are providing correct type parameters
             var types = "";
-            if (def.Generic && genericParams)
+            if (def.Generic && genericArgs)
             {
-                types = GenericParamsToStr(def, genericParams);
+                types = GenericArgsToStr(def, genericArgs);
                 // Modify resolved type definition's name to include generic arguments
             }
 

@@ -15,6 +15,7 @@ namespace Il2Cpp_Modding_Codegen.Data
         public string Name { get; }
         public bool Generic { get; }
         public List<TypeRef> GenericParameters { get; } = new List<TypeRef>();
+        public List<TypeRef> GenericArguments { get; } = null;
         public TypeRef DeclaringType { get; }
 
         public TypeName(TypeRef tr, int dupCount = 0)
@@ -23,6 +24,7 @@ namespace Il2Cpp_Modding_Codegen.Data
             Name = dupCount == 0 ? tr.SafeName() : tr.SafeName() + "_" + dupCount;
             Generic = tr.Generic;
             GenericParameters.AddRange(tr.GenericParameters);
+            GenericArguments = tr.GenericArguments?.ToList();
             DeclaringType = tr.DeclaringType;
         }
 
@@ -40,10 +42,13 @@ namespace Il2Cpp_Modding_Codegen.Data
         // Namespace is actually NOT useful for comparisons!
         public override bool Equals(object obj)
         {
-            var o = obj as TypeName;
-            return o?.Namespace + o?.Name == Namespace + Name
-                && o?.Generic == Generic
-                && GenericParameters.SequenceEqual(o?.GenericParameters);
+            var o = obj as TypeRef;
+            if (o is null) return false;
+            return o.Namespace + o.Name == Namespace + Name
+                && o.Generic == Generic
+                && ((GenericArguments is null) == (o.GenericArguments is null))
+                && (GenericArguments?.SequenceEqual(o.GenericArguments)
+                ?? GenericParameters.SequenceEqual(o.GenericParameters));
         }
     }
 }

@@ -34,7 +34,7 @@ namespace Il2Cpp_Modding_Codegen.Serialization
             {
                 _typeName = context.GetNameFromReference(type.This, ForceAsType.Literal, false, false);
                 if (type.Parent != null)
-                    _parentName = context.GetNameFromReference(type.Parent, ForceAsType.Literal, genericParams: true);
+                    _parentName = context.GetNameFromReference(type.Parent, ForceAsType.Literal, genericArgs: true);
                 // TODO: Make prefix configurable
                 fieldSerializer = new CppFieldSerializer(_prefix + "  ");
                 foreach (var f in type.Fields)

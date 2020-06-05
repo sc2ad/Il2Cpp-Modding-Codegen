@@ -32,26 +32,39 @@ namespace Il2Cpp_Modding_Codegen.Serialization
                 writer.WriteLine($"namespace {fd.Namespace} {{");
                 writer.Indent++;
             }
+
+            var name = fd.Name;
             if (fd.Generic)
             {
-                // If the forward declare is a generic instance, we need to write the template type
-                var s = "template<";
-                for (int i = 0; i < fd.GenericParameters.Count; i++)
+                // If the forward declare is a generic instance, we need to write an empty version of the template type instead
+                if (fd.GenericParameters.Count > 0)  // better to forward declare nothing than something invalid
                 {
-                    s += "typename " + fd.GenericParameters[i].Name;
-                    if (i != fd.GenericParameters.Count - 1)
-                        s += ", ";
+                    var s = "template<";
+                    for (int i = 0; i < fd.GenericParameters.Count; i++)
+                    {
+                        s += "typename " + fd.GenericParameters[i].Name;
+                        if (i != fd.GenericParameters.Count - 1)
+                            s += ", ";
+                    }
+                    s += ">";
+                    writer.WriteLine(s);
+
+                    // Remove the <blah> from the name for the upcoming print
+                    var genericStart = name.IndexOf("<");
+                    if (genericStart >= 0)
+                    {
+                        name = name.Substring(0, genericStart);
+                    }
                 }
-                s += ">";
-                writer.WriteLine(s);
+                else name = "";
             }
-            // TODO: remove this temp fix when Array<blah> can be properly handled by the above generic handling
-            else if (fd.Name.Contains("<") && fd.Name.Contains(">"))
-            {
-                writer.WriteLine("template<>");
-            }
+
             // TODO write class instead if we did so for the definition
-            writer.WriteLine($"struct {fd.Name};");
+            if (name.Length > 0)
+                writer.WriteLine($"struct {name};");
+            else
+                writer.WriteLine($"// Aborted forward declaration of {fd}");
+
             if (putNamespace)
             {
                 writer.Indent--;
