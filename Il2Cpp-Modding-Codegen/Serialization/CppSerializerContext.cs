@@ -239,7 +239,7 @@ namespace Il2Cpp_Modding_Codegen.Serialization
                 if (_cpp || force == ForceAsType.Literal)  // for .cpp or as a parent
                     Includes.Add("utils/typedefs.h");
                 else
-                    ForwardDeclares.Add(new TypeName("", s));
+                    ForwardDeclares.Add(new TypeName(null, s));
 
                 bool defaultPtr = false;
                 if (s != "Il2CppChar")

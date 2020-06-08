@@ -34,10 +34,10 @@ namespace Il2Cpp_Modding_Codegen.Data.DllHandling
             }
 
             This = DllTypeRef.From(def);
-            Type = def.IsEnum ? TypeEnum.Enum : def.IsInterface ? TypeEnum.Interface : def.IsClass ? TypeEnum.Class : TypeEnum.Struct;
+            Type = def.IsEnum ? TypeEnum.Enum : (def.IsInterface ? TypeEnum.Interface : (def.IsValueType ? TypeEnum.Struct : TypeEnum.Class));
             Info = new TypeInfo
             {
-                TypeFlags = Type == TypeEnum.Class || Type == TypeEnum.Interface ? TypeFlags.ReferenceType : TypeFlags.ValueType
+                TypeFlags = def.IsValueType ? TypeFlags.ValueType : TypeFlags.ReferenceType
             };
 
             if (def.BaseType != null)

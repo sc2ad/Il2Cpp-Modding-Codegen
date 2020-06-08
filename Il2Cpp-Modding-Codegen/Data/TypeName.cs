@@ -28,6 +28,7 @@ namespace Il2Cpp_Modding_Codegen.Data
             DeclaringType = tr.DeclaringType;
         }
 
+        // null @namespace is reserved for Il2Cpp typedefs
         public TypeName(string @namespace, string name)
         {
             Namespace = @namespace;

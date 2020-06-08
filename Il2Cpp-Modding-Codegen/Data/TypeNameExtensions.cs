@@ -17,7 +17,7 @@ namespace Il2Cpp_Modding_Codegen.Data
 
         public static string ConvertTypeToNamespace(this TypeName def)
         {
-            if (string.IsNullOrWhiteSpace(def.Namespace))
+            if (def.Namespace == string.Empty)
                 return NoNamespace;
             return def.Namespace;
         }

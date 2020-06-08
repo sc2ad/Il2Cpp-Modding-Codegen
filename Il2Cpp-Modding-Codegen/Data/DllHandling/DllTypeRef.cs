@@ -12,8 +12,9 @@ namespace Il2Cpp_Modding_Codegen.Data.DllHandling
     public class DllTypeRef : TypeRef
     {
         private TypeReference This;
+        readonly string _namespace;
         public override string Namespace {
-            get { return This.DeclaringType?.Namespace ?? This.Namespace; }
+            get { return _namespace; }
         }
         readonly string _name;
         public override string Name {
@@ -65,6 +66,8 @@ namespace Il2Cpp_Modding_Codegen.Data.DllHandling
             // Remove *, [] from end of variable name
             _name = Regex.Replace(_name, @"\W+$", "");
             // if (!char.IsLetterOrDigit(_name.Last())) Console.WriteLine(reference);
+
+            _namespace = (This.DeclaringType?.Namespace ?? This.Namespace) ?? "";
 
             if (This.IsGenericInstance)
                 GenericArguments = (This as GenericInstanceType).GenericArguments.Select(DllTypeRef.From).ToList();

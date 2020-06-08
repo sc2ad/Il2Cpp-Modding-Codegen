@@ -26,10 +26,11 @@ namespace Il2Cpp_Modding_Codegen.Serialization
             if (fd.Name == "Il2CppChar")  // cannot forward declare a primitive typedef without exactly copying typedef which is a bad idea
                 return;
 
-            if (fd.Namespace.Length == 0) putNamespace = false;
+            string @namespace = fd.ConvertTypeToNamespace();
+            if (@namespace is null) putNamespace = false;
             if (putNamespace)
             {
-                writer.WriteLine($"namespace {fd.Namespace} {{");
+                writer.WriteLine($"namespace {@namespace} {{");
                 writer.Indent++;
             }
 
