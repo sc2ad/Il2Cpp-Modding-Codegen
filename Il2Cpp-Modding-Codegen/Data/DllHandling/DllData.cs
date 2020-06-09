@@ -21,6 +21,8 @@ namespace Il2Cpp_Modding_Codegen.Data.DllHandling
         private ReaderParameters _readerParams;
         private IMetadataResolver _metadataResolver;
 
+        private List<ITypeData> _nestedTypes = new List<ITypeData>();
+
         public DllData(string dir, DllConfig config)
         {
             _config = config;
@@ -46,6 +48,8 @@ namespace Il2Cpp_Modding_Codegen.Data.DllHandling
                     }
                 }
             }
+
+            Queue<ITypeData> nestedFrontier = new Queue<ITypeData>();
             modules.ForEach(m => m.Types.ToList().ForEach(t =>
             {
                 if (_config.ParseTypes && !_config.BlacklistTypes.Contains(t.Name))
@@ -54,10 +58,23 @@ namespace Il2Cpp_Modding_Codegen.Data.DllHandling
                     {
                         if (!t.Name.StartsWith("<Module>") && !t.Name.StartsWith("<PrivateImplementationDetails>"))
                             Console.Error.WriteLine($"Skipping TypeDefinition {t}");
-                    } else
-                        Types.Add(new DllTypeData(t, _config));
+                    }
+                    else
+                    {
+                        var type = new DllTypeData(t, _config);
+                        foreach (var nested in type.NestedTypes)
+                            nestedFrontier.Enqueue(nested);
+                        Types.Add(type);
+                    }
                 }
             }));
+
+            while (nestedFrontier.Count > 0)
+            {
+                var t = nestedFrontier.Dequeue();
+                _nestedTypes.Add(t);
+                foreach (var nt in t.NestedTypes) nestedFrontier.Enqueue(nt);
+            }
 
             int total = DllTypeRef.hits + DllTypeRef.misses;
             Console.WriteLine($"{nameof(DllTypeRef)} cache hits: {DllTypeRef.hits} / {total} = {100.0f * DllTypeRef.hits / total}");
@@ -73,8 +90,12 @@ namespace Il2Cpp_Modding_Codegen.Data.DllHandling
         {
             // TODO: Resolve only among our types that we actually plan on serializing
             // Basically, check it against our whitelist/blacklist
-            var te = Types.LastOrDefault(t => t.This.Equals(TypeRef) || t.This.Name == TypeRef.Name);
-            return te;
+            // TODO: make these dictionaries?
+            if (TypeRef.DeclaringType is null)
+                return Types.LastOrDefault(t => t.This.Equals(TypeRef) || t.This.Name == TypeRef.Name);
+            else
+                return _nestedTypes.LastOrDefault(t => t.This.Equals(TypeRef) ||
+                    (t.This.Name == TypeRef.Name && t.This.DeclaringType.Equals(TypeRef.DeclaringType)));
         }
 
         // Resolves the TypeRef def in the current context and returns a TypeRef that is guaranteed unique
