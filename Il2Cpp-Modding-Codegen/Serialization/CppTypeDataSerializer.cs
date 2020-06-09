@@ -101,7 +101,13 @@ namespace Il2Cpp_Modding_Codegen.Serialization
                 }
                 string s = "";
                 if (_parentName != null)
-                    s = $" : public {_parentName}";
+                {
+                    // System::ValueType should be the 1 type where we want to extend System::Object without the Il2CppObject fields
+                    if (_asHeader && type.This.Namespace == "System" && type.This.Name == "ValueType")
+                        s = $" : public Object";
+                    else
+                        s = $" : public {_parentName}";
+                }
                 // TODO: add implementing interfaces to s
                 if (type.This.Generic)
                 {

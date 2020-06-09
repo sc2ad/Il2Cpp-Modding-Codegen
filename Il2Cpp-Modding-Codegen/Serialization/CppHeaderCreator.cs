@@ -148,6 +148,12 @@ namespace Il2Cpp_Modding_Codegen.Serialization
                 writer.Indent--;
                 writer.WriteLine("}");
 
+                if (data.This.Namespace == "System" && data.This.Name == "ValueType")
+                {
+                    writer.WriteLine("template<class T>");
+                    writer.WriteLine("struct is_value_type<T, typename std::enable_if_t<std::is_base_of_v<System::ValueType, T>>> : std::true_type{};");
+                }
+
                 // DEFINE_IL2CPP_ARG_TYPE
                 string arg0 = _context.QualifiedTypeName;
                 string arg1 = "";
