@@ -34,7 +34,14 @@ namespace Il2Cpp_Modding_Codegen.Serialization
             {
                 _typeName = context.GetNameFromReference(type.This, ForceAsType.Literal, false, false);
                 if (type.Parent != null)
-                    _parentName = context.GetNameFromReference(type.Parent, ForceAsType.Literal, genericArgs: true);
+                {
+                    // System::ValueType should be the 1 type where we want to extend System::Object without the Il2CppObject fields
+                    if (_asHeader && type.This.Namespace == "System" && type.This.Name == "ValueType")
+                        _parentName = "Object";
+                    else
+                        _parentName = context.GetNameFromReference(type.Parent, ForceAsType.Literal, genericArgs: true);
+                }
+                    
                 // TODO: Make prefix configurable
                 fieldSerializer = new CppFieldSerializer(_prefix + "  ");
                 foreach (var f in type.Fields)
@@ -101,13 +108,7 @@ namespace Il2Cpp_Modding_Codegen.Serialization
                 }
                 string s = "";
                 if (_parentName != null)
-                {
-                    // System::ValueType should be the 1 type where we want to extend System::Object without the Il2CppObject fields
-                    if (_asHeader && type.This.Namespace == "System" && type.This.Name == "ValueType")
-                        s = $" : public Object";
-                    else
-                        s = $" : public {_parentName}";
-                }
+                    s = $" : public {_parentName}";
                 // TODO: add implementing interfaces to s
                 if (type.This.Generic)
                 {
