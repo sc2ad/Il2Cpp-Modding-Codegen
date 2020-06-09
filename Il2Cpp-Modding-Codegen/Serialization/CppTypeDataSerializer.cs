@@ -13,9 +13,12 @@ namespace Il2Cpp_Modding_Codegen.Serialization
     {
         private bool _asHeader;
 
-        private string _typeName;
-        private string _parentName;
-        private string _qualifiedName;
+        private struct State
+        {
+            public string typeName;
+            public string parentName;
+        };
+        private Dictionary<ITypeData, State> stateDict = new Dictionary<ITypeData, State>();
         private CppFieldSerializer fieldSerializer;
         private CppMethodSerializer methodSerializer;
         private SerializationConfig _config;
@@ -28,18 +31,24 @@ namespace Il2Cpp_Modding_Codegen.Serialization
 
         public void PreSerialize(ISerializerContext context, ITypeData type)
         {
-            _qualifiedName = context.QualifiedTypeName;
             if (_asHeader)
             {
-                _typeName = context.GetNameFromReference(type.This, ForceAsType.Literal, false, false);
+                State s = new State();
+                s.typeName = context.GetNameFromReference(type.This, ForceAsType.Literal, false, false);
+                if (string.IsNullOrEmpty(s.typeName))
+                {
+                    Console.WriteLine($"{type.This.Name} -> {s.typeName}");
+                    throw new Exception("GetNameFromReference gave empty typeName");
+                }
                 if (type.Parent != null)
                 {
                     // System::ValueType should be the 1 type where we want to extend System::Object without the Il2CppObject fields
                     if (_asHeader && type.This.Namespace == "System" && type.This.Name == "ValueType")
-                        _parentName = "Object";
+                        s.parentName = "Object";
                     else
-                        _parentName = context.GetNameFromReference(type.Parent, ForceAsType.Literal, genericArgs: true);
+                        s.parentName = context.GetNameFromReference(type.Parent, ForceAsType.Literal, genericArgs: true);
                 }
+                stateDict[type] = s;
 
                 if (fieldSerializer is null) fieldSerializer = new CppFieldSerializer();
                 foreach (var f in type.Fields)
@@ -67,6 +76,7 @@ namespace Il2Cpp_Modding_Codegen.Serialization
             string typeHeader = "";
             if (_asHeader)
             {
+                var state = stateDict[type];
                 // Write the actual type definition start
                 var specifiers = "";
                 foreach (var spec in type.Specifiers)
@@ -84,8 +94,8 @@ namespace Il2Cpp_Modding_Codegen.Serialization
                     writer.WriteLine();
                 }
                 string s = "";
-                if (_parentName != null)
-                    s = $" : public {_parentName}";
+                if (state.parentName != null)
+                    s = $" : public {state.parentName}";
                 // TODO: add implementing interfaces to s
                 if (type.This.Generic)
                 {
@@ -101,7 +111,7 @@ namespace Il2Cpp_Modding_Codegen.Serialization
                 }
 
                 // TODO: print enums as actual C++ smart enums? backing type is type of _value and A = #, should work for the lines inside the enum
-                typeHeader = (type.Type == TypeEnum.Struct ? "struct " : "class ") + _typeName;
+                typeHeader = (type.Type == TypeEnum.Struct ? "struct " : "class ") + state.typeName;
                 writer.WriteLine(typeHeader + s + " {");
                 writer.Flush();
                 writer.Indent++;
