@@ -91,6 +91,7 @@ namespace Il2Cpp_Modding_Codegen.Data
                         nameStr = $"param_{i}";
                     }
                 }
+                nameStr = nameStr.Replace('<', '$').Replace('>', '$');
                 if (mode == FormatParameterMode.Names)
                 {
                     // Only names
