@@ -129,7 +129,7 @@ namespace Il2Cpp_Modding_Codegen.Serialization
                 try
                 {
                     // TODO: use the indentWriter?
-                    serializer.Serialize(rawWriter.BaseStream, data);
+                    serializer.Serialize(writer, data);
                 }
                 catch (UnresolvedTypeException e)
                 {
@@ -145,6 +145,7 @@ namespace Il2Cpp_Modding_Codegen.Serialization
                     else if (_config.UnresolvedTypeExceptionHandling.TypeHandling == UnresolvedTypeExceptionHandling.Elevate)
                         throw new InvalidOperationException($"Cannot elevate {e} to a parent type- there is no parent type!");
                 }
+                // End the namespace
                 writer.Indent--;
                 writer.WriteLine("}");
 

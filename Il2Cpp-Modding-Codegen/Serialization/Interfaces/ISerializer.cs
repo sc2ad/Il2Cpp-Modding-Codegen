@@ -1,8 +1,4 @@
-﻿using Il2Cpp_Modding_Codegen.Data;
-using System;
-using System.Collections.Generic;
-using System.IO;
-using System.Text;
+﻿using System.CodeDom.Compiler;
 
 namespace Il2Cpp_Modding_Codegen.Serialization.Interfaces
 {
@@ -10,6 +6,6 @@ namespace Il2Cpp_Modding_Codegen.Serialization.Interfaces
     {
         void PreSerialize(ISerializerContext context, T obj);
 
-        void Serialize(Stream stream, T obj);
+        void Serialize(IndentedTextWriter writer, T obj);
     }
 }

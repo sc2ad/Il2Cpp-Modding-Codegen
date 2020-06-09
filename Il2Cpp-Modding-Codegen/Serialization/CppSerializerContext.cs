@@ -28,13 +28,14 @@ namespace Il2Cpp_Modding_Codegen.Serialization
         private HashSet<TypeRef> _genericTypes = new HashSet<TypeRef>();
 
         private ITypeContext _context;
+        private ITypeData _rootType;
         private ITypeData _localType;
         private bool _cpp;
 
         public CppSerializerContext(ITypeContext context, ITypeData data, bool cpp = false)
         {
             _context = context;
-            _localType = data;
+            _rootType = _localType = data;
             _cpp = cpp;
             var resolvedTd = _context.ResolvedTypeRef(data.This);
             QualifiedTypeName = resolvedTd.ConvertTypeToQualifiedName();

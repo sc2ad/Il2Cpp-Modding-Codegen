@@ -18,6 +18,7 @@ namespace Il2Cpp_Modding_Codegen.Data.DumpHandling
         public TypeInfo Info { get; private set; }
         public TypeRef This { get; private set; }
         public TypeRef Parent { get; private set; }
+        public HashSet<ITypeData> NestedTypes { get; } = new HashSet<ITypeData>();
         public List<TypeRef> ImplementingInterfaces { get; } = new List<TypeRef>();
         public int TypeDefIndex { get; private set; }
         public List<IAttribute> Attributes { get; } = new List<IAttribute>();
@@ -95,7 +96,7 @@ namespace Il2Cpp_Modding_Codegen.Data.DumpHandling
             {
                 TypeFlags = Type == TypeEnum.Class || Type == TypeEnum.Interface ? TypeFlags.ReferenceType : TypeFlags.ValueType
             };
-            if (Parent == null)
+            if (Parent is null)
             {
                 // If the type is a value type, it has no parent.
                 // If the type is a reference type, it has parent Il2CppObject

@@ -10,6 +10,7 @@ namespace Il2Cpp_Modding_Codegen.Data
         TypeEnum Type { get; }
         TypeInfo Info { get; }
         TypeRef Parent { get; }
+        HashSet<ITypeData> NestedTypes { get; }
         List<TypeRef> ImplementingInterfaces { get; }
         int TypeDefIndex { get; }
         List<IAttribute> Attributes { get; }

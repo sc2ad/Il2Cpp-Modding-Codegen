@@ -37,13 +37,18 @@ namespace Il2Cpp_Modding_Codegen.Data.DumpHandling
                     // Read empty lines
                     fs.ReadLine();
                     line = fs.PeekLine();
-                    if (line == null)
-                    {
-                        return;
-                    }
+                    if (line is null) return;
                 }
                 if (_config.ParseTypes)
-                    Types.Add(new DumpTypeData(fs, _config));
+                {
+                    var typeData = new DumpTypeData(fs, _config);
+                    if (typeData.This.DeclaringType != null)
+                    {
+                        var declaringTypeData = Resolve(typeData.This.DeclaringType);
+                        declaringTypeData.NestedTypes.Add(typeData);
+                    }
+                    else Types.Add(typeData);
+                }
                 line = fs.PeekLine();
             }
         }
@@ -91,7 +96,7 @@ namespace Il2Cpp_Modding_Codegen.Data.DumpHandling
         {
             // TODO: Resolve only among our types that we actually plan on serializing
             // Basically, check it against our whitelist/blacklist
-            var te = Types.FirstOrDefault(t => t.This.Equals(TypeRef) || t.This.Name == TypeRef.Name);
+            var te = Types.LastOrDefault(t => t.This.Equals(TypeRef) || t.This.Name == TypeRef.Name);
             return te;
         }
 

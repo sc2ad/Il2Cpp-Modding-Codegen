@@ -21,8 +21,6 @@ namespace Il2Cpp_Modding_Codegen.Data.DllHandling
         private ReaderParameters _readerParams;
         private IMetadataResolver _metadataResolver;
 
-        Queue<TypeDefinition> frontier = new Queue<TypeDefinition>();
-
         public DllData(string dir, DllConfig config)
         {
             _config = config;
@@ -51,19 +49,15 @@ namespace Il2Cpp_Modding_Codegen.Data.DllHandling
             modules.ForEach(m => m.Types.ToList().ForEach(t =>
             {
                 if (_config.ParseTypes && !_config.BlacklistTypes.Contains(t.Name))
-                    frontier.Enqueue(t);
-            }));
-            while (frontier.Count > 0)
-            {
-                var t = frontier.Dequeue();
-                if (t.Name.StartsWith("<") && t.Namespace.Length == 0 && t.DeclaringType is null) {
-                    if (!t.Name.StartsWith("<Module>") && !t.Name.StartsWith("<PrivateImplementationDetails>"))
-                        Console.Error.WriteLine($"Skipping TypeDefinition {t}");
-                    continue;
+                {
+                    if (t.Name.StartsWith("<") && t.Namespace.Length == 0 && t.DeclaringType is null)
+                    {
+                        if (!t.Name.StartsWith("<Module>") && !t.Name.StartsWith("<PrivateImplementationDetails>"))
+                            Console.Error.WriteLine($"Skipping TypeDefinition {t}");
+                    } else
+                        Types.Add(new DllTypeData(t, _config));
                 }
-                Types.Add(new DllTypeData(t, _config));
-                foreach (var nt in t.NestedTypes) frontier.Enqueue(nt);
-            }
+            }));
 
             int total = DllTypeRef.hits + DllTypeRef.misses;
             Console.WriteLine($"{nameof(DllTypeRef)} cache hits: {DllTypeRef.hits} / {total} = {100.0f * DllTypeRef.hits / total}");
@@ -79,7 +73,7 @@ namespace Il2Cpp_Modding_Codegen.Data.DllHandling
         {
             // TODO: Resolve only among our types that we actually plan on serializing
             // Basically, check it against our whitelist/blacklist
-            var te = Types.FirstOrDefault(t => t.This.Equals(TypeRef) || t.This.Name == TypeRef.Name);
+            var te = Types.LastOrDefault(t => t.This.Equals(TypeRef) || t.This.Name == TypeRef.Name);
             return te;
         }
 

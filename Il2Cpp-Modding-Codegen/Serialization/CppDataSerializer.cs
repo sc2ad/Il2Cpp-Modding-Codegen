@@ -2,6 +2,7 @@
 using Il2Cpp_Modding_Codegen.Data;
 using Il2Cpp_Modding_Codegen.Serialization.Interfaces;
 using System;
+using System.CodeDom.Compiler;
 using System.Collections.Generic;
 using System.IO;
 using System.Net.Http.Headers;
@@ -28,7 +29,7 @@ namespace Il2Cpp_Modding_Codegen.Serialization
             _config = config;
         }
 
-        public void PreSerialize(ISerializerContext context, IParsedData data)
+        public void PreSerialize(ISerializerContext _unused_, IParsedData data)
         {
             foreach (var t in data.Types)
             {
@@ -41,8 +42,9 @@ namespace Il2Cpp_Modding_Codegen.Serialization
                     // Skip the generic type, ensure it doesn't get serialized.
                     continue;
                 }
-                var header = new CppTypeDataSerializer(_config, "  ", true);
-                var cpp = new CppTypeDataSerializer(_config, "", false);
+                // TODO: give nested types their own cpp files?
+                var header = new CppTypeDataSerializer(_config, true);
+                var cpp = new CppTypeDataSerializer(_config, false);
                 var headerContext = new CppSerializerContext(_context, t);
                 var cppContext = new CppSerializerContext(_context, t, true);
                 header.PreSerialize(headerContext, t);
@@ -60,7 +62,7 @@ namespace Il2Cpp_Modding_Codegen.Serialization
             }
         }
 
-        public void Serialize(Stream stream, IParsedData data)
+        public void Serialize(IndentedTextWriter writer, IParsedData data)
         {
             throw new InvalidOperationException($"Cannot serialize a {nameof(CppDataSerializer)}, since it serializes in {nameof(PreSerialize)}!");
         }

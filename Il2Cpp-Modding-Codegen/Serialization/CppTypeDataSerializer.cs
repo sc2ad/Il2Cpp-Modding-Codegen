@@ -2,6 +2,7 @@
 using Il2Cpp_Modding_Codegen.Data;
 using Il2Cpp_Modding_Codegen.Serialization.Interfaces;
 using System;
+using System.CodeDom.Compiler;
 using System.Collections.Generic;
 using System.IO;
 using System.Text;
@@ -10,7 +11,6 @@ namespace Il2Cpp_Modding_Codegen.Serialization
 {
     public class CppTypeDataSerializer : ISerializer<ITypeData>
     {
-        private string _prefix;
         private bool _asHeader;
 
         private string _typeName;
@@ -20,10 +20,9 @@ namespace Il2Cpp_Modding_Codegen.Serialization
         private CppMethodSerializer methodSerializer;
         private SerializationConfig _config;
 
-        public CppTypeDataSerializer(SerializationConfig config, string prefix = "", bool asHeader = true)
+        public CppTypeDataSerializer(SerializationConfig config, bool asHeader = true)
         {
             _config = config;
-            _prefix = prefix;
             _asHeader = asHeader;
         }
 
@@ -41,63 +40,43 @@ namespace Il2Cpp_Modding_Codegen.Serialization
                     else
                         _parentName = context.GetNameFromReference(type.Parent, ForceAsType.Literal, genericArgs: true);
                 }
-                    
-                // TODO: Make prefix configurable
-                fieldSerializer = new CppFieldSerializer(_prefix + "  ");
+
+                if (fieldSerializer is null) fieldSerializer = new CppFieldSerializer();
                 foreach (var f in type.Fields)
                     fieldSerializer.PreSerialize(context, f);
             }
             if (type.Type != TypeEnum.Interface)
-                methodSerializer = new CppMethodSerializer(_config, _asHeader ? _prefix + "  " : _prefix, _asHeader);
-            else
-                // TODO: Add a specific interface method serializer here, or provide more state to the original method serializer to support it
+            {
+                if (methodSerializer is null) methodSerializer = new CppMethodSerializer(_config, _asHeader);
+            }
+            else // TODO: Add a specific interface method serializer here, or provide more state to the original method serializer to support it
                 methodSerializer = null;
 
             foreach (var m in type.Methods)
                 methodSerializer?.PreSerialize(context, m);
+
+            // PreSerialize any nested types
+            foreach (var nested in type.NestedTypes)
+                PreSerialize(context, nested);
         }
 
         // Should be provided a file, with all references resolved:
-        // That means that everything is either forward declared or included (with included files "to be built")
-        // This is the responsibility of our parent serializer, who is responsible for converting the context into that
-        public void Serialize(Stream stream, ITypeData type)
+        // That means that everything is already either forward declared or included (with included files "to be built")
+        // That is the responsibility of our parent serializer, who is responsible for converting the context into that
+        public void Serialize(IndentedTextWriter writer, ITypeData type)
         {
-            // Don't use a using statement here because it will close the underlying stream-- we want to keep it open
-            var writer = new StreamWriter(stream);
+            // Populated only for headers; contains the e.g. `struct X` or `class Y` for type
+            string typeHeader = "";
             if (_asHeader)
             {
-                var fieldStream = new MemoryStream();
-                if (type.Type != TypeEnum.Interface)
-                {
-                    // Write fields if not an interface
-                    foreach (var f in type.Fields)
-                    {
-                        try
-                        {
-                            fieldSerializer.Serialize(fieldStream, f);
-                        }
-                        catch (UnresolvedTypeException e)
-                        {
-                            if (_config.UnresolvedTypeExceptionHandling.FieldHandling == UnresolvedTypeExceptionHandling.DisplayInFile)
-                            {
-                                var fs = new StreamWriter(fieldStream);
-                                fs.WriteLine("/*");
-                                fs.WriteLine(e);
-                                fs.WriteLine("*/");
-                                fs.Flush();
-                            }
-                            else if (_config.UnresolvedTypeExceptionHandling.FieldHandling == UnresolvedTypeExceptionHandling.Elevate)
-                                throw;
-                        }
-                    }
-                }
+                // Write the actual type definition start
                 var specifiers = "";
                 foreach (var spec in type.Specifiers)
                     specifiers += spec + " ";
-                writer.WriteLine($"{_prefix}// Autogenerated type: {specifiers + type.This}");
+                writer.WriteLine($"// Autogenerated type: {specifiers + type.This}");
                 if (type.ImplementingInterfaces.Count > 0)
                 {
-                    writer.Write($"{_prefix}// Implementing Interfaces: ");
+                    writer.Write($"// Implementing Interfaces: ");
                     for (int i = 0; i < type.ImplementingInterfaces.Count; i++)
                     {
                         writer.Write(type.ImplementingInterfaces[i]);
@@ -120,25 +99,54 @@ namespace Il2Cpp_Modding_Codegen.Serialization
                         templateStr += "typename " + genParam.Name;
                         first = false;
                     }
-                    writer.WriteLine(_prefix + templateStr + ">");
+                    writer.WriteLine(templateStr + ">");
                 }
 
                 // TODO: print enums as actual C++ smart enums? backing type is type of _value and A = #, should work for the lines inside the enum
-                var typeHeader = (type.Type == TypeEnum.Struct ? "struct " : "class ") + _typeName + s;
-                writer.WriteLine(_prefix + typeHeader + " {");
+                typeHeader = (type.Type == TypeEnum.Struct ? "struct " : "class ") + _typeName;
+                writer.WriteLine(typeHeader + s + " {");
                 writer.Flush();
+                writer.Indent++;
+
+                // now write any nested types
+                foreach (var nested in type.NestedTypes)
+                {
+                    Serialize(writer, nested);
+                }
+
+                // now write the fields
                 if (type.Type != TypeEnum.Interface)
                 {
-                    fieldStream.WriteTo(writer.BaseStream);
+                    // Write fields if not an interface
+                    foreach (var f in type.Fields)
+                    {
+                        try
+                        {
+                            fieldSerializer.Serialize(writer, f);
+                        }
+                        catch (UnresolvedTypeException e)
+                        {
+                            if (_config.UnresolvedTypeExceptionHandling.FieldHandling == UnresolvedTypeExceptionHandling.DisplayInFile)
+                            {
+                                writer.WriteLine("/*");
+                                writer.WriteLine(e);
+                                writer.WriteLine("*/");
+                                writer.Flush();
+                            }
+                            else if (_config.UnresolvedTypeExceptionHandling.FieldHandling == UnresolvedTypeExceptionHandling.Elevate)
+                                throw;
+                        }
+                    }
                     writer.Flush();
                 }
-                // After the typedef is closed, we write the methods
-            }
+            }  // end of if (_asHeader)
+
+            // Finally, we write the methods
             foreach (var m in type.Methods)
             {
                 try
                 {
-                    methodSerializer?.Serialize(writer.BaseStream, m);
+                    methodSerializer?.Serialize(writer, m);
                 }
                 catch (UnresolvedTypeException e)
                 {
@@ -155,7 +163,10 @@ namespace Il2Cpp_Modding_Codegen.Serialization
             }
             // Write type closing "};"
             if (_asHeader)
-                writer.WriteLine(_prefix + "};");
+            {
+                writer.Indent--;
+                writer.WriteLine($"}};  // {typeHeader}");
+            }
             writer.Flush();
         }
     }
