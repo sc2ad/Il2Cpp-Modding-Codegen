@@ -48,12 +48,10 @@ namespace Il2Cpp_Modding_Codegen.Serialization
             if (type.Type != TypeEnum.Interface)
             {
                 if (methodSerializer is null) methodSerializer = new CppMethodSerializer(_config, _asHeader);
+                foreach (var m in type.Methods)
+                    methodSerializer?.PreSerialize(context, m);
             }
-            else // TODO: Add a specific interface method serializer here, or provide more state to the original method serializer to support it
-                methodSerializer = null;
-
-            foreach (var m in type.Methods)
-                methodSerializer?.PreSerialize(context, m);
+            // TODO: Add a specific interface method serializer here, or provide more state to the original method serializer to support it
 
             // PreSerialize any nested types
             foreach (var nested in type.NestedTypes)
@@ -142,23 +140,26 @@ namespace Il2Cpp_Modding_Codegen.Serialization
             }  // end of if (_asHeader)
 
             // Finally, we write the methods
-            foreach (var m in type.Methods)
+            if (type.Type != TypeEnum.Interface)
             {
-                try
+                foreach (var m in type.Methods)
                 {
-                    methodSerializer?.Serialize(writer, m);
-                }
-                catch (UnresolvedTypeException e)
-                {
-                    if (_config.UnresolvedTypeExceptionHandling.MethodHandling == UnresolvedTypeExceptionHandling.DisplayInFile)
+                    try
                     {
-                        writer.WriteLine("/*");
-                        writer.WriteLine(e);
-                        writer.WriteLine("*/");
-                        writer.Flush();
+                        methodSerializer?.Serialize(writer, m);
                     }
-                    else if (_config.UnresolvedTypeExceptionHandling.MethodHandling == UnresolvedTypeExceptionHandling.Elevate)
-                        throw;
+                    catch (UnresolvedTypeException e)
+                    {
+                        if (_config.UnresolvedTypeExceptionHandling.MethodHandling == UnresolvedTypeExceptionHandling.DisplayInFile)
+                        {
+                            writer.WriteLine("/*");
+                            writer.WriteLine(e);
+                            writer.WriteLine("*/");
+                            writer.Flush();
+                        }
+                        else if (_config.UnresolvedTypeExceptionHandling.MethodHandling == UnresolvedTypeExceptionHandling.Elevate)
+                            throw;
+                    }
                 }
             }
             // Write type closing "};"
