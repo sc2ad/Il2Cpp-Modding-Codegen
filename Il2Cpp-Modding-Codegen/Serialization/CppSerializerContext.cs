@@ -120,15 +120,6 @@ namespace Il2Cpp_Modding_Codegen.Serialization
             {
                 return ForceName(resolvedName.Item1, resolvedName.Item2, force);
             }
-            // We may have already resolved this type, but without a namespace. Check that
-            var found = _references.Keys.FirstOrDefault(td => td.Name == def.Name);
-            if (found != null)
-            {
-                if (!found.Generic)
-                    return ForceName(_references[found].Item1, _references[found].Item2, force);
-                var typeStr = GenericArgsToStr(found, genericArgs);
-                return ForceName(_references[found].Item1, _references[found].Item2 + typeStr, force);
-            }
 
             // Resolve the type definition
             var type = def.Resolve(_context);
