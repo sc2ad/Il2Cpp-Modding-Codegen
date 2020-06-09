@@ -147,14 +147,18 @@ namespace Il2Cpp_Modding_Codegen.Serialization
                 }
                 writer.Indent--;
                 writer.WriteLine("}");
+
+                // DEFINE_IL2CPP_ARG_TYPE
+                string arg0 = _context.QualifiedTypeName;
+                string arg1 = "";
+                if (data.Info.TypeFlags == TypeFlags.ReferenceType)
+                    arg1 = "*";
+                // For Name and Namespace here, we DO want all the `, /, etc
                 if (!data.This.Generic)
-                {
-                    string arg0 = _context.QualifiedTypeName;
-                    if (data.Info.TypeFlags == TypeFlags.ReferenceType)
-                        arg0 += "*";
-                    // For this, we DO want all the `, /, etc
-                    writer.WriteLine($"DEFINE_IL2CPP_ARG_TYPE({arg0}, \"{data.This.Namespace}\", \"{data.This.Name}\");");
-                }
+                    writer.WriteLine($"DEFINE_IL2CPP_ARG_TYPE({arg0+arg1}, \"{data.This.Namespace}\", \"{data.This.Name}\");");
+                else
+                    writer.WriteLine($"DEFINE_IL2CPP_ARG_TYPE_GENERIC({arg0}, {arg1}, \"{data.This.Namespace}\", \"{data.This.Name}\");");
+
                 writer.WriteLine("#pragma pack(pop)");
                 writer.Flush();
                 using (var fs = File.OpenWrite(headerLocation))

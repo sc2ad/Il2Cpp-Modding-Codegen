@@ -147,11 +147,6 @@ namespace Il2Cpp_Modding_Codegen.Serialization
                 }
             }
             // Write type closing "};"
-            // if the type is generic, write the DEFINE_IL2CPP_ARG_TYPE within the typedef
-            if (type.This.Generic && (type.Type == TypeEnum.Struct || type.Type == TypeEnum.Enum))
-            {
-                writer.WriteLine(_prefix + "  " + $"DEFINE_IL2CPP_ARG_TYPE({_qualifiedName}, \"{type.This.Namespace}\", \"{type.This.Name}\");");
-            }
             if (_asHeader)
                 writer.WriteLine(_prefix + "};");
             writer.Flush();
