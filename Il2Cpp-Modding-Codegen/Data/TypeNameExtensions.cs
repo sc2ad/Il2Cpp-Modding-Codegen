@@ -22,13 +22,20 @@ namespace Il2Cpp_Modding_Codegen.Data
             return def.Namespace;
         }
 
-        public static string ConvertTypeToQualifiedName(this TypeName def)
+        public static string ConvertTypeToQualifiedName(this TypeName def, ITypeContext context)
         {
-            return ConvertTypeToNamespace(def) + "::" + ConvertTypeToName(def);
+            string space;
+            if (def.DeclaringType is null)
+                space = ConvertTypeToNamespace(def);
+            else
+                space = context.ResolvedTypeRef(def.DeclaringType).ConvertTypeToQualifiedName(context);
+            return space + "::" + ConvertTypeToName(def);
         }
 
-        public static string ConvertTypeToInclude(this TypeName def)
+        public static string ConvertTypeToInclude(this TypeName def, ITypeContext context)
         {
+            if (def.DeclaringType != null)
+                return context.ResolvedTypeRef(def.DeclaringType).ConvertTypeToInclude(context);
             // TODO: instead split on :: and Path.Combine?
             var fileName = string.Join("-", ConvertTypeToName(def).Replace("::", "_").Split(Path.GetInvalidFileNameChars()));
             var directory = string.Join("-", ConvertTypeToNamespace(def).Replace("::", "_").Split(Path.GetInvalidPathChars()));

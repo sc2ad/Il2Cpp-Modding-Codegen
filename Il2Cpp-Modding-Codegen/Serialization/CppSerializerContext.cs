@@ -38,10 +38,10 @@ namespace Il2Cpp_Modding_Codegen.Serialization
             _rootType = _localType = data;
             _cpp = cpp;
             var resolvedTd = _context.ResolvedTypeRef(data.This);
-            QualifiedTypeName = resolvedTd.ConvertTypeToQualifiedName();
+            QualifiedTypeName = resolvedTd.ConvertTypeToQualifiedName(context);
             TypeNamespace = resolvedTd.ConvertTypeToNamespace();
             TypeName = resolvedTd.ConvertTypeToName();
-            FileName = resolvedTd.ConvertTypeToInclude();
+            FileName = resolvedTd.ConvertTypeToInclude(context);
             if (data.This.Generic)
             {
                 var generics = data.This?.GenericArguments ?? data.This.GenericParameters;
@@ -90,6 +90,13 @@ namespace Il2Cpp_Modding_Codegen.Serialization
             return typeStr;
         }
 
+        private bool IsLocalTypeOrNestedUnderIt(TypeRef type)
+        {
+            if (_localType.This.Equals(type)) return true;
+            if (type is null) return false;
+            return IsLocalTypeOrNestedUnderIt(type.DeclaringType);
+        }
+
         /// <summary>
         /// Gets a string name from a type definition.
         /// Checks it against a private map.
@@ -107,9 +114,10 @@ namespace Il2Cpp_Modding_Codegen.Serialization
                 // TODO: Check to ensure ValueType is correct here. Perhaps assuming reference type is better?
                 return ForceName(new TypeInfo() { TypeFlags = TypeFlags.ValueType }, def.Name, force);
 
-            // TODO: Need to determine a better way of resolving special names
-            if (!_localType.This.Equals(def))
+            bool typeIsInThisFile = IsLocalTypeOrNestedUnderIt(def);
+            if (!typeIsInThisFile)  // prevents System::Object from becoming Il2CppObject in its own definition, etc
             {
+                // TODO: Need to determine a better way of resolving special names
                 var primitiveName = ResolvePrimitive(def, force);
                 // Primitives are automatically resolved via this call
                 if (primitiveName != null)
@@ -144,20 +152,19 @@ namespace Il2Cpp_Modding_Codegen.Serialization
                 // Modify resolved type definition's name to include generic arguments
             }
 
-            // If the type is ourselves, no need to include/forward declare it
-            if (type.Equals(_localType))
+            // If the type is in this file, no need to include/forward declare it
+            if (typeIsInThisFile)
             {
-                return ForceName(type.Info, (qualified ? resolvedTd.ConvertTypeToQualifiedName() : resolvedTd.ConvertTypeToName()) + types, force);
+                return ForceName(type.Info, (qualified ? resolvedTd.ConvertTypeToQualifiedName(_context) : resolvedTd.ConvertTypeToName()) + types, force);
             }
 
             // If we are the context for a header:
-            // AND the type is our child OR a nested type
+            // AND the type is our child
             // OR, if the type is being asked to be used as a POINTER
             // OR, it is a reference type AND it is being asked to be used NOT(as a literal or as a reference):
             // Forward declare
-            if (!_cpp && (
+            if (!_cpp && (type.This.DeclaringType is null) && (
                 _localType.This.Equals(type.Parent)
-                || _localType.This.Equals(def.DeclaringType)
                 || force == ForceAsType.Pointer
                 || (type.Info.TypeFlags == TypeFlags.ReferenceType && force != ForceAsType.Literal && force != ForceAsType.Reference)
             ))
@@ -172,14 +179,14 @@ namespace Il2Cpp_Modding_Codegen.Serialization
                 // Get path to this type (namespace/name)
                 // TODO: If we have namespace headers, we need to namespace declare our return value:
                 // namespace::typeName
-                Includes.Add(resolvedTd.ConvertTypeToInclude() + ".hpp");
+                Includes.Add(resolvedTd.ConvertTypeToInclude(_context) + ".hpp");
             }
 
             // Add newly created name to _references
-            _references.Add(def, (type.Info, resolvedTd.ConvertTypeToQualifiedName() + types));
+            _references.Add(def, (type.Info, resolvedTd.ConvertTypeToQualifiedName(_context) + types));
 
             // Return safe created name
-            return ForceName(type.Info, (qualified ? resolvedTd.ConvertTypeToQualifiedName() : resolvedTd.ConvertTypeToName()) + types, force);
+            return ForceName(type.Info, (qualified ? resolvedTd.ConvertTypeToQualifiedName(_context) : resolvedTd.ConvertTypeToName()) + types, force);
         }
 
         private string ResolvePrimitive(TypeRef def, ForceAsType force)
