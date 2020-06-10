@@ -18,8 +18,10 @@ namespace Il2Cpp_Modding_Codegen.Serialization
             public string typeName;
             public string parentName;
         };
+
         private Dictionary<ITypeData, State> stateDict = new Dictionary<ITypeData, State>();
         private CppFieldSerializer fieldSerializer;
+        private CppStaticFieldSerializer staticFieldSerializer;
         private CppMethodSerializer methodSerializer;
         private SerializationConfig _config;
 
@@ -33,32 +35,48 @@ namespace Il2Cpp_Modding_Codegen.Serialization
         {
             if (_asHeader)
             {
-                State s = new State();
-                s.typeName = context.GetNameFromReference(type.This, ForceAsType.Literal, false, false);
+                State s = new State
+                {
+                    typeName = context.GetNameFromReference(type.This, ForceAsType.Literal, false, false)
+                };
                 if (string.IsNullOrEmpty(s.typeName))
                 {
                     Console.WriteLine($"{type.This.Name} -> {s.typeName}");
                     throw new Exception("GetNameFromReference gave empty typeName");
                 }
-                if (type.Parent != null)
-                {
-                    // System::ValueType should be the 1 type where we want to extend System::Object without the Il2CppObject fields
-                    if (_asHeader && type.This.Namespace == "System" && type.This.Name == "ValueType")
-                        s.parentName = "Object";
-                    else
-                        s.parentName = context.GetNameFromReference(type.Parent, ForceAsType.Literal, genericArgs: true);
-                }
-                stateDict[type] = s;
+                    if (type.Parent != null)
+                    {
+                        // System::ValueType should be the 1 type where we want to extend System::Object without the Il2CppObject fields
+                        if (_asHeader && type.This.Namespace == "System" && type.This.Name == "ValueType")
+                            s.parentName = "Object";
+                        else
+                            s.parentName = context.GetNameFromReference(type.Parent, ForceAsType.Literal, genericArgs: true);
+                    }
+                    stateDict[type] = s;
 
-                if (fieldSerializer is null) fieldSerializer = new CppFieldSerializer();
-                foreach (var f in type.Fields)
-                    fieldSerializer.PreSerialize(context, f);
+                    if (fieldSerializer is null)
+                        fieldSerializer = new CppFieldSerializer();
             }
             if (type.Type != TypeEnum.Interface)
             {
-                if (methodSerializer is null) methodSerializer = new CppMethodSerializer(_config, _asHeader);
+                if (methodSerializer is null)
+                    methodSerializer = new CppMethodSerializer(_config, _asHeader);
                 foreach (var m in type.Methods)
                     methodSerializer?.PreSerialize(context, m);
+                foreach (var f in type.Fields)
+                {
+                    // If the field is a static field, we want to create two methods, (get and set for the static field)
+                    // and make a call to GetFieldValue and SetFieldValue for those methods
+                    if (f.Specifiers.IsStatic())
+                    {
+                        if (staticFieldSerializer is null)
+                            staticFieldSerializer = new CppStaticFieldSerializer(_asHeader, _config);
+                        staticFieldSerializer.PreSerialize(context, f);
+                    }
+                    // Otherwise, if we are a header, preserialize the field
+                    else if (_asHeader)
+                        fieldSerializer.PreSerialize(context, f);
+                }
             }
             // TODO: Add a specific interface method serializer here, or provide more state to the original method serializer to support it
 
@@ -118,40 +136,37 @@ namespace Il2Cpp_Modding_Codegen.Serialization
 
                 // now write any nested types
                 foreach (var nested in type.NestedTypes)
-                {
                     Serialize(writer, nested);
-                }
+                writer.Flush();
+            }
 
-                // now write the fields
-                if (type.Type != TypeEnum.Interface)
-                {
-                    // Write fields if not an interface
-                    foreach (var f in type.Fields)
-                    {
-                        try
-                        {
-                            fieldSerializer.Serialize(writer, f);
-                        }
-                        catch (UnresolvedTypeException e)
-                        {
-                            if (_config.UnresolvedTypeExceptionHandling.FieldHandling == UnresolvedTypeExceptionHandling.DisplayInFile)
-                            {
-                                writer.WriteLine("/*");
-                                writer.WriteLine(e);
-                                writer.WriteLine("*/");
-                                writer.Flush();
-                            }
-                            else if (_config.UnresolvedTypeExceptionHandling.FieldHandling == UnresolvedTypeExceptionHandling.Elevate)
-                                throw;
-                        }
-                    }
-                    writer.Flush();
-                }
-            }  // end of if (_asHeader)
-
-            // Finally, we write the methods
             if (type.Type != TypeEnum.Interface)
             {
+                // Write fields if not an interface
+                foreach (var f in type.Fields)
+                {
+                    try
+                    {
+                        if (f.Specifiers.IsStatic())
+                            staticFieldSerializer.Serialize(writer, f);
+                        else if (_asHeader)
+                            // Only write standard fields if this is a header
+                            fieldSerializer.Serialize(writer, f);
+                    }
+                    catch (UnresolvedTypeException e)
+                    {
+                        if (_config.UnresolvedTypeExceptionHandling.FieldHandling == UnresolvedTypeExceptionHandling.DisplayInFile)
+                        {
+                            writer.WriteLine("/*");
+                            writer.WriteLine(e);
+                            writer.WriteLine("*/");
+                            writer.Flush();
+                        }
+                        else if (_config.UnresolvedTypeExceptionHandling.FieldHandling == UnresolvedTypeExceptionHandling.Elevate)
+                            throw;
+                    }
+                }
+                // Finally, we write the methods
                 foreach (var m in type.Methods)
                 {
                     try

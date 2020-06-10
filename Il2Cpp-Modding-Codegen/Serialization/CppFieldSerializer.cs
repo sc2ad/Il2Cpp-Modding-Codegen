@@ -15,7 +15,9 @@ namespace Il2Cpp_Modding_Codegen.Serialization
 
         private Dictionary<IField, string> _resolvedTypeNames = new Dictionary<IField, string>();
 
-        public CppFieldSerializer() { }
+        public CppFieldSerializer()
+        {
+        }
 
         // Resolve the field into context here
         public void PreSerialize(ISerializerContext context, IField field)
@@ -38,7 +40,7 @@ namespace Il2Cpp_Modding_Codegen.Serialization
             {
                 fieldString += $"{spec} ";
             }
-            fieldString += $"{field.Type} {field.Name} Offset: 0x{field.Offset:X}";
+            fieldString += $"{field.Type} {field.Name} // Offset: 0x{field.Offset:X}";
             writer.WriteLine($"// {fieldString}");
             if (!field.Specifiers.IsStatic() && !field.Specifiers.IsConst())
                 writer.WriteLine($"{_resolvedTypeNames[field]} {field.Name.Replace('<', '$').Replace('>', '$')};");
