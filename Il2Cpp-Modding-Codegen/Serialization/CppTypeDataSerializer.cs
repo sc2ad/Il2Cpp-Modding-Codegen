@@ -150,12 +150,14 @@ namespace Il2Cpp_Modding_Codegen.Serialization
                 //}
 
                 // write any class forward declares
-                if (_asHeader)
+                if (_asHeader && _context.ClassForwardDeclares.Count > 0)
                 {
+                    writer.WriteLine("// Nested forward declarations");
                     foreach (var fd in _context.ClassForwardDeclares)
                     {
                         _header.WriteForwardDeclare(writer, fd);
                     }
+                    writer.WriteLine("// End nested forward declarations");
                 }
                 writer.Flush();
             }
