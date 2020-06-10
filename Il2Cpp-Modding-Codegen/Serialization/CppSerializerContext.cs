@@ -32,6 +32,24 @@ namespace Il2Cpp_Modding_Codegen.Serialization
         private ITypeData _localType;
         private bool _cpp;
 
+        private void GetGenericTypes(ITypeData data)
+        {
+            var generics = data.This.Generic ? data.This?.GenericArguments ?? data.This.GenericParameters : null;
+            if (generics != null)
+            {
+                foreach (var g in generics)
+                {
+                    // Add all of our generic arguments or parameters
+                    _genericTypes.Add(g);
+                }
+            }
+            foreach (var nested in data.NestedTypes)
+            {
+                // Add all of our nested types
+                GetGenericTypes(nested);
+            }
+        }
+
         public CppSerializerContext(ITypeContext context, ITypeData data, bool cpp = false)
         {
             _context = context;
@@ -42,14 +60,8 @@ namespace Il2Cpp_Modding_Codegen.Serialization
             TypeNamespace = resolvedTd.ConvertTypeToNamespace();
             TypeName = resolvedTd.ConvertTypeToName();
             FileName = resolvedTd.ConvertTypeToInclude(context);
-            if (data.This.Generic)
-            {
-                var generics = data.This?.GenericArguments ?? data.This.GenericParameters;
-                foreach (var g in generics)
-                {
-                    _genericTypes.Add(g);
-                }
-            }
+            // Check all nested classes (and ourselves) if we have generic arguments/parameters. If we do, add them to _genericTypes.
+            GetGenericTypes(data);
         }
 
         private string ForceName(TypeInfo info, string name, ForceAsType force)

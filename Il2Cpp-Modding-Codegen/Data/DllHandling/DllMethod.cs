@@ -21,6 +21,7 @@ namespace Il2Cpp_Modding_Codegen.Data.DllHandling
         public TypeRef ImplementedFrom { get; }
         public string Name { get; }
         public List<Parameter> Parameters { get; } = new List<Parameter>();
+        public bool Generic { get; }
 
         public DllMethod(MethodDefinition m)
         {
@@ -66,6 +67,8 @@ namespace Il2Cpp_Modding_Codegen.Data.DllHandling
             }
             Parameters.AddRange(m.Parameters.Select(p => new Parameter(p)));
             Specifiers.AddRange(DllSpecifierHelpers.From(m));
+            // This is not necessary: !m.GenericParameters.All(param => m.DeclaringType.GenericParameters.Contains(param));
+            Generic = m.HasGenericParameters;
         }
 
         public override string ToString()

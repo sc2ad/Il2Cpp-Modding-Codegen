@@ -19,6 +19,7 @@ namespace Il2Cpp_Modding_Codegen.Data.DumpHandling
         public TypeRef ImplementedFrom { get; }
         public string Name { get; }
         public List<Parameter> Parameters { get; } = new List<Parameter>();
+        public bool Generic { get; }
 
         public DumpMethod(TypeRef declaring, PeekableStreamReader fs)
         {
@@ -110,6 +111,8 @@ namespace Il2Cpp_Modding_Codegen.Data.DumpHandling
             {
                 Specifiers.Add(new DumpSpecifier(methodSplit[i]));
             }
+            // TODO: Implement Generic
+            Generic = false;
         }
 
         public override string ToString()

@@ -30,7 +30,8 @@ namespace Il2Cpp_Modding_Codegen.Data.DllHandling
             _dir = dir;
             AddSearchDirectory(dir);
             _metadataResolver = new MetadataResolver(this);
-            _readerParams = new ReaderParameters(ReadingMode.Immediate) {
+            _readerParams = new ReaderParameters(ReadingMode.Immediate)
+            {
                 AssemblyResolver = this,
                 MetadataResolver = _metadataResolver
             };
@@ -62,10 +63,14 @@ namespace Il2Cpp_Modding_Codegen.Data.DllHandling
                     }
                     else
                     {
-                        var type = new DllTypeData(t, _config);
-                        foreach (var nested in type.NestedTypes)
-                            nestedFrontier.Enqueue(nested);
-                        _types.Add(DllTypeRef.From(t), type);
+                        var dllRef = DllTypeRef.From(t);
+                        if (!_types.ContainsKey(dllRef))
+                        {
+                            var type = new DllTypeData(t, _config);
+                            foreach (var nested in type.NestedTypes)
+                                nestedFrontier.Enqueue(nested);
+                            _types.Add(dllRef, type);
+                        }
                     }
                 }
             }));
@@ -73,8 +78,15 @@ namespace Il2Cpp_Modding_Codegen.Data.DllHandling
             while (nestedFrontier.Count > 0)
             {
                 var t = nestedFrontier.Dequeue();
-                _nestedTypes.Add(t.This, t);
-                foreach (var nt in t.NestedTypes) nestedFrontier.Enqueue(nt);
+                if (t.This.DeclaringType is null)
+                    throw new InvalidOperationException($"{t.This.Namespace}::{t.This.Name} is a nested type, but has a null declaring type!");
+                // t.This.DeclaringType should never be null or empty!
+                if (!_nestedTypes.ContainsKey(t.This))
+                {
+                    _nestedTypes.Add(t.This, t);
+                    foreach (var nt in t.NestedTypes)
+                        nestedFrontier.Enqueue(nt);
+                }
             }
 
             int total = DllTypeRef.hits + DllTypeRef.misses;
@@ -87,19 +99,19 @@ namespace Il2Cpp_Modding_Codegen.Data.DllHandling
             return $"Types: {Types.Count()}";
         }
 
-        public ITypeData Resolve(TypeRef TypeRef)
+        public ITypeData Resolve(TypeRef typeRef)
         {
             // TODO: Resolve only among our types that we actually plan on serializing
             // Basically, check it against our whitelist/blacklist
-            ITypeData ret = null;
-            if (TypeRef.DeclaringType is null)
-                _types.TryGetValue(TypeRef, out ret);
+            ITypeData ret;
+            if (typeRef.DeclaringType is null)
+                _types.TryGetValue(typeRef, out ret);
             else
-                _nestedTypes.TryGetValue(TypeRef, out ret);
+                _nestedTypes.TryGetValue(typeRef, out ret);
 
             if (ret is null)
             {
-                var def = (TypeRef as DllTypeRef).This.Resolve();
+                var def = (typeRef as DllTypeRef).This.Resolve();
                 ret = new DllTypeData(def, _config);
                 if (!_nestedTypes.ContainsKey(ret.This))
                 {

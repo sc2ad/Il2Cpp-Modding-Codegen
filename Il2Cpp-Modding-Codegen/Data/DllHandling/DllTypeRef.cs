@@ -70,9 +70,9 @@ namespace Il2Cpp_Modding_Codegen.Data.DllHandling
             _namespace = (This.DeclaringType is null) ? (This.Namespace ?? "") : null;
 
             if (This.IsGenericInstance)
-                GenericArguments = (This as GenericInstanceType).GenericArguments.Select(DllTypeRef.From).ToList();
+                GenericArguments = (This as GenericInstanceType).GenericArguments.Select(From).ToList();
             if (This.HasGenericParameters)
-                GenericParameters = This.GenericParameters.Select(DllTypeRef.From).ToList();
+                GenericParameters = This.GenericParameters.Select(From).ToList();
         }
 
         public static DllTypeRef From(TypeReference type)

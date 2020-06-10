@@ -86,28 +86,36 @@ namespace Il2Cpp_Modding_Codegen.Data
             return Equals(obj as TypeRef);
         }
 
+        private static FastTypeRefComparer fastComparer;
+
         public bool Equals(TypeRef other)
         {
-            return other != null &&
-                   Namespace == other.Namespace &&
-                   Name == other.Name &&
-                   Generic == other.Generic &&
-                   EqualityComparer<IEnumerable<TypeRef>>.Default.Equals(GenericParameters, other.GenericParameters) &&
-                   EqualityComparer<IEnumerable<TypeRef>>.Default.Equals(GenericArguments, other.GenericArguments) &&
-                   EqualityComparer<TypeRef>.Default.Equals(DeclaringType, other.DeclaringType) &&
-                   EqualityComparer<TypeRef>.Default.Equals(ElementType, other.ElementType);
+            if (fastComparer == null)
+                fastComparer = new FastTypeRefComparer();
+            bool eq = fastComparer.Equals(this, other);
+            if (!eq)
+                return false;
+            if (DeclaringType != null)
+                // Check to ensure the declaring type is not ourselves (short circuit to true)
+                // If it isn't, instead of performing a deep check on our declaring type, perform a fast check.
+                eq = eq && DeclaringType != this ? fastComparer.Equals(DeclaringType, other.DeclaringType) : true;
+            else
+                eq = eq && other.DeclaringType == null;
+            if (ElementType != null)
+                // Perform a fast check instead of a deep check for the same reasons as above.
+                eq = eq && ElementType != this ? fastComparer.Equals(ElementType, other.ElementType) : true;
+            else
+                eq = eq && other.ElementType == null;
+            return eq;
         }
 
         public override int GetHashCode()
         {
-            int hashCode = 611187721;
-            hashCode = hashCode * -1521134295 + EqualityComparer<string>.Default.GetHashCode(Namespace);
-            hashCode = hashCode * -1521134295 + EqualityComparer<string>.Default.GetHashCode(Name);
-            hashCode = hashCode * -1521134295 + Generic.GetHashCode();
-            hashCode = hashCode * -1521134295 + EqualityComparer<IEnumerable<TypeRef>>.Default.GetHashCode(GenericParameters);
-            hashCode = hashCode * -1521134295 + EqualityComparer<IEnumerable<TypeRef>>.Default.GetHashCode(GenericArguments);
-            hashCode = hashCode * -1521134295 + EqualityComparer<TypeRef>.Default.GetHashCode(DeclaringType);
-            hashCode = hashCode * -1521134295 + EqualityComparer<TypeRef>.Default.GetHashCode(ElementType);
+            if (fastComparer == null)
+                fastComparer = new FastTypeRefComparer();
+            int hashCode = fastComparer.GetHashCode(this);
+            hashCode = hashCode * -1521134295 + fastComparer.GetHashCode(DeclaringType);
+            hashCode = hashCode * -1521134295 + fastComparer.GetHashCode(ElementType);
             return hashCode;
         }
     }

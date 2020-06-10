@@ -1,5 +1,6 @@
 ﻿using Il2Cpp_Modding_Codegen.Config;
 using Il2Cpp_Modding_Codegen.Data;
+using Il2Cpp_Modding_Codegen.Data.DllHandling;
 using Il2Cpp_Modding_Codegen.Serialization.Interfaces;
 using System.CodeDom.Compiler;
 using System.Collections.Generic;
@@ -27,6 +28,9 @@ namespace Il2Cpp_Modding_Codegen.Serialization
         {
             // Get the fully qualified name of the context
             _declaringFullyQualified = context.QualifiedTypeName;
+            if (method.Generic)
+                // Skip generic methods
+                return;
             // We need to forward declare/include all types that are either returned from the method or are parameters
             _resolvedTypeNames.Add(method, context.GetNameFromReference(method.ReturnType));
             // The declaringTypeName needs to be a reference, even if the type itself is a value type.
@@ -71,6 +75,9 @@ namespace Il2Cpp_Modding_Codegen.Serialization
         // Write the method here
         public void Serialize(IndentedTextWriter writer, IMethod method)
         {
+            if (!_resolvedTypeNames.ContainsKey(method))
+                // In the event we have decided to not parse this method (in PreSerialize) don't even bother.
+                return;
             if (_resolvedTypeNames[method] == null)
                 throw new UnresolvedTypeException(method.DeclaringType, method.ReturnType);
             if (_declaringTypeNames[method] == null)

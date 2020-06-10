@@ -4,6 +4,7 @@ namespace Il2Cpp_Modding_Codegen.Data
 {
     public interface IMethod
     {
+        bool Generic { get; }
         List<IAttribute> Attributes { get; }
         List<ISpecifier> Specifiers { get; }
         int RVA { get; }
