@@ -86,12 +86,10 @@ namespace Il2Cpp_Modding_Codegen.Data
             return Equals(obj as TypeRef);
         }
 
-        private static FastTypeRefComparer fastComparer;
+        private static FastTypeRefComparer fastComparer = new FastTypeRefComparer();
 
         public bool Equals(TypeRef other)
         {
-            if (fastComparer == null)
-                fastComparer = new FastTypeRefComparer();
             return fastComparer.Equals(this, other) &&
                 (DeclaringType?.Equals(other.DeclaringType) ?? other.DeclaringType == null) &&
                 (ElementType?.Equals(other.ElementType) ?? other.ElementType == null);
@@ -99,8 +97,6 @@ namespace Il2Cpp_Modding_Codegen.Data
 
         public override int GetHashCode()
         {
-            if (fastComparer == null)
-                fastComparer = new FastTypeRefComparer();
             int hashCode = fastComparer.GetHashCode(this);
             hashCode = hashCode * -1521134295 + DeclaringType?.GetHashCode() ?? 0;
             hashCode = hashCode * -1521134295 + ElementType?.GetHashCode() ?? 0;
