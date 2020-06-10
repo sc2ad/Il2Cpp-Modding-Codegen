@@ -108,6 +108,21 @@ namespace Il2Cpp_Modding_Codegen.Data.DllHandling
             // TODO: Resolve only among our types that we actually plan on serializing
             // Basically, check it against our whitelist/blacklist
             ITypeData ret;
+            if (typeRef.Generic && typeRef.GenericArguments != null)
+            {
+                // This is a generic instance. We want to convert this instance to a generic type that we have already created in _types
+                var def = (typeRef as DllTypeRef).This.Resolve();
+                var check = DllTypeRef.From(def);
+                // Try to get our Generic Definition out of either _types or _nestedTypes
+                if (check.DeclaringType is null)
+                    _types.TryGetValue(check, out ret);
+                else
+                    _nestedTypes.TryGetValue(check, out ret);
+                if (ret is null)
+                    // This should never happen. All generic definitions should already be resolved.
+                    throw new InvalidOperationException($"Generic instance: {typeRef} (definition: {check}) cannot map to any type in _types or _nestedTypes!");
+                return ret;
+            }
             if (typeRef.DeclaringType is null)
                 _types.TryGetValue(typeRef, out ret);
             else

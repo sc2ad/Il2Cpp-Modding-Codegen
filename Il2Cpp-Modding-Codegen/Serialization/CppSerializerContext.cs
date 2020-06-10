@@ -80,6 +80,7 @@ namespace Il2Cpp_Modding_Codegen.Serialization
                     return name;
             }
         }
+
         private string GenericArgsToStr(TypeRef type, bool genericArgs)
         {
             var typeStr = "";
@@ -138,11 +139,9 @@ namespace Il2Cpp_Modding_Codegen.Serialization
 
             // If we have already resolved it, simply return the name as one of the forced types
             if (_references.TryGetValue(def, out (TypeInfo, string) resolvedName))
-            {
                 return ForceName(resolvedName.Item1, resolvedName.Item2, force);
-            }
 
-            // Resolve the type definition
+            // Resolve the TypeRef. If the TypeRef is a generic instance, it will resolve to the generic definition.
             var type = def.Resolve(_context);
             if (type == null)
             {
@@ -161,7 +160,6 @@ namespace Il2Cpp_Modding_Codegen.Serialization
             if (def.Generic && genericArgs)
             {
                 types = GenericArgsToStr(def, genericArgs);
-                // Modify resolved type definition's name to include generic arguments
             }
 
             // If the type is in this file, no need to include/forward declare it
