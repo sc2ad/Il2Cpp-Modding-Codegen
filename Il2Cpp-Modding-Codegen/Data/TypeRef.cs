@@ -7,7 +7,7 @@ using System.Security.Principal;
 
 namespace Il2Cpp_Modding_Codegen.Data
 {
-    public abstract class TypeRef
+    public abstract class TypeRef : IEquatable<TypeRef>
     {
         public abstract string Namespace { get; }
         public abstract string Name { get; }
@@ -73,7 +73,7 @@ namespace Il2Cpp_Modding_Codegen.Data
 
         public string SafeNamespace()
         {
-            return Namespace.Replace('<', '_').Replace('>', '_').Replace('`', '_').Replace('/', '_').Replace(".", "::");
+            return Namespace?.Replace('<', '_').Replace('>', '_').Replace('`', '_').Replace('/', '_').Replace(".", "::");
         }
 
         public string SafeFullName()
@@ -81,22 +81,34 @@ namespace Il2Cpp_Modding_Codegen.Data
             return SafeNamespace() + "::" + SafeName();
         }
 
-        // Namespace is actually NOT useful for comparisons!
-        public override int GetHashCode()
-        {
-            return (Namespace + Name).GetHashCode();
-        }
-
-        // Namespace is actually NOT useful for comparisons!
         public override bool Equals(object obj)
         {
-            var o = obj as TypeRef;
-            if (o is null) return false;
-            return o.Namespace + o.Name == Namespace + Name
-                && o.Generic == Generic
-                && ((GenericArguments is null) == (o.GenericArguments is null))
-                && (GenericArguments?.SequenceEqual(o.GenericArguments)
-                ?? GenericParameters.SequenceEqual(o.GenericParameters));
+            return Equals(obj as TypeRef);
+        }
+
+        public bool Equals(TypeRef other)
+        {
+            return other != null &&
+                   Namespace == other.Namespace &&
+                   Name == other.Name &&
+                   Generic == other.Generic &&
+                   EqualityComparer<IEnumerable<TypeRef>>.Default.Equals(GenericParameters, other.GenericParameters) &&
+                   EqualityComparer<IEnumerable<TypeRef>>.Default.Equals(GenericArguments, other.GenericArguments) &&
+                   EqualityComparer<TypeRef>.Default.Equals(DeclaringType, other.DeclaringType) &&
+                   EqualityComparer<TypeRef>.Default.Equals(ElementType, other.ElementType);
+        }
+
+        public override int GetHashCode()
+        {
+            int hashCode = 611187721;
+            hashCode = hashCode * -1521134295 + EqualityComparer<string>.Default.GetHashCode(Namespace);
+            hashCode = hashCode * -1521134295 + EqualityComparer<string>.Default.GetHashCode(Name);
+            hashCode = hashCode * -1521134295 + Generic.GetHashCode();
+            hashCode = hashCode * -1521134295 + EqualityComparer<IEnumerable<TypeRef>>.Default.GetHashCode(GenericParameters);
+            hashCode = hashCode * -1521134295 + EqualityComparer<IEnumerable<TypeRef>>.Default.GetHashCode(GenericArguments);
+            hashCode = hashCode * -1521134295 + EqualityComparer<TypeRef>.Default.GetHashCode(DeclaringType);
+            hashCode = hashCode * -1521134295 + EqualityComparer<TypeRef>.Default.GetHashCode(ElementType);
+            return hashCode;
         }
     }
 }

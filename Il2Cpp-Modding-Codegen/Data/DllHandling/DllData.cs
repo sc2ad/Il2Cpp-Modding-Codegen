@@ -14,14 +14,15 @@ namespace Il2Cpp_Modding_Codegen.Data.DllHandling
     {
         public string Name => "Dll Data";
         public List<IImage> Images { get; } = new List<IImage>();
-        public List<ITypeData> Types { get; } = new List<ITypeData>();
+        public IEnumerable<ITypeData> Types { get { return _types.Values; } }
         private Dictionary<TypeRef, TypeName> _resolvedTypeNames { get; } = new Dictionary<TypeRef, TypeName>();
         private DllConfig _config;
         private string _dir;
         private ReaderParameters _readerParams;
         private IMetadataResolver _metadataResolver;
 
-        private List<ITypeData> _nestedTypes = new List<ITypeData>();
+        private Dictionary<TypeRef, ITypeData> _types = new Dictionary<TypeRef, ITypeData>();
+        private Dictionary<TypeRef, ITypeData> _nestedTypes = new Dictionary<TypeRef, ITypeData>();
 
         public DllData(string dir, DllConfig config)
         {
@@ -64,7 +65,7 @@ namespace Il2Cpp_Modding_Codegen.Data.DllHandling
                         var type = new DllTypeData(t, _config);
                         foreach (var nested in type.NestedTypes)
                             nestedFrontier.Enqueue(nested);
-                        Types.Add(type);
+                        _types.Add(DllTypeRef.From(t), type);
                     }
                 }
             }));
@@ -72,7 +73,7 @@ namespace Il2Cpp_Modding_Codegen.Data.DllHandling
             while (nestedFrontier.Count > 0)
             {
                 var t = nestedFrontier.Dequeue();
-                _nestedTypes.Add(t);
+                _nestedTypes.Add(t.This, t);
                 foreach (var nt in t.NestedTypes) nestedFrontier.Enqueue(nt);
             }
 
@@ -83,19 +84,19 @@ namespace Il2Cpp_Modding_Codegen.Data.DllHandling
 
         public override string ToString()
         {
-            return $"Types: {Types.Count}";
+            return $"Types: {Types.Count()}";
         }
 
         public ITypeData Resolve(TypeRef TypeRef)
         {
             // TODO: Resolve only among our types that we actually plan on serializing
             // Basically, check it against our whitelist/blacklist
-            // TODO: make these dictionaries?
+            ITypeData ret = null;
             if (TypeRef.DeclaringType is null)
-                return Types.LastOrDefault(t => t.This.Equals(TypeRef) || t.This.Name == TypeRef.Name);
+                _types.TryGetValue(TypeRef, out ret);
             else
-                return _nestedTypes.LastOrDefault(t => t.This.Equals(TypeRef) ||
-                    (t.This.Name == TypeRef.Name && t.This.DeclaringType.Equals(TypeRef.DeclaringType)));
+                _nestedTypes.TryGetValue(TypeRef, out ret);
+            return ret;
         }
 
         // Resolves the TypeRef def in the current context and returns a TypeRef that is guaranteed unique

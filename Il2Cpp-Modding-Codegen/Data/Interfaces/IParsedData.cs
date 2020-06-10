@@ -8,6 +8,5 @@ namespace Il2Cpp_Modding_Codegen.Data
     {
         string Name { get; }
         List<IImage> Images { get; }
-        new List<ITypeData> Types { get; }
     }
 }

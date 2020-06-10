@@ -12,9 +12,10 @@ namespace Il2Cpp_Modding_Codegen.Data.DumpHandling
     {
         public string Name => "Dump Data";
         public List<IImage> Images { get; } = new List<IImage>();
-        public List<ITypeData> Types { get; } = new List<ITypeData>();
+        public IEnumerable<ITypeData> Types { get { return _types; } }
         private Dictionary<TypeRef, TypeName> _resolvedTypeNames { get; } = new Dictionary<TypeRef, TypeName>();
         private DumpConfig _config;
+        private List<ITypeData> _types = new List<ITypeData>();
 
         private void ParseImages(PeekableStreamReader fs)
         {
@@ -47,7 +48,7 @@ namespace Il2Cpp_Modding_Codegen.Data.DumpHandling
                         var declaringTypeData = Resolve(typeData.This.DeclaringType);
                         declaringTypeData.NestedTypes.Add(typeData);
                     }
-                    else Types.Add(typeData);
+                    else _types.Add(typeData);
                 }
                 line = fs.PeekLine();
             }

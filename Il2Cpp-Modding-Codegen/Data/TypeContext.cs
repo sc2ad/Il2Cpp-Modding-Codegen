@@ -7,7 +7,7 @@ namespace Il2Cpp_Modding_Codegen.Data
 {
     public interface ITypeContext
     {
-        List<ITypeData> Types { get; }
+        IEnumerable<ITypeData> Types { get; }
 
         ITypeData Resolve(TypeRef TypeRef);
 
