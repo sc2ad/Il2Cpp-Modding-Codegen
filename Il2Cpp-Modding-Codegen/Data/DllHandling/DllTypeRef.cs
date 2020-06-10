@@ -60,14 +60,14 @@ namespace Il2Cpp_Modding_Codegen.Data.DllHandling
                 This = (This as ByReferenceType).ElementType;
             }
             _name = This.Name;
-            //if (!This.IsGenericParameter && !(This.DeclaringType is null))
-            //    _name = DllTypeRef.From(This.DeclaringType).Name + "/" + _name;
+            if (!This.IsGenericParameter && !(This.DeclaringType is null))
+                _name = DllTypeRef.From(This.DeclaringType).Name + "/" + _name;
 
             // Remove *, [] from end of variable name
             _name = Regex.Replace(_name, @"\W+$", "");
             // if (!char.IsLetterOrDigit(_name.Last())) Console.WriteLine(reference);
 
-            _namespace = (This.DeclaringType is null) ? (This.Namespace ?? "") : null;
+            _namespace = (This.DeclaringType?.Namespace ?? This.Namespace) ?? "";
 
             if (This.IsGenericInstance)
                 GenericArguments = (This as GenericInstanceType).GenericArguments.Select(From).ToList();

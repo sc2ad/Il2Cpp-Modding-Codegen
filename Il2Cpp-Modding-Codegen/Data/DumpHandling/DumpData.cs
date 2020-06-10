@@ -48,7 +48,7 @@ namespace Il2Cpp_Modding_Codegen.Data.DumpHandling
                         var declaringTypeData = Resolve(typeData.This.DeclaringType);
                         declaringTypeData.NestedTypes.Add(typeData);
                     }
-                    else _types.Add(typeData);
+                    _types.Add(typeData);
                 }
                 line = fs.PeekLine();
             }
