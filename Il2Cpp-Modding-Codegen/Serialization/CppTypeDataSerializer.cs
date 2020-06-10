@@ -62,9 +62,18 @@ namespace Il2Cpp_Modding_Codegen.Serialization
             }
             // TODO: Add a specific interface method serializer here, or provide more state to the original method serializer to support it
 
-            // PreSerialize any nested types
-            foreach (var nested in type.NestedTypes)
-                PreSerialize(context, nested);
+            //// PreSerialize any nested types
+            //foreach (var nested in type.NestedTypes)
+            //    PreSerialize(context, nested);
+        }
+
+        CppHeaderCreator _header;
+        CppSerializerContext _context;
+        public void Serialize(IndentedTextWriter writer, ITypeData type, CppHeaderCreator header, CppSerializerContext context)
+        {
+            _header = header;
+            _context = context;
+            Serialize(writer, type);
         }
 
         // Should be provided a file, with all references resolved:
@@ -116,10 +125,19 @@ namespace Il2Cpp_Modding_Codegen.Serialization
                 writer.Flush();
                 writer.Indent++;
 
-                // now write any nested types
-                foreach (var nested in type.NestedTypes)
+                //// now write any nested types
+                //foreach (var nested in type.NestedTypes)
+                //{
+                //    Serialize(writer, nested);
+                //}
+
+                // write any class forward declares
+                if (_asHeader)
                 {
-                    Serialize(writer, nested);
+                    foreach (var fd in _context.ClassForwardDeclares)
+                    {
+                        _header.WriteForwardDeclare(writer, fd);
+                    }
                 }
 
                 // now write the fields

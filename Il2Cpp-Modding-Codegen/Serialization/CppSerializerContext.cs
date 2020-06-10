@@ -15,6 +15,9 @@ namespace Il2Cpp_Modding_Codegen.Serialization
         // For same namespace forward declares
         public HashSet<TypeName> NamespaceForwardDeclares { get; } = new HashSet<TypeName>();
 
+        // For forward declares that will go inside the class definition
+        public HashSet<TypeName> ClassForwardDeclares { get; } = new HashSet<TypeName>();
+
         public HashSet<string> Includes { get; } = new HashSet<string>();
         public string FileName { get; private set; }
         public string TypeNamespace { get; }
@@ -43,11 +46,11 @@ namespace Il2Cpp_Modding_Codegen.Serialization
                     _genericTypes.Add(g);
                 }
             }
-            foreach (var nested in data.NestedTypes)
-            {
-                // Add all of our nested types
-                GetGenericTypes(nested);
-            }
+            //foreach (var nested in data.NestedTypes)
+            //{
+            //    // Add all of our nested types
+            //    GetGenericTypes(nested);
+            //}
         }
 
         public CppSerializerContext(ITypeContext context, ITypeData data, bool cpp = false)
@@ -162,24 +165,27 @@ namespace Il2Cpp_Modding_Codegen.Serialization
                 types = GenericArgsToStr(def, genericArgs);
             }
 
-            // If the type is in this file, no need to include/forward declare it
-            if (typeIsInThisFile)
+            // If the type is ourselves, no need to include/forward declare it
+            if (type.Equals(_localType))
             {
                 return ForceName(type.Info, (qualified ? resolvedTd.ConvertTypeToQualifiedName(_context) : resolvedTd.ConvertTypeToName()) + types, force);
             }
 
             // If we are the context for a header:
-            // AND the type is our child
+            // AND the type is our child OR a nested type
             // OR, if the type is being asked to be used as a POINTER
             // OR, it is a reference type AND it is being asked to be used NOT(as a literal or as a reference):
             // Forward declare
             if (!_cpp && (type.This.DeclaringType is null) && (
                 _localType.This.Equals(type.Parent)
+                || _localType.This.Equals(def.DeclaringType)
                 || force == ForceAsType.Pointer
                 || (type.Info.TypeFlags == TypeFlags.ReferenceType && force != ForceAsType.Literal && force != ForceAsType.Reference)
             ))
             {
-                if (resolvedTd.Namespace == TypeNamespace)
+                if (_localType.This.Equals(def.DeclaringType))
+                    ClassForwardDeclares.Add(resolvedTd);
+                else if (resolvedTd.Namespace == TypeNamespace)
                     NamespaceForwardDeclares.Add(resolvedTd);
                 else
                     ForwardDeclares.Add(resolvedTd);

@@ -20,7 +20,7 @@ namespace Il2Cpp_Modding_Codegen.Serialization
             _context = context;
         }
 
-        private void WriteForwardDeclare(IndentedTextWriter writer, TypeName fd, bool putNamespace = true)
+        private void WriteForwardDeclare(IndentedTextWriter writer, TypeName fd, bool putNamespace)
         {
             // TODO: handle this better?
             if (fd.Name == "Il2CppChar")  // cannot forward declare a primitive typedef without exactly copying typedef which is a bad idea
@@ -73,7 +73,12 @@ namespace Il2Cpp_Modding_Codegen.Serialization
             }
         }
 
-        public void Serialize(ISerializer<ITypeData> serializer, ITypeData data)
+        internal void WriteForwardDeclare(IndentedTextWriter writer, TypeName fd)
+        {
+            WriteForwardDeclare(writer, fd, false);
+        }
+
+        public void Serialize(CppTypeDataSerializer serializer, ITypeData data)
         {
             var headerLocation = Path.Combine(_config.OutputDirectory, _config.OutputHeaderDirectory, _context.FileName) + ".hpp";
             Directory.CreateDirectory(Path.GetDirectoryName(headerLocation));
@@ -106,7 +111,7 @@ namespace Il2Cpp_Modding_Codegen.Serialization
                         writer.WriteLine("// Forward declarations");
                         foreach (var fd in _context.ForwardDeclares)
                         {
-                            WriteForwardDeclare(writer, fd);
+                            WriteForwardDeclare(writer, fd, true);
                         }
                         writer.WriteLine("// End Forward declarations");
                     }
@@ -120,7 +125,7 @@ namespace Il2Cpp_Modding_Codegen.Serialization
                     writer.WriteLine("// Same-namespace forward declarations");
                     foreach (var fd in _context.NamespaceForwardDeclares)
                     {
-                        WriteForwardDeclare(writer, fd, false);
+                        WriteForwardDeclare(writer, fd);
                     }
                     writer.WriteLine("// End same-namespace forward declarations");
                 }
@@ -129,7 +134,7 @@ namespace Il2Cpp_Modding_Codegen.Serialization
                 try
                 {
                     // TODO: use the indentWriter?
-                    serializer.Serialize(writer, data);
+                    serializer.Serialize(writer, data, this, _context);
                 }
                 catch (UnresolvedTypeException e)
                 {

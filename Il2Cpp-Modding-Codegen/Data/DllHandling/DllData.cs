@@ -22,7 +22,6 @@ namespace Il2Cpp_Modding_Codegen.Data.DllHandling
         private IMetadataResolver _metadataResolver;
 
         private Dictionary<TypeRef, ITypeData> _types = new Dictionary<TypeRef, ITypeData>();
-        private Dictionary<TypeRef, ITypeData> _nestedTypes = new Dictionary<TypeRef, ITypeData>();
 
         public DllData(string dir, DllConfig config)
         {
@@ -51,46 +50,33 @@ namespace Il2Cpp_Modding_Codegen.Data.DllHandling
                 }
             }
 
-            Queue<ITypeData> nestedFrontier = new Queue<ITypeData>();
+            Queue<TypeDefinition> frontier = new Queue<TypeDefinition>();
             modules.ForEach(m => m.Types.ToList().ForEach(t =>
             {
                 if (_config.ParseTypes && !_config.BlacklistTypes.Contains(t.Name))
-                {
-                    if (t.Name.StartsWith("<") && t.Namespace.Length == 0 && t.DeclaringType is null)
-                    {
-                        if (!t.Name.StartsWith("<Module>") && !t.Name.StartsWith("<PrivateImplementationDetails>"))
-                            Console.Error.WriteLine($"Skipping TypeDefinition {t}");
-                    }
-                    else
-                    {
-                        var dllRef = DllTypeRef.From(t);
-                        if (!_types.ContainsKey(dllRef))
-                        {
-                            var type = new DllTypeData(t, _config);
-                            foreach (var nested in type.NestedTypes)
-                                nestedFrontier.Enqueue(nested);
-                            _types.Add(dllRef, type);
-                        }
-                        else
-                            Console.Error.WriteLine($"{dllRef} already in _types! Matching item: {_types[dllRef].This}");
-                    }
-                }
+                    frontier.Enqueue(t);
             }));
 
-            while (nestedFrontier.Count > 0)
+            while (frontier.Count > 0)
             {
-                var t = nestedFrontier.Dequeue();
-                if (t.This.DeclaringType is null)
-                    throw new InvalidOperationException($"{t.This.Namespace}::{t.This.Name} is a nested type, but has a null declaring type!");
-                // t.This.DeclaringType should never be null or empty!
-                if (!_nestedTypes.ContainsKey(t.This))
+                var t = frontier.Dequeue();
+                if (t.Name.StartsWith("<") && t.Namespace.Length == 0 && t.DeclaringType is null)
                 {
-                    _nestedTypes.Add(t.This, t);
-                    foreach (var nt in t.NestedTypes)
-                        nestedFrontier.Enqueue(nt);
+                    if (!t.Name.StartsWith("<Module>") && !t.Name.StartsWith("<PrivateImplementationDetails>"))
+                        Console.Error.WriteLine($"Skipping TypeDefinition {t}");
+                    continue;
+                }
+
+                var dllRef = DllTypeRef.From(t);
+                if (!_types.ContainsKey(dllRef))
+                {
+                    var type = new DllTypeData(t, _config);
+                    foreach (var nested in t.NestedTypes)
+                        frontier.Enqueue(nested);
+                    _types.Add(dllRef, type);
                 }
                 else
-                    Console.Error.WriteLine($"nested type: {t.This} already exists in _nestedTypes! Matching value: {_nestedTypes[t.This].This}");
+                    Console.Error.WriteLine($"{dllRef} already in _types! Matching item: {_types[dllRef].This}");
             }
 
             int total = DllTypeRef.hits + DllTypeRef.misses;
@@ -113,33 +99,22 @@ namespace Il2Cpp_Modding_Codegen.Data.DllHandling
                 // This is a generic instance. We want to convert this instance to a generic type that we have already created in _types
                 var def = (typeRef as DllTypeRef).This.Resolve();
                 var check = DllTypeRef.From(def);
-                // Try to get our Generic Definition out of either _types or _nestedTypes
-                if (check.DeclaringType is null)
-                    _types.TryGetValue(check, out ret);
-                else
-                    _nestedTypes.TryGetValue(check, out ret);
+                // Try to get our Generic Definition out of _types
+                _types.TryGetValue(check, out ret);
                 if (ret is null)
                     // This should never happen. All generic definitions should already be resolved.
-                    throw new InvalidOperationException($"Generic instance: {typeRef} (definition: {check}) cannot map to any type in _types or _nestedTypes!");
+                    throw new InvalidOperationException($"Generic instance: {typeRef} (definition: {check}) cannot map to any type in _types!");
                 return ret;
             }
-            if (typeRef.DeclaringType is null)
-                _types.TryGetValue(typeRef, out ret);
-            else
-                _nestedTypes.TryGetValue(typeRef, out ret);
 
-            if (ret is null)
+            if (!_types.TryGetValue(typeRef, out ret))
             {
                 var def = (typeRef as DllTypeRef).This.Resolve();
                 ret = new DllTypeData(def, _config);
-                if (!_nestedTypes.ContainsKey(ret.This))
-                {
-                    if (def.DeclaringType is null)
-                        Console.Error.WriteLine($"Too late to add {def} to Types!");
-                    _nestedTypes.Add(ret.This, ret);
-                }
+                if (!_types.ContainsKey(ret.This))
+                    Console.Error.WriteLine($"Too late to add {def} to Types!");
                 else
-                    Console.Error.WriteLine($"{def} already existed in _nestedTypes! Matching item: {_nestedTypes[ret.This]}");
+                    Console.Error.WriteLine($"{def} already existed in _types! Matching item: {_types[ret.This]}");
             }
             return ret;
         }
