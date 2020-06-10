@@ -73,7 +73,7 @@ namespace Il2Cpp_Modding_Codegen.Data
 
         public string SafeNamespace()
         {
-            return Namespace.Replace('<', '_').Replace('>', '_').Replace('`', '_').Replace('/', '_').Replace(".", "::");
+            return Namespace?.Replace('<', '_').Replace('>', '_').Replace('`', '_').Replace('/', '_').Replace(".", "::");
         }
 
         public string SafeFullName()
@@ -84,7 +84,7 @@ namespace Il2Cpp_Modding_Codegen.Data
         // Namespace is actually NOT useful for comparisons!
         public override int GetHashCode()
         {
-            return (Namespace + Name).GetHashCode();
+            return $"{Namespace}{Name}".GetHashCode();
         }
 
         // Namespace is actually NOT useful for comparisons!
@@ -92,7 +92,8 @@ namespace Il2Cpp_Modding_Codegen.Data
         {
             var o = obj as TypeRef;
             if (o is null) return false;
-            return o.Namespace + o.Name == Namespace + Name
+            return o.Namespace == Namespace
+                && o.Name == Name
                 && o.Generic == Generic
                 && ((GenericArguments is null) == (o.GenericArguments is null))
                 && (GenericArguments?.SequenceEqual(o.GenericArguments)
