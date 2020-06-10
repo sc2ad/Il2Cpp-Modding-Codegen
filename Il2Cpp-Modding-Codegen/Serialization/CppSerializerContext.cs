@@ -176,7 +176,7 @@ namespace Il2Cpp_Modding_Codegen.Serialization
             // OR, if the type is being asked to be used as a POINTER
             // OR, it is a reference type AND it is being asked to be used NOT(as a literal or as a reference):
             // Forward declare
-            if (!_cpp && (type.This.DeclaringType is null) && (
+            if (!_cpp && (
                 _localType.This.Equals(type.Parent)
                 || _localType.This.Equals(def.DeclaringType)
                 || force == ForceAsType.Pointer
