@@ -96,6 +96,20 @@ namespace Il2Cpp_Modding_Codegen.Data.DllHandling
                 _types.TryGetValue(TypeRef, out ret);
             else
                 _nestedTypes.TryGetValue(TypeRef, out ret);
+
+            if (ret is null)
+            {
+                var def = (TypeRef as DllTypeRef).This.Resolve();
+                ret = new DllTypeData(def, _config);
+                if (!_nestedTypes.ContainsKey(ret.This))
+                {
+                    if (def.DeclaringType is null)
+                        Console.Error.WriteLine($"Too late to add {def} to Types!");
+                    _nestedTypes.Add(ret.This, ret);
+                }
+                else
+                    Console.Error.WriteLine($"{def} already existed in _nestedTypes???");
+            }
             return ret;
         }
 

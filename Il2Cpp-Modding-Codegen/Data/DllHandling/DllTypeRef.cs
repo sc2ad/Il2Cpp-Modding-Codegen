@@ -11,7 +11,7 @@ namespace Il2Cpp_Modding_Codegen.Data.DllHandling
 {
     public class DllTypeRef : TypeRef
     {
-        private TypeReference This;
+        internal TypeReference This;
         readonly string _namespace;
         public override string Namespace {
             get { return _namespace; }
