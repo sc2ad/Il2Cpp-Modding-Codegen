@@ -92,21 +92,9 @@ namespace Il2Cpp_Modding_Codegen.Data
         {
             if (fastComparer == null)
                 fastComparer = new FastTypeRefComparer();
-            bool eq = fastComparer.Equals(this, other);
-            if (!eq)
-                return false;
-            if (DeclaringType != null)
-                // Check to ensure the declaring type is not ourselves (short circuit to true)
-                // If it isn't, instead of performing a deep check on our declaring type, perform a fast check.
-                eq = eq && DeclaringType != this ? fastComparer.Equals(DeclaringType, other.DeclaringType) : true;
-            else
-                eq = eq && other.DeclaringType == null;
-            if (ElementType != null)
-                // Perform a fast check instead of a deep check for the same reasons as above.
-                eq = eq && ElementType != this ? fastComparer.Equals(ElementType, other.ElementType) : true;
-            else
-                eq = eq && other.ElementType == null;
-            return eq;
+            return fastComparer.Equals(this, other) &&
+                (DeclaringType?.Equals(other.DeclaringType) ?? other.DeclaringType == null) &&
+                (ElementType?.Equals(other.ElementType) ?? other.ElementType == null);
         }
 
         public override int GetHashCode()
@@ -114,8 +102,8 @@ namespace Il2Cpp_Modding_Codegen.Data
             if (fastComparer == null)
                 fastComparer = new FastTypeRefComparer();
             int hashCode = fastComparer.GetHashCode(this);
-            hashCode = hashCode * -1521134295 + fastComparer.GetHashCode(DeclaringType);
-            hashCode = hashCode * -1521134295 + fastComparer.GetHashCode(ElementType);
+            hashCode = hashCode * -1521134295 + DeclaringType?.GetHashCode() ?? 0;
+            hashCode = hashCode * -1521134295 + ElementType?.GetHashCode() ?? 0;
             return hashCode;
         }
     }

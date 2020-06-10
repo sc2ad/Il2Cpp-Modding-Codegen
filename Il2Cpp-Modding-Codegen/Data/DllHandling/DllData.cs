@@ -71,6 +71,8 @@ namespace Il2Cpp_Modding_Codegen.Data.DllHandling
                                 nestedFrontier.Enqueue(nested);
                             _types.Add(dllRef, type);
                         }
+                        else
+                            Console.Error.WriteLine($"{dllRef} already in _types! Matching item: {_types[dllRef].This}");
                     }
                 }
             }));
@@ -87,6 +89,8 @@ namespace Il2Cpp_Modding_Codegen.Data.DllHandling
                     foreach (var nt in t.NestedTypes)
                         nestedFrontier.Enqueue(nt);
                 }
+                else
+                    Console.Error.WriteLine($"nested type: {t.This} already exists in _nestedTypes! Matching value: {_nestedTypes[t.This].This}");
             }
 
             int total = DllTypeRef.hits + DllTypeRef.misses;
@@ -120,7 +124,7 @@ namespace Il2Cpp_Modding_Codegen.Data.DllHandling
                     _nestedTypes.Add(ret.This, ret);
                 }
                 else
-                    Console.Error.WriteLine($"{def} already existed in _nestedTypes???");
+                    Console.Error.WriteLine($"{def} already existed in _nestedTypes! Matching item: {_nestedTypes[ret.This]}");
             }
             return ret;
         }

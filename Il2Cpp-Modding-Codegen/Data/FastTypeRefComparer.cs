@@ -19,8 +19,8 @@ namespace Il2Cpp_Modding_Codegen.Data
             return x.Namespace == y.Namespace &&
                 x.Name == y.Name &&
                 x.Generic == y.Generic &&
-                x.GenericParameters != null ? x.GenericParameters.SequenceEqual(y.GenericParameters, this) : y.GenericParameters == null &&
-                x.GenericArguments != null ? x.GenericArguments.SequenceEqual(y.GenericArguments, this) : y.GenericArguments == null;
+                (x.GenericParameters != null ? x.GenericParameters.SequenceEqual(y.GenericParameters, this) : y.GenericParameters == null) &&
+                (x.GenericArguments != null ? x.GenericArguments.SequenceEqual(y.GenericArguments, this) : y.GenericArguments == null);
         }
 
         public int GetHashCode(TypeRef obj)
