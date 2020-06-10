@@ -20,6 +20,7 @@ namespace Il2Cpp_Modding_Codegen.Serialization
         };
         private Dictionary<ITypeData, State> stateDict = new Dictionary<ITypeData, State>();
         private CppFieldSerializer fieldSerializer;
+        private CppStaticFieldSerializer staticFieldSerializer;
         private CppMethodSerializer methodSerializer;
         private SerializationConfig _config;
 
@@ -59,6 +60,20 @@ namespace Il2Cpp_Modding_Codegen.Serialization
                 if (methodSerializer is null) methodSerializer = new CppMethodSerializer(_config, _asHeader);
                 foreach (var m in type.Methods)
                     methodSerializer?.PreSerialize(context, m);
+                foreach (var f in type.Fields)
+                {
+                    // If the field is a static field, we want to create two methods, (get and set for the static field)
+                    // and make a call to GetFieldValue and SetFieldValue for those methods
+                    if (f.Specifiers.IsStatic())
+                    {
+                        if (staticFieldSerializer is null)
+                            staticFieldSerializer = new CppStaticFieldSerializer(_asHeader, _config);
+                        staticFieldSerializer.PreSerialize(context, f);
+                    }
+                    // Otherwise, if we are a header, preserialize the field
+                    else if (_asHeader)
+                        fieldSerializer.PreSerialize(context, f);
+                }
             }
             // TODO: Add a specific interface method serializer here, or provide more state to the original method serializer to support it
 
@@ -139,37 +154,37 @@ namespace Il2Cpp_Modding_Codegen.Serialization
                         _header.WriteForwardDeclare(writer, fd);
                     }
                 }
+                writer.Flush();
+            }
 
-                // now write the fields
-                if (type.Type != TypeEnum.Interface)
-                {
-                    // Write fields if not an interface
-                    foreach (var f in type.Fields)
-                    {
-                        try
-                        {
-                            fieldSerializer.Serialize(writer, f);
-                        }
-                        catch (UnresolvedTypeException e)
-                        {
-                            if (_config.UnresolvedTypeExceptionHandling.FieldHandling == UnresolvedTypeExceptionHandling.DisplayInFile)
-                            {
-                                writer.WriteLine("/*");
-                                writer.WriteLine(e);
-                                writer.WriteLine("*/");
-                                writer.Flush();
-                            }
-                            else if (_config.UnresolvedTypeExceptionHandling.FieldHandling == UnresolvedTypeExceptionHandling.Elevate)
-                                throw;
-                        }
-                    }
-                    writer.Flush();
-                }
-            }  // end of if (_asHeader)
-
-            // Finally, we write the methods
             if (type.Type != TypeEnum.Interface)
             {
+                // Write fields if not an interface
+                foreach (var f in type.Fields)
+                {
+                    try
+                    {
+                        if (f.Specifiers.IsStatic())
+                            staticFieldSerializer.Serialize(writer, f);
+                        else if (_asHeader)
+                            // Only write standard fields if this is a header
+                            fieldSerializer.Serialize(writer, f);
+                    }
+                    catch (UnresolvedTypeException e)
+                    {
+                        if (_config.UnresolvedTypeExceptionHandling.FieldHandling == UnresolvedTypeExceptionHandling.DisplayInFile)
+                        {
+                            writer.WriteLine("/*");
+                            writer.WriteLine(e);
+                            writer.WriteLine("*/");
+                            writer.Flush();
+                        }
+                        else if (_config.UnresolvedTypeExceptionHandling.FieldHandling == UnresolvedTypeExceptionHandling.Elevate)
+                            throw;
+                    }
+                }
+
+                // Finally, we write the methods
                 foreach (var m in type.Methods)
                 {
                     try
