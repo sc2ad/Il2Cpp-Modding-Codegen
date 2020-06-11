@@ -65,17 +65,17 @@ namespace Il2Cpp_Modding_Codegen.Serialization
                     {
                         name = name.Substring(0, genericStart);
                     }
-
-                    if (level == ForwardDeclareLevel.Class)
-                    {
-                        var nestedStart = name.LastIndexOf("::");
-                        if (nestedStart >= 0)
-                        {
-                            name = name.Substring(nestedStart + 2);
-                        }
-                    }
                 }
                 else name = "";
+            }
+
+            if (!string.IsNullOrEmpty(name) && level == ForwardDeclareLevel.Class)
+            {
+                var nestedStart = name.LastIndexOf("::");
+                if (nestedStart >= 0)
+                {
+                    name = name.Substring(nestedStart + 2);
+                }
             }
 
             // TODO write class instead if we did so for the definition
