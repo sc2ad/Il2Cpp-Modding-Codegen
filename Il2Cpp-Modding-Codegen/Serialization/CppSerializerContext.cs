@@ -65,6 +65,8 @@ namespace Il2Cpp_Modding_Codegen.Serialization
             FileName = resolvedTd.ConvertTypeToInclude(context);
             // Check all nested classes (and ourselves) if we have generic arguments/parameters. If we do, add them to _genericTypes.
             GetGenericTypes(data);
+            if (!cpp && data.This.DeclaringType != null)
+                Includes.Add(context.ResolvedTypeRef(data.This.DeclaringType).ConvertTypeToInclude(context) + ".hpp");
         }
 
         private string ForceName(TypeInfo info, string name, ForceAsType force)
