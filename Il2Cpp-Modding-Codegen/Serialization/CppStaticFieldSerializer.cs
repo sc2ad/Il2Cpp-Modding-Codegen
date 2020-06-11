@@ -81,13 +81,13 @@ namespace Il2Cpp_Modding_Codegen.Serialization
 
                 var s = "return ";
                 var innard = $"<{resolvedName}>";
-                var macro = "CRASH_UNLESS(";
+                var macro = "CRASH_UNLESS((";
                 if (_config.OutputStyle != OutputStyle.CrashUnless)
                     macro = "";
 
                 s += $"{macro}il2cpp_utils::GetFieldValue{innard}(";
                 s += $"\"{field.DeclaringType.Namespace}\", \"{field.DeclaringType.Name}\", \"{field.Name}\")";
-                if (!string.IsNullOrEmpty(macro)) s += ")";
+                if (!string.IsNullOrEmpty(macro)) s += "))";
                 s += ";";
                 writer.WriteLine(s);
                 writer.Indent--;
