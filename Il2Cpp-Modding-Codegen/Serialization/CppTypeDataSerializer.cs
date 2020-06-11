@@ -140,6 +140,7 @@ namespace Il2Cpp_Modding_Codegen.Serialization
                 // TODO: print enums as actual C++ smart enums? backing type is type of _value and A = #, should work for the lines inside the enum
                 typeHeader = (type.Type == TypeEnum.Struct ? "struct " : "class ") + state.typeName;
                 writer.WriteLine(typeHeader + s + " {");
+                writer.WriteLine(" public:");
                 writer.Flush();
                 writer.Indent++;
 
