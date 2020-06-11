@@ -68,15 +68,12 @@ namespace Il2Cpp_Modding_Codegen.Serialization
             // Nested types need to include their declaring type
             if (!cpp && data.This.DeclaringType != null)
                 Includes.Add(context.ResolvedTypeRef(data.This.DeclaringType).ConvertTypeToInclude(context) + ".hpp");
-            // Declaring types need to forward declare ALL of their nested types (or include them in .cpp)
+            // Declaring types need to forward declare ALL of their nested types
             // TODO: also add them to _references?
-            foreach (var nested in data.NestedTypes)
+            if (!cpp)
             {
-                var asName = context.ResolvedTypeRef(nested.This);
-                if (!cpp)
-                    NestedForwardDeclares.Add(asName);
-                else
-                    Includes.Add(asName.ConvertTypeToInclude(context) + ".hpp");
+                foreach (var nested in data.NestedTypes)
+                    NestedForwardDeclares.Add(context.ResolvedTypeRef(nested.This));
             }
         }
 
@@ -179,8 +176,8 @@ namespace Il2Cpp_Modding_Codegen.Serialization
                 types = GenericArgsToStr(def, genericArgs);
             }
 
-            // If the type is ourselves or nested directly under us, no need to include/forward declare it (see constructor)
-            if (IsLocalTypeOrNestedUnderIt(type.This))
+            // If the type is us or !cpp and the type is nested directly under us, no need to include/forward declare it (see constructor)
+            if (_localType.This.Equals(type) || (!_cpp && _localType.This.Equals(def.DeclaringType)))
             {
                 return ForceName(type.Info, (qualified ? resolvedTd.ConvertTypeToQualifiedName(_context) : resolvedTd.ConvertTypeToName()) + types, force);
             }
