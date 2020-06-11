@@ -140,9 +140,9 @@ namespace Il2Cpp_Modding_Codegen.Serialization
                 // Write namespace
                 writer.WriteLine("namespace " + _context.TypeNamespace + " {");
                 writer.Flush();
+                writer.Indent++;
                 if (_context.NamespaceForwardDeclares.Count > 0)
                 {
-                    writer.Indent++;
                     writer.WriteLine("// Same-namespace forward declarations");
                     foreach (var fd in _context.NamespaceForwardDeclares)
                     {
