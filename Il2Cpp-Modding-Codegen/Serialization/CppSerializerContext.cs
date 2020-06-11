@@ -69,6 +69,7 @@ namespace Il2Cpp_Modding_Codegen.Serialization
             if (!cpp && data.This.DeclaringType != null)
                 Includes.Add(context.ResolvedTypeRef(data.This.DeclaringType).ConvertTypeToInclude(context) + ".hpp");
             // Declaring types need to forward declare ALL of their nested types
+            // TODO: also add them to _references?
             if (!cpp)
             {
                 foreach (var nested in data.NestedTypes)
