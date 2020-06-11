@@ -102,6 +102,8 @@ namespace Il2Cpp_Modding_Codegen.Serialization
             Directory.CreateDirectory(Path.GetDirectoryName(headerLocation));
             using (var ms = new MemoryStream())
             {
+                bool isSystemValueType = (data.This.Namespace == "System") && (data.This.Name == "ValueType");
+
                 var rawWriter = new StreamWriter(ms);
                 var writer = new IndentedTextWriter(rawWriter, "  ");
                 // Write header
@@ -118,6 +120,7 @@ namespace Il2Cpp_Modding_Codegen.Serialization
                     writer.WriteLine("#include <optional>");
                 if (data.Type != TypeEnum.Interface)
                 {
+                    if (isSystemValueType) _context.Includes.Add("System/Object.hpp");
                     foreach (var include in _context.Includes)
                     {
                         writer.WriteLine($"#include \"{include}\"");
@@ -172,7 +175,7 @@ namespace Il2Cpp_Modding_Codegen.Serialization
                 writer.Indent--;
                 writer.WriteLine("}");
 
-                if (data.This.Namespace == "System" && data.This.Name == "ValueType")
+                if (isSystemValueType)
                 {
                     writer.WriteLine("template<class T>");
                     writer.WriteLine("struct is_value_type<T, typename std::enable_if_t<std::is_base_of_v<System::ValueType, T>>> : std::true_type{};");

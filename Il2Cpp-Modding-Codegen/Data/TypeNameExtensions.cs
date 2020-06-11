@@ -32,7 +32,7 @@ namespace Il2Cpp_Modding_Codegen.Data
             // TODO: instead split on :: and Path.Combine?
             var fileName = string.Join("-", ConvertTypeToName(def).Replace("::", "_").Split(Path.GetInvalidFileNameChars()));
             var directory = string.Join("-", ConvertTypeToNamespace(def).Replace("::", "_").Split(Path.GetInvalidPathChars()));
-            return Path.Combine(directory, fileName);
+            return $"{directory}/{fileName}";
         }
 
         public static string ConvertTypeToIl2CppMetadata(this TypeName def)
