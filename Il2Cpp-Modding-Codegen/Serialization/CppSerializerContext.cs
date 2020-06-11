@@ -182,13 +182,14 @@ namespace Il2Cpp_Modding_Codegen.Serialization
             }
 
             // If we are the context for a header:
-            // AND the type is our child OR a nested type
+            // AND the type is a nested type of ours, or else not a nested type at all
+            // AND the type is our child
             // OR, if the type is being asked to be used as a POINTER
             // OR, it is a reference type AND it is being asked to be used NOT(as a literal or as a reference):
             // Forward declare
             if (!_cpp && (
+                (def.DeclaringType is null) || _localType.This.Equals(def.DeclaringType)) && (
                 _localType.This.Equals(type.Parent)
-                || _localType.This.Equals(def.DeclaringType)
                 || force == ForceAsType.Pointer
                 || (type.Info.TypeFlags == TypeFlags.ReferenceType && force != ForceAsType.Literal && force != ForceAsType.Reference)
             ))
