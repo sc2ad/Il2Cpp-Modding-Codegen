@@ -98,7 +98,7 @@ namespace Il2Cpp_Modding_Codegen.Serialization
                 else
                     macro = "RET_V_UNLESS(";
 
-                s += $"{macro}il2cpp_utils::SetFieldValue{innard}(";
+                s += $"{macro}il2cpp_utils::SetFieldValue(";
                 s += $"\"{field.DeclaringType.Namespace}\", \"{field.DeclaringType.Name}\", \"{field.Name}\", value));";
                 writer.WriteLine(s);
                 writer.Indent--;
