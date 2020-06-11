@@ -67,8 +67,7 @@ namespace Il2Cpp_Modding_Codegen.Data
 
         public string SafeName()
         {
-            // TODO: make nested types actually nested by replacing / with :: instead
-            return Name.Replace('<', '_').Replace('>', '_').Replace('`', '_').Replace('/', '_');
+            return Name.Replace('<', '_').Replace('>', '_').Replace('`', '_').Replace("/", "::");
         }
 
         public string SafeNamespace()

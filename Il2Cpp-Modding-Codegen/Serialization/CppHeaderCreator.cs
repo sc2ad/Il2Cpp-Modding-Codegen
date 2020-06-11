@@ -20,13 +20,20 @@ namespace Il2Cpp_Modding_Codegen.Serialization
             _context = context;
         }
 
-        private void WriteForwardDeclare(IndentedTextWriter writer, TypeName fd, bool putNamespace)
+        enum ForwardDeclareLevel
+        {
+            Global,
+            Namespace,
+            Class
+        }
+        private void WriteForwardDeclare(IndentedTextWriter writer, TypeName fd, ForwardDeclareLevel level)
         {
             // TODO: handle this better?
             if (fd.Name == "Il2CppChar")  // cannot forward declare a primitive typedef without exactly copying typedef which is a bad idea
                 return;
 
             string @namespace = fd.ConvertTypeToNamespace();
+            bool putNamespace = level == ForwardDeclareLevel.Global;
             if (@namespace is null) putNamespace = false;
             if (putNamespace)
             {
@@ -37,6 +44,8 @@ namespace Il2Cpp_Modding_Codegen.Serialization
             var name = fd.Name;
             if (fd.Generic || name.Contains("<"))
             {
+                // TODO: Resolve the type for GenericParameters if we only have GenericArguments
+
                 // If the forward declare is a generic instance, we need to write an empty version of the template type instead
                 if (fd.GenericParameters.Count > 0)  // better to forward declare nothing than something invalid
                 {
@@ -55,6 +64,15 @@ namespace Il2Cpp_Modding_Codegen.Serialization
                     if (genericStart >= 0)
                     {
                         name = name.Substring(0, genericStart);
+                    }
+
+                    if (level == ForwardDeclareLevel.Class)
+                    {
+                        var nestedStart = name.LastIndexOf("::");
+                        if (nestedStart >= 0)
+                        {
+                            name = name.Substring(nestedStart + 2);
+                        }
                     }
                 }
                 else name = "";
@@ -75,7 +93,7 @@ namespace Il2Cpp_Modding_Codegen.Serialization
 
         internal void WriteForwardDeclare(IndentedTextWriter writer, TypeName fd)
         {
-            WriteForwardDeclare(writer, fd, false);
+            WriteForwardDeclare(writer, fd, ForwardDeclareLevel.Class);
         }
 
         public void Serialize(CppTypeDataSerializer serializer, ITypeData data)
@@ -111,7 +129,7 @@ namespace Il2Cpp_Modding_Codegen.Serialization
                         writer.WriteLine("// Forward declarations");
                         foreach (var fd in _context.ForwardDeclares)
                         {
-                            WriteForwardDeclare(writer, fd, true);
+                            WriteForwardDeclare(writer, fd, ForwardDeclareLevel.Global);
                         }
                         writer.WriteLine("// End Forward declarations");
                     }
@@ -125,7 +143,7 @@ namespace Il2Cpp_Modding_Codegen.Serialization
                     writer.WriteLine("// Same-namespace forward declarations");
                     foreach (var fd in _context.NamespaceForwardDeclares)
                     {
-                        WriteForwardDeclare(writer, fd);
+                        WriteForwardDeclare(writer, fd, ForwardDeclareLevel.Namespace);
                     }
                     writer.WriteLine("// End same-namespace forward declarations");
                 }
