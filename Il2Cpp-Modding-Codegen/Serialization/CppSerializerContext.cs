@@ -16,7 +16,7 @@ namespace Il2Cpp_Modding_Codegen.Serialization
         public HashSet<TypeName> NamespaceForwardDeclares { get; } = new HashSet<TypeName>();
 
         // For forward declares that will go inside the class definition
-        public HashSet<TypeName> ClassForwardDeclares { get; } = new HashSet<TypeName>();
+        public HashSet<TypeName> NestedForwardDeclares { get; } = new HashSet<TypeName>();
 
         public HashSet<string> Includes { get; } = new HashSet<string>();
         public string FileName { get; private set; }
@@ -65,8 +65,15 @@ namespace Il2Cpp_Modding_Codegen.Serialization
             FileName = resolvedTd.ConvertTypeToInclude(context);
             // Check all nested classes (and ourselves) if we have generic arguments/parameters. If we do, add them to _genericTypes.
             GetGenericTypes(data);
+            // Nested types need to include their declaring type
             if (!cpp && data.This.DeclaringType != null)
                 Includes.Add(context.ResolvedTypeRef(data.This.DeclaringType).ConvertTypeToInclude(context) + ".hpp");
+            // Declaring types need to forward declare ALL of their nested types
+            if (!cpp)
+            {
+                foreach (var nested in data.NestedTypes)
+                    NestedForwardDeclares.Add(context.ResolvedTypeRef(nested.This));
+            }
         }
 
         private string ForceName(TypeInfo info, string name, ForceAsType force)
@@ -186,7 +193,7 @@ namespace Il2Cpp_Modding_Codegen.Serialization
             ))
             {
                 if (_localType.This.Equals(def.DeclaringType))
-                    ClassForwardDeclares.Add(resolvedTd);
+                    NestedForwardDeclares.Add(resolvedTd);
                 else if (resolvedTd.Namespace == TypeNamespace)
                     NamespaceForwardDeclares.Add(resolvedTd);
                 else
