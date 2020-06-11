@@ -68,12 +68,15 @@ namespace Il2Cpp_Modding_Codegen.Serialization
             // Nested types need to include their declaring type
             if (!cpp && data.This.DeclaringType != null)
                 Includes.Add(context.ResolvedTypeRef(data.This.DeclaringType).ConvertTypeToInclude(context) + ".hpp");
-            // Declaring types need to forward declare ALL of their nested types
+            // Declaring types need to forward declare ALL of their nested types (or include them in .cpp)
             // TODO: also add them to _references?
-            if (!cpp)
+            foreach (var nested in data.NestedTypes)
             {
-                foreach (var nested in data.NestedTypes)
-                    NestedForwardDeclares.Add(context.ResolvedTypeRef(nested.This));
+                var asName = context.ResolvedTypeRef(nested.This);
+                if (!cpp)
+                    NestedForwardDeclares.Add(asName);
+                else
+                    Includes.Add(asName.ConvertTypeToInclude(context) + ".hpp");
             }
         }
 
