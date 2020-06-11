@@ -69,7 +69,7 @@ namespace Il2Cpp_Modding_Codegen.Serialization
                 else name = "";
             }
 
-            if (!string.IsNullOrEmpty(name) && level == ForwardDeclareLevel.Class)
+            if (level == ForwardDeclareLevel.Class && !string.IsNullOrEmpty(name))
             {
                 var nestedStart = name.LastIndexOf("::");
                 if (nestedStart >= 0)
