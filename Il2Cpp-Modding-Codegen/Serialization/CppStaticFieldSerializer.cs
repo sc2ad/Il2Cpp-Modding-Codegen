@@ -81,7 +81,9 @@ namespace Il2Cpp_Modding_Codegen.Serialization
                     macro = "";
 
                 s += $"{macro}il2cpp_utils::GetFieldValue{innard}(";
-                s += $"\"{field.DeclaringType.Namespace}\", \"{field.DeclaringType.Name}\", \"{field.Name}\");";
+                s += $"\"{field.DeclaringType.Namespace}\", \"{field.DeclaringType.Name}\", \"{field.Name}\")";
+                if (!string.IsNullOrEmpty(macro)) s += ")";
+                s += ";";
                 writer.WriteLine(s);
                 writer.Indent--;
                 writer.WriteLine("}");
