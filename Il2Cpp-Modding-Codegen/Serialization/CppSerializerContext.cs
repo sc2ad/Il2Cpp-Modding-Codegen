@@ -118,9 +118,10 @@ namespace Il2Cpp_Modding_Codegen.Serialization
 
         private bool IsLocalTypeOrNestedUnderIt(TypeRef type)
         {
-            if (_localType.This.Equals(type)) return true;
-            if (type is null) return false;
-            return IsLocalTypeOrNestedUnderIt(type.DeclaringType);
+            //if (_localType.This.Equals(type)) return true;
+            //if (type is null) return false;
+            //return IsLocalTypeOrNestedUnderIt(type.DeclaringType);
+            return _localType.This.Equals(type) || _localType.This.Equals(type.DeclaringType);
         }
 
         /// <summary>
@@ -175,20 +176,19 @@ namespace Il2Cpp_Modding_Codegen.Serialization
                 types = GenericArgsToStr(def, genericArgs);
             }
 
-            // If the type is ourselves, no need to include/forward declare it
-            if (type.Equals(_localType))
+            // If the type is ourselves or nested directly under us, no need to include/forward declare it (see constructor)
+            if (IsLocalTypeOrNestedUnderIt(type.This))
             {
                 return ForceName(type.Info, (qualified ? resolvedTd.ConvertTypeToQualifiedName(_context) : resolvedTd.ConvertTypeToName()) + types, force);
             }
 
             // If we are the context for a header:
-            // AND the type is a nested type of ours, or else not a nested type at all
+            // AND the type is not a nested type
             // AND the type is our child
             // OR, if the type is being asked to be used as a POINTER
             // OR, it is a reference type AND it is being asked to be used NOT(as a literal or as a reference):
             // Forward declare
-            if (!_cpp && (
-                (def.DeclaringType is null) || _localType.This.Equals(def.DeclaringType)) && (
+            if (!_cpp && (def.DeclaringType is null) && (
                 _localType.This.Equals(type.Parent)
                 || force == ForceAsType.Pointer
                 || (type.Info.TypeFlags == TypeFlags.ReferenceType && force != ForceAsType.Literal && force != ForceAsType.Reference)
