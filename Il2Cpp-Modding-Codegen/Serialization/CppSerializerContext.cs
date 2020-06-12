@@ -102,8 +102,6 @@ namespace Il2Cpp_Modding_Codegen.Serialization
         {
             var generics = type.Generics.ToList();
             int origCount = generics.Count;
-            if (origCount == 0)
-                throw new ArgumentException($"Wtf? In GenericsToStr, a generic with no generics: {type}, IsGenInst: {type.IsGenericInstance}");
 
             if (DeclaringTypeHasGenerics(type))
             {
@@ -116,21 +114,24 @@ namespace Il2Cpp_Modding_Codegen.Serialization
                     if (matchLength <= origCount)
                     {
                         var possibleMatch = generics.GetRange(0, matchLength);
-                        Console.WriteLine("Checking for generic args to remove");
                         if (TypeRef.SequenceEqualOrPrint(possibleMatch, type.DeclaringType.Generics))
                         {
                             generics.RemoveRange(0, matchLength);
+                            if (generics.Count != origCount - possibleMatch.Count) throw new Exception("Failed to change generics list!");
                         }
                         else
+                        {
                             Console.Error.WriteLine("Hence, did not remove any generics.");
+                            Console.Error.WriteLine($"(type was {type}, declaring was {type.DeclaringType})\n");
+                        }
                     }
                     else
                         Console.Error.WriteLine("Cannot remove generics: declaring type has more, but we are Instance!");
                 }
-                if (generics.Count > 0)
+                if (generics.Count > 0 && generics.Count < origCount)
                     Console.WriteLine($"{type}: removed {{{String.Join(", ", type.DeclaringType.Generics)}}}, left with " +
                         $"{{{String.Join(", ", generics)}}} " +
-                        $"(IsGenInst? {type.IsGenericInstance} declaring.IsGenInst? {type.DeclaringType.IsGenericInstance}");
+                        $"(IsGenInst? {type.IsGenericInstance} declaring.IsGenInst? {type.DeclaringType.IsGenericInstance})");
             }
             if (generics.Count == 0)
                 return "";
