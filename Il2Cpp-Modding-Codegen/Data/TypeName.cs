@@ -16,7 +16,7 @@ namespace Il2Cpp_Modding_Codegen.Data
         public bool IsGeneric { get => IsGenericInstance || IsGenericTemplate; }
         public bool IsGenericInstance { get; }
         public bool IsGenericTemplate { get; }
-        public List<TypeRef> Generics { get; }
+        public IReadOnlyList<TypeRef> Generics { get; }
         public TypeRef DeclaringType { get; }
 
         public TypeName(TypeRef tr, int dupCount = 0)

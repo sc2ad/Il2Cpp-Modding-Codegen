@@ -3,6 +3,7 @@ using Il2Cpp_Modding_Codegen.Serialization.Interfaces;
 using Mono.Cecil;
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Text;
 using System.Text.RegularExpressions;
@@ -19,7 +20,7 @@ namespace Il2Cpp_Modding_Codegen.Data.DllHandling
 
         public override bool IsGenericInstance { get => This.IsGenericInstance; }
         public override bool IsGenericTemplate { get => This.HasGenericParameters; }
-        public override IEnumerable<TypeRef> Generics { get; } = new List<TypeRef>();
+        public override IReadOnlyList<TypeRef> Generics { get; } = new List<TypeRef>();
 
         public override TypeRef DeclaringType { get => From(This.DeclaringType); }
         public override TypeRef ElementType
@@ -54,7 +55,7 @@ namespace Il2Cpp_Modding_Codegen.Data.DllHandling
             _name = This.Name;
 
             DllTypeRef refDeclaring = null;
-            if (!This.IsGenericParameter && This.DeclaringType != null)
+            if (!This.IsGenericParameter && This.IsNested)
                 refDeclaring = From(This.DeclaringType);
 
             if (refDeclaring != null)
@@ -62,14 +63,16 @@ namespace Il2Cpp_Modding_Codegen.Data.DllHandling
 
             // Remove *, [] from end of variable name
             _name = Regex.Replace(_name, @"\W+$", "");
-            // if (!char.IsLetterOrDigit(_name.Last())) Console.WriteLine(reference);
+            if (!char.IsLetterOrDigit(_name.Last())) Console.WriteLine(reference);
 
             _namespace = (refDeclaring?.Namespace ?? This.Namespace) ?? "";
 
-            if (This.IsGenericInstance)
+            if (IsGenericInstance)
                 Generics = (This as GenericInstanceType).GenericArguments.Select(From).ToList();
-            else if (This.HasGenericParameters)
+            else if (IsGenericTemplate)
                 Generics = This.GenericParameters.Select(From).ToList();
+            if (IsGeneric && Generics.Count == 0)
+                throw new InvalidDataException($"Wtf? In DllTypeRef constructor, a generic with no generics: {this}, IsGenInst: {this.IsGenericInstance}");
         }
 
         public static DllTypeRef From(TypeReference type)

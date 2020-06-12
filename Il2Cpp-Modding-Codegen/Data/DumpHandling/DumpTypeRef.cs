@@ -13,7 +13,7 @@ namespace Il2Cpp_Modding_Codegen.Data.DumpHandling
         public override bool IsGenericInstance { get; }
         public override bool IsGenericTemplate { get; }
 
-        public override IEnumerable<TypeRef> Generics { get; }
+        public override IReadOnlyList<TypeRef> Generics { get; }
 
         public override TypeRef DeclaringType { get; }
         public override TypeRef ElementType { get; }

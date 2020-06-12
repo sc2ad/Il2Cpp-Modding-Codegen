@@ -93,26 +93,44 @@ namespace Il2Cpp_Modding_Codegen.Serialization
             }
         }
 
+        private bool DeclaringTypeHasGenerics(TypeName type)
+        {
+            return (type.DeclaringType != null) && (type.DeclaringType.IsGeneric);
+        }
+
         private string GenericsToStr(TypeName type)
         {
-            var generics = type.Generics;
-            // int origCount = generics.Count;
-            // Nothing left to do unless declaring type has additional generic args/params
-            if (type.DeclaringType != null && type.DeclaringType.IsGeneric && type.IsGenericInstance == type.DeclaringType.IsGenericInstance)
+            var generics = type.Generics.ToList();
+            int origCount = generics.Count;
+            if (origCount == 0)
+                throw new ArgumentException($"Wtf? In GenericsToStr, a generic with no generics: {type}, IsGenInst: {type.IsGenericInstance}");
+
+            if (DeclaringTypeHasGenerics(type))
             {
                 if (type.IsGenericTemplate)
                     generics = generics.Except(type.DeclaringType.Generics, TypeRef.fastComparer).ToList();
                 else
                 {
                     // remove declaring's generics from the start of our list, ensuring that they are equal
-                    int matchLength = type.DeclaringType.Generics.Count();
-                    var possibleMatch = generics.GetRange(0, matchLength);
-                    Console.WriteLine("Checking for generic args to remove");
-                    if (TypeRef.SequenceEqualOrPrint(possibleMatch, type.DeclaringType.Generics))
+                    int matchLength = type.DeclaringType.Generics.Count;
+                    if (matchLength <= origCount)
                     {
-                        generics.RemoveRange(0, matchLength);
+                        var possibleMatch = generics.GetRange(0, matchLength);
+                        Console.WriteLine("Checking for generic args to remove");
+                        if (TypeRef.SequenceEqualOrPrint(possibleMatch, type.DeclaringType.Generics))
+                        {
+                            generics.RemoveRange(0, matchLength);
+                        }
+                        else
+                            Console.Error.WriteLine("Hence, did not remove any generics.");
                     }
+                    else
+                        Console.Error.WriteLine("Cannot remove generics: declaring type has more, but we are Instance!");
                 }
+                if (generics.Count > 0)
+                    Console.WriteLine($"{type}: removed {{{String.Join(", ", type.DeclaringType.Generics)}}}, left with " +
+                        $"{{{String.Join(", ", generics)}}} " +
+                        $"(IsGenInst? {type.IsGenericInstance} declaring.IsGenInst? {type.DeclaringType.IsGenericInstance}");
             }
             if (generics.Count == 0)
                 return "";
@@ -140,8 +158,7 @@ namespace Il2Cpp_Modding_Codegen.Serialization
 
             var types = GenericsToStr(def);
             // Nothing left to do unless declaring type has additional generic args/params
-            if (def.DeclaringType is null || !def.DeclaringType.IsGeneric
-                    || def.IsGenericInstance != def.DeclaringType.IsGenericInstance)
+            if (!DeclaringTypeHasGenerics(def))
                 return name + types;
 
             var declaring = _context.ResolvedTypeRef(def.DeclaringType);
