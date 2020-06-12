@@ -236,12 +236,18 @@ namespace Il2Cpp_Modding_Codegen.Serialization
                 || (type.Info.TypeFlags == TypeFlags.ReferenceType && force != ForceAsType.Literal && force != ForceAsType.Reference)
             ))
             {
+                // Since forward declaring a generic instance gives a template specialization, which is at best a small AOT optimization
+                // and at worst a reference to an undefined template, we want to forward declare their generic definitions instead
+                var fd = resolvedTd;
+                if (resolvedTd.IsGenericInstance)
+                    fd = _context.ResolvedTypeRef(type.This);
+
                 if (_localType.This.Equals(def.DeclaringType))
-                    NestedForwardDeclares.Add(resolvedTd);
-                else if (resolvedTd.Namespace == TypeNamespace)
-                    NamespaceForwardDeclares.Add(resolvedTd);
+                    NestedForwardDeclares.Add(fd);
+                else if (fd.Namespace == TypeNamespace)
+                    NamespaceForwardDeclares.Add(fd);
                 else
-                    ForwardDeclares.Add(resolvedTd);
+                    ForwardDeclares.Add(fd);
             }
             else
             {

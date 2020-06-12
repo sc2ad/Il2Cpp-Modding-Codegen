@@ -90,7 +90,12 @@ namespace Il2Cpp_Modding_Codegen.Serialization
             if (name.Length > 0)
                 writer.WriteLine($"struct {name};");
             else
-                writer.WriteLine($"// Aborted forward declaration of {fd}");
+            {
+                var errorStr = $"Aborted forward declaration of {fd}";
+                writer.WriteLine($"// {errorStr}");
+                if (!fd.ToString().StartsWith("Array"))
+                    Console.Error.WriteLine(errorStr);
+            }
 
             if (putNamespace)
             {
