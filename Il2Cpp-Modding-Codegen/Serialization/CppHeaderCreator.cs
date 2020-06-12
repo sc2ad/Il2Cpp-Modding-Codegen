@@ -6,6 +6,7 @@ using System.Collections.Generic;
 using System.CodeDom.Compiler;
 using System.IO;
 using System.Text;
+using System.Linq;
 
 namespace Il2Cpp_Modding_Codegen.Serialization
 {
@@ -42,22 +43,29 @@ namespace Il2Cpp_Modding_Codegen.Serialization
             }
 
             var name = fd.Name;
-            if (fd.Generic || name.Contains("<"))
+            if (fd.IsGeneric || name.Contains("<"))
             {
-                // TODO: Resolve the type for GenericParameters if we only have GenericArguments
+                // TODO: Resolve the type for GenericParameters if IsGenericInstance?
 
-                // If the forward declare is a generic instance, we need to write an empty version of the template type instead
-                if (fd.GenericParameters.Count > 0)  // better to forward declare nothing than something invalid
+                // If the forward declare is a generic template, we need to write an empty version of the template type instead
+                if (fd.IsGenericTemplate)  // better to forward declare nothing than something invalid
                 {
-                    var s = "template<";
-                    for (int i = 0; i < fd.GenericParameters.Count; i++)
+                    var generics = fd.Generics;
+                    if (level >= ForwardDeclareLevel.Class && fd.DeclaringType != null && !fd.DeclaringType.IsGenericInstance)
+                        generics = fd.Generics.Except(fd.DeclaringType.Generics, TypeRef.fastComparer).ToList();
+
+                    if (generics.Count > 0)
                     {
-                        s += "typename " + fd.GenericParameters[i].SafeName();
-                        if (i != fd.GenericParameters.Count - 1)
-                            s += ", ";
+                        var s = "template<";
+                        for (int i = 0; i < generics.Count; i++)
+                        {
+                            s += "typename " + generics[i].SafeName();
+                            if (i != generics.Count - 1)
+                                s += ", ";
+                        }
+                        s += ">";
+                        writer.WriteLine(s);
                     }
-                    s += ">";
-                    writer.WriteLine(s);
 
                     // Remove the <blah> from the name for the upcoming print
                     var genericStart = name.IndexOf("<");
@@ -187,7 +195,7 @@ namespace Il2Cpp_Modding_Codegen.Serialization
                 if (data.Info.TypeFlags == TypeFlags.ReferenceType)
                     arg1 = "*";
                 // For Name and Namespace here, we DO want all the `, /, etc
-                if (!data.This.Generic)
+                if (!data.This.IsGeneric)
                     writer.WriteLine($"DEFINE_IL2CPP_ARG_TYPE({arg0+arg1}, \"{data.This.Namespace}\", \"{data.This.Name}\");");
                 else
                     writer.WriteLine($"DEFINE_IL2CPP_ARG_TYPE_GENERIC({arg0}, {arg1}, \"{data.This.Namespace}\", \"{data.This.Name}\");");

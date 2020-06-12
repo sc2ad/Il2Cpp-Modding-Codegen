@@ -37,10 +37,9 @@ namespace Il2Cpp_Modding_Codegen.Serialization
 
         private void GetGenericTypes(ITypeData data)
         {
-            var generics = data.This.Generic ? data.This?.GenericArguments ?? data.This.GenericParameters : null;
-            if (generics != null)
+            if (data.This.IsGeneric)
             {
-                foreach (var g in generics)
+                foreach (var g in data.This.Generics)
                 {
                     // Add all of our generic arguments or parameters
                     _genericTypes.Add(g);
@@ -59,15 +58,15 @@ namespace Il2Cpp_Modding_Codegen.Serialization
             _rootType = _localType = data;
             _cpp = cpp;
             var resolvedTd = _context.ResolvedTypeRef(data.This);
-            QualifiedTypeName = resolvedTd.ConvertTypeToQualifiedName(context);
+            QualifiedTypeName = ConvertTypeToQualifiedName(resolvedTd, false);
             TypeNamespace = resolvedTd.ConvertTypeToNamespace();
-            TypeName = resolvedTd.ConvertTypeToName();
-            FileName = resolvedTd.ConvertTypeToInclude(context);
+            TypeName = ConvertTypeToName(resolvedTd, false);
+            FileName = ConvertTypeToInclude(resolvedTd);
             // Check all nested classes (and ourselves) if we have generic arguments/parameters. If we do, add them to _genericTypes.
             GetGenericTypes(data);
             // Nested types need to include their declaring type
             if (!cpp && data.This.DeclaringType != null)
-                Includes.Add(context.ResolvedTypeRef(data.This.DeclaringType).ConvertTypeToInclude(context) + ".hpp");
+                Includes.Add(ConvertTypeToInclude(context.ResolvedTypeRef(data.This.DeclaringType)) + ".hpp");
             // Declaring types need to forward declare ALL of their nested types
             // TODO: also add them to _references?
             if (!cpp)
@@ -94,26 +93,75 @@ namespace Il2Cpp_Modding_Codegen.Serialization
             }
         }
 
-        private string GenericArgsToStr(TypeRef type, bool genericArgs)
+        private string GenericsToStr(TypeName type)
         {
-            var typeStr = "";
-            if (genericArgs)
+            var generics = type.Generics;
+            // int origCount = generics.Count;
+            // Nothing left to do unless declaring type has additional generic args/params
+            if (type.DeclaringType != null && type.DeclaringType.IsGeneric && type.IsGenericInstance == type.DeclaringType.IsGenericInstance)
             {
-                typeStr = "<";
-                bool first = true;
-                var generics = type.GenericArguments ?? type.GenericParameters;
-                foreach (var genParam in generics)
+                if (type.IsGenericTemplate)
+                    generics = generics.Except(type.DeclaringType.Generics, TypeRef.fastComparer).ToList();
+                else
                 {
-                    if (!first)
-                        typeStr += ", ";
-                    typeStr += GetNameFromReference(genParam) ?? genParam.SafeName();
-                    first = false;
+                    // remove declaring's generics from the start of our list, ensuring that they are equal
+                    int matchLength = type.DeclaringType.Generics.Count();
+                    var possibleMatch = generics.GetRange(0, matchLength);
+                    Console.WriteLine("Checking for generic args to remove");
+                    if (TypeRef.SequenceEqualOrPrint(possibleMatch, type.DeclaringType.Generics))
+                    {
+                        generics.RemoveRange(0, matchLength);
+                    }
                 }
-                typeStr += ">";
-                if (typeStr.Length == 2)
-                    Console.WriteLine($"GenericArgsToStr failed for type {type}: no generics found? {String.Join(", ", generics)}");
             }
+            if (generics.Count == 0)
+                return "";
+
+            var typeStr = "<";
+            bool first = true;
+            foreach (var genParam in generics)
+            {
+                if (!first)
+                    typeStr += ", ";
+                typeStr += GetNameFromReference(genParam) ?? (genParam.SafeName());
+                first = false;
+            }
+            typeStr += ">";
+            if (typeStr.Length == 2)
+                Console.WriteLine($"GenericArgsToStr failed for type {type}: no generics found? {String.Join(", ", generics)}");
             return typeStr;
+        }
+
+        public string ConvertTypeToName(TypeName def, bool generics = true)
+        {
+            var name = def.Name;
+            if (!generics || !def.IsGeneric)
+                return name;
+
+            var types = GenericsToStr(def);
+            // Nothing left to do unless declaring type has additional generic args/params
+            if (def.DeclaringType is null || !def.DeclaringType.IsGeneric
+                    || def.IsGenericInstance != def.DeclaringType.IsGenericInstance)
+                return name + types;
+
+            var declaring = _context.ResolvedTypeRef(def.DeclaringType);
+            int nestInd = name.LastIndexOf("::");
+            if (nestInd >= 0)
+                name = name.Substring(nestInd);
+            return ConvertTypeToName(declaring, generics) + name + types;
+        }
+
+        public string ConvertTypeToQualifiedName(TypeName def, bool generics = true)
+        {
+            return def.ConvertTypeToNamespace() + "::" + ConvertTypeToName(def, generics);
+        }
+
+        public string ConvertTypeToInclude(TypeName def)
+        {
+            // TODO: instead split on :: and Path.Combine?
+            var fileName = string.Join("-", ConvertTypeToName(def, false).Replace("::", "_").Split(Path.GetInvalidFileNameChars()));
+            var directory = string.Join("-", def.ConvertTypeToNamespace().Replace("::", "_").Split(Path.GetInvalidPathChars()));
+            return $"{directory}/{fileName}";
         }
 
         private bool IsLocalTypeOrNestedUnderIt(TypeRef type)
@@ -167,19 +215,13 @@ namespace Il2Cpp_Modding_Codegen.Serialization
 
             // TODO: instead, just use type
             // If we have not, map the type definition to a safe, unique name (TypeName)
-            var resolvedTd = _context.ResolvedTypeRef(type.This);
-
-            // If this is a generic type, we need to ensure we are providing correct type parameters
-            var types = "";
-            if (def.Generic && genericArgs)
-            {
-                types = GenericArgsToStr(def, genericArgs);
-            }
+            var resolvedTd = _context.ResolvedTypeRef(def);
 
             // If the type is us or !cpp and the type is nested directly under us, no need to include/forward declare it (see constructor)
-            if (_localType.This.Equals(type) || (!_cpp && _localType.This.Equals(def.DeclaringType)))
+            if (_localType.Equals(type) || (!_cpp && _localType.This.Equals(def.DeclaringType)))
             {
-                return ForceName(type.Info, (qualified ? resolvedTd.ConvertTypeToQualifiedName(_context) : resolvedTd.ConvertTypeToName()) + types, force);
+                return ForceName(type.Info,
+                    qualified ? ConvertTypeToQualifiedName(resolvedTd, genericArgs) : ConvertTypeToName(resolvedTd, genericArgs), force);
             }
 
             // If we are the context for a header:
@@ -206,14 +248,14 @@ namespace Il2Cpp_Modding_Codegen.Serialization
                 // Get path to this type (namespace/name)
                 // TODO: If we have namespace headers, we need to namespace declare our return value:
                 // namespace::typeName
-                Includes.Add(resolvedTd.ConvertTypeToInclude(_context) + ".hpp");
+                Includes.Add(ConvertTypeToInclude(resolvedTd) + ".hpp");
             }
 
             // Add newly created name to _references
-            _references.Add(def, (type.Info, resolvedTd.ConvertTypeToQualifiedName(_context) + types));
+            _references.Add(def, (type.Info, ConvertTypeToQualifiedName(resolvedTd, genericArgs)));
 
             // Return safe created name
-            return ForceName(type.Info, (qualified ? resolvedTd.ConvertTypeToQualifiedName(_context) : resolvedTd.ConvertTypeToName()) + types, force);
+            return ForceName(type.Info, qualified ? ConvertTypeToQualifiedName(resolvedTd, genericArgs) : ConvertTypeToName(resolvedTd, genericArgs), force);
         }
 
         private string ResolvePrimitive(TypeRef def, ForceAsType force)

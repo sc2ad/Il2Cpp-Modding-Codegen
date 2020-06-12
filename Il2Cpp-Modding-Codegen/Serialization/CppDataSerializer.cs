@@ -37,7 +37,7 @@ namespace Il2Cpp_Modding_Codegen.Serialization
                 // Cache all of these
                 // and ofc call PreSerialize on each of the types
                 // This could be simplified to actually SHARE a context... Not really sure how, atm
-                if (t.This.Generic && _config.GenericHandling == GenericHandling.Skip)
+                if (t.This.IsGeneric && _config.GenericHandling == GenericHandling.Skip)
                 {
                     // Skip the generic type, ensure it doesn't get serialized.
                     continue;

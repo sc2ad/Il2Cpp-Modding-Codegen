@@ -13,36 +13,28 @@ namespace Il2Cpp_Modding_Codegen.Data.DllHandling
     {
         internal TypeReference This;
         readonly string _namespace;
-        public override string Namespace {
-            get { return _namespace; }
-        }
+        public override string Namespace { get => _namespace; }
         readonly string _name;
-        public override string Name {
-            get { return _name; }
-        }
-        public override bool Generic {
-            get { return This.IsGenericInstance || This.HasGenericParameters; }
-        }
+        public override string Name { get => _name; }
 
-        public override IEnumerable<TypeRef> GenericParameters { get; } = new List<TypeRef>();
-        public override IEnumerable<TypeRef> GenericArguments { get; } = null;
+        public override bool IsGenericInstance { get => This.IsGenericInstance; }
+        public override bool IsGenericTemplate { get => This.HasGenericParameters; }
+        public override IEnumerable<TypeRef> Generics { get; } = new List<TypeRef>();
 
-        public override TypeRef DeclaringType {
-            get { return From(This.DeclaringType); }
-        }
-        public override TypeRef ElementType {
-            get { return From((This as TypeSpecification)?.ElementType); }
-        }
-
-        public override bool IsPointer(ITypeContext context)
+        public override TypeRef DeclaringType { get => From(This.DeclaringType); }
+        public override TypeRef ElementType
         {
-            return This.IsPointer;
+            get
+            {
+                var typeSpec = This as TypeSpecification;
+                if (typeSpec == null) return null;
+                if (typeSpec.MetadataType == MetadataType.GenericInstance) return null;
+                return From(typeSpec.ElementType);
+            }
         }
 
-        public override bool IsArray()
-        {
-            return This.IsArray;
-        }
+        public override bool IsPointer(ITypeContext context) => This.IsPointer;
+        public override bool IsArray() => This.IsArray;
 
         private static readonly Dictionary<TypeReference, DllTypeRef> cache = new Dictionary<TypeReference, DllTypeRef>();
 
@@ -60,19 +52,24 @@ namespace Il2Cpp_Modding_Codegen.Data.DllHandling
                 This = (This as ByReferenceType).ElementType;
             }
             _name = This.Name;
-            if (!This.IsGenericParameter && !(This.DeclaringType is null))
-                _name = DllTypeRef.From(This.DeclaringType).Name + "/" + _name;
+
+            DllTypeRef refDeclaring = null;
+            if (!This.IsGenericParameter && This.DeclaringType != null)
+                refDeclaring = From(This.DeclaringType);
+
+            if (refDeclaring != null)
+                _name = refDeclaring.Name + "/" + _name;
 
             // Remove *, [] from end of variable name
             _name = Regex.Replace(_name, @"\W+$", "");
             // if (!char.IsLetterOrDigit(_name.Last())) Console.WriteLine(reference);
 
-            _namespace = (This.DeclaringType?.Namespace ?? This.Namespace) ?? "";
+            _namespace = (refDeclaring?.Namespace ?? This.Namespace) ?? "";
 
             if (This.IsGenericInstance)
-                GenericArguments = (This as GenericInstanceType).GenericArguments.Select(From).ToList();
-            if (This.HasGenericParameters)
-                GenericParameters = This.GenericParameters.Select(From).ToList();
+                Generics = (This as GenericInstanceType).GenericArguments.Select(From).ToList();
+            else if (This.HasGenericParameters)
+                Generics = This.GenericParameters.Select(From).ToList();
         }
 
         public static DllTypeRef From(TypeReference type)

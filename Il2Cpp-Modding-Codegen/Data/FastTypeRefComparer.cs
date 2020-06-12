@@ -14,13 +14,13 @@ namespace Il2Cpp_Modding_Codegen.Data
         // TODO: Ensure this behaves as intended for recursive DeclaringTypes (it probably does not)
         public bool Equals(TypeRef x, TypeRef y)
         {
-            if (x is null || y is null)
+            if (x is null != y is null)
                 return false;
             return x.Namespace == y.Namespace &&
                 x.Name == y.Name &&
-                x.Generic == y.Generic &&
-                (x.GenericParameters != null ? x.GenericParameters.SequenceEqual(y.GenericParameters, this) : y.GenericParameters == null) &&
-                (x.GenericArguments != null ? x.GenericArguments.SequenceEqual(y.GenericArguments, this) : y.GenericArguments == null);
+                x.IsGenericInstance == y.IsGenericInstance &&
+                x.IsGenericTemplate == y.IsGenericTemplate &&
+                (x.Generics is null ? y.Generics is null : x.Generics.SequenceEqual(y.Generics, this));
         }
 
         public int GetHashCode(TypeRef obj)
@@ -31,24 +31,11 @@ namespace Il2Cpp_Modding_Codegen.Data
             int hashCode = 611187721;
             hashCode = hashCode * -1521134295 + EqualityComparer<string>.Default.GetHashCode(obj.Namespace);
             hashCode = hashCode * -1521134295 + EqualityComparer<string>.Default.GetHashCode(obj.Name);
-            hashCode = hashCode * -1521134295 + obj.Generic.GetHashCode();
-            if (obj.GenericParameters != null)
+            hashCode = hashCode * -1521134295 + obj.IsGenericInstance.GetHashCode();
+            hashCode = hashCode * -1521134295 + obj.IsGenericTemplate.GetHashCode();
+            if (obj.Generics != null)
             {
-                foreach (var gp in obj.GenericParameters)
-                {
-                    try
-                    {
-                        hashCode = hashCode * 31 + GetHashCode(gp);
-                    }
-                    catch (OverflowException)
-                    {
-                        // Ignore it
-                    }
-                }
-            }
-            if (obj.GenericArguments != null)
-            {
-                foreach (var gp in obj.GenericArguments)
+                foreach (var gp in obj.Generics)
                 {
                     try
                     {

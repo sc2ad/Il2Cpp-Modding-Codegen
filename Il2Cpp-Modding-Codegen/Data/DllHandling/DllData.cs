@@ -1,5 +1,6 @@
 ﻿using Il2Cpp_Modding_Codegen.Config;
 using Il2Cpp_Modding_Codegen.Parsers;
+using Il2Cpp_Modding_Codegen.Serialization;
 using Mono.Cecil;
 using System;
 using System.Collections.Generic;
@@ -94,7 +95,7 @@ namespace Il2Cpp_Modding_Codegen.Data.DllHandling
             // TODO: Resolve only among our types that we actually plan on serializing
             // Basically, check it against our whitelist/blacklist
             ITypeData ret;
-            if (typeRef.Generic && typeRef.GenericArguments != null)
+            if (typeRef.IsGenericInstance)
             {
                 // This is a generic instance. We want to convert this instance to a generic type that we have already created in _types
                 var def = (typeRef as DllTypeRef).This.Resolve();
@@ -110,11 +111,15 @@ namespace Il2Cpp_Modding_Codegen.Data.DllHandling
             if (!_types.TryGetValue(typeRef, out ret))
             {
                 var def = (typeRef as DllTypeRef).This.Resolve();
-                ret = new DllTypeData(def, _config);
-                if (!_types.ContainsKey(ret.This))
-                    Console.Error.WriteLine($"Too late to add {def} to Types!");
-                else
-                    Console.Error.WriteLine($"{def} already existed in _types! Matching item: {_types[ret.This]}");
+                if (def != null)
+                {
+                    ret = new DllTypeData(def, _config);
+                    if (!_types.ContainsKey(ret.This))
+                        Console.Error.WriteLine($"Too late to add {def} to Types!");
+                    else
+                        Console.Error.WriteLine($"{def} already existed in _types! Matching item: {_types[ret.This]}");
+                }
+                // else likely a T, which can never "resolve"
             }
             return ret;
         }
@@ -133,8 +138,17 @@ namespace Il2Cpp_Modding_Codegen.Data.DllHandling
             int i = 0;
             while (_resolvedTypeNames.ContainsValue(tn))
             {
+                foreach (var pair in _resolvedTypeNames.Where(x => x.Value.Equals(tn))) {
+                    if (def.Equals(pair.Key))
+                    {
+                        Console.Error.WriteLine($"_resolvedTypeNames should have found {pair.Key}!");
+                        return pair.Value;
+                    }
+                    else if (TypeRef.PrintEqual(pair.Key, def))
+                        throw new Exception($"PrintEqual is wrong for {pair.Key}, {def}!");
+                }
                 // The type we are trying to add a reference to is already resolved, but is not referenced.
-                // This means we have a duplicate typename. We will unique-ify this one by suffixing _{i} to the original typename
+                // This means that tn is a duplicate typename. We will unique-ify this one by suffixing _{i} to the original typename
                 // until the typename is unique.
                 i++;
                 tn = new TypeName(def, i);

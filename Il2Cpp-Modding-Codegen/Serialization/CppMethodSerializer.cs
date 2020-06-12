@@ -88,10 +88,10 @@ namespace Il2Cpp_Modding_Codegen.Serialization
             if (IgnoredMethods.Contains(method.Name) || _config.BlacklistMethods.Contains(method.Name))
                 return;
 
-            if (method.DeclaringType.Generic && !_asHeader)
+            if (method.DeclaringType.IsGeneric && !_asHeader)
                 // Need to create the method ENTIRELY in the header, instead of split between the C++ and the header
                 return;
-            bool writeContent = !_asHeader || method.DeclaringType.Generic;
+            bool writeContent = !_asHeader || method.DeclaringType.IsGeneric;
 
             if (_asHeader)
             {

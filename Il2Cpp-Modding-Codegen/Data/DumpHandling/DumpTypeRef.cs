@@ -10,10 +10,10 @@ namespace Il2Cpp_Modding_Codegen.Data.DumpHandling
         public static readonly DumpTypeRef ObjectType = new DumpTypeRef("object");
         public override string Namespace { get; } = string.Empty;
         public override string Name { get; }
-        public override bool Generic { get; }
+        public override bool IsGenericInstance { get; }
+        public override bool IsGenericTemplate { get; }
 
-        public override IEnumerable<TypeRef> GenericParameters { get; } = new List<TypeRef>();
-        public override IEnumerable<TypeRef> GenericArguments { get; } = null;
+        public override IEnumerable<TypeRef> Generics { get; }
 
         public override TypeRef DeclaringType { get; }
         public override TypeRef ElementType { get; }
@@ -71,8 +71,6 @@ namespace Il2Cpp_Modding_Codegen.Data.DumpHandling
             var GenericTypes = new List<TypeRef>();
             if (typeName.EndsWith(">") && !typeName.StartsWith("<"))
             {
-                Generic = true;
-
                 var ind = typeName.IndexOf("<");
                 var types = typeName.Substring(ind + 1, typeName.Length - ind - 2);
                 var spl = types.Split(new string[] { ", " }, StringSplitOptions.None);
@@ -92,9 +90,12 @@ namespace Il2Cpp_Modding_Codegen.Data.DumpHandling
                     GenericTypes.Add(new DumpTypeRef(s));
                 }
             }
-            // TODO: if this is a generic definition, assign only to GenericParameters?
-            GenericArguments = GenericTypes;
-            GenericParameters = GenericTypes;
+            Generics = GenericTypes;
+            // TODO: check that this gives correct results
+            if (string.IsNullOrEmpty(@namespace))
+                IsGenericInstance = true;
+            else
+                IsGenericTemplate = true;
 
             var declInd = typeName.LastIndexOf('.');
             if (declInd != -1)

@@ -124,11 +124,11 @@ namespace Il2Cpp_Modding_Codegen.Serialization
                 if (state.parentName != null)
                     s = $" : public {state.parentName}";
                 // TODO: add implementing interfaces to s
-                if (type.This.Generic)
+                if (type.This.IsGenericTemplate)
                 {
                     var templateStr = "template<";
                     bool first = true;
-                    foreach (var genParam in type.This.GenericParameters)
+                    foreach (var genParam in type.This.Generics)
                     {
                         if (!first) templateStr += ", ";
                         templateStr += "typename " + genParam.Name;

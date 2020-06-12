@@ -13,18 +13,19 @@ namespace Il2Cpp_Modding_Codegen.Data
     {
         public string Namespace { get; }
         public string Name { get; }
-        public bool Generic { get; }
-        public List<TypeRef> GenericParameters { get; } = new List<TypeRef>();
-        public List<TypeRef> GenericArguments { get; } = null;
+        public bool IsGeneric { get => IsGenericInstance || IsGenericTemplate; }
+        public bool IsGenericInstance { get; }
+        public bool IsGenericTemplate { get; }
+        public List<TypeRef> Generics { get; }
         public TypeRef DeclaringType { get; }
 
         public TypeName(TypeRef tr, int dupCount = 0)
         {
             Namespace = tr.SafeNamespace();
             Name = dupCount == 0 ? tr.SafeName() : tr.SafeName() + "_" + dupCount;
-            Generic = tr.Generic;
-            GenericParameters.AddRange(tr.GenericParameters);
-            GenericArguments = tr.GenericArguments?.ToList();
+            IsGenericInstance = tr.IsGenericInstance;
+            IsGenericTemplate = tr.IsGenericTemplate;
+            Generics = tr.Generics?.ToList();
             DeclaringType = tr.DeclaringType;
         }
 
@@ -37,14 +38,13 @@ namespace Il2Cpp_Modding_Codegen.Data
 
         public override string ToString()
         {
-            if (!string.IsNullOrWhiteSpace(Namespace))
-                return $"{Namespace}::{Name}";
-            if (!Generic)
-                return $"{Name}";
-            var s = Name + "<";
+            var s = string.IsNullOrWhiteSpace(Namespace) ? Name : $"{Namespace}::{Name}";
+            if (!IsGeneric)
+                return s;
+
+            s += "<";
             bool first = true;
-            var generics = GenericArguments ?? GenericParameters;
-            foreach (var param in generics)
+            foreach (var param in Generics)
             {
                 if (!first) s += ", ";
                 s += param.ToString();
