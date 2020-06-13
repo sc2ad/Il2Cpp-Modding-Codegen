@@ -20,7 +20,7 @@ namespace Il2Cpp_Modding_Codegen.Serialization
             _context = context;
         }
 
-        public void Serialize(ISerializer<ITypeData> serializer, ITypeData data)
+        public void Serialize(Serializer<ITypeData> serializer, ITypeData data)
         {
             if (data.Type == TypeEnum.Interface || data.Methods.Count == 0 || data.This.IsGeneric)
             {

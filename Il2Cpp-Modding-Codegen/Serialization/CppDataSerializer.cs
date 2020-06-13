@@ -10,7 +10,7 @@ using System.Text;
 
 namespace Il2Cpp_Modding_Codegen.Serialization
 {
-    public class CppDataSerializer : ISerializer<IParsedData>
+    public class CppDataSerializer : Serializer<IParsedData>
     {
         // This class is responsible for creating the contexts and passing them to each of the types
         // It then needs to create a header and a non-header for each class, with reasonable file structuring

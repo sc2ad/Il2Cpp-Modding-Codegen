@@ -1,5 +1,4 @@
 ﻿using Il2Cpp_Modding_Codegen.Data;
-using Il2Cpp_Modding_Codegen.Serialization.Interfaces;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -8,15 +7,23 @@ using System.Text;
 
 namespace Il2Cpp_Modding_Codegen.Serialization
 {
-    public class CppSerializerContext : ISerializerContext
+    public enum ForceAsType
     {
-        public HashSet<TypeName> ForwardDeclares { get; } = new HashSet<TypeName>();
+        None,
+        Literal,
+        Pointer,
+        Reference
+    }
+
+    public class CppSerializerContext
+    {
+        public HashSet<ResolvedType> ForwardDeclares { get; } = new HashSet<ResolvedType>();
 
         // For same namespace forward declares
-        public HashSet<TypeName> NamespaceForwardDeclares { get; } = new HashSet<TypeName>();
+        public HashSet<ResolvedType> NamespaceForwardDeclares { get; } = new HashSet<ResolvedType>();
 
         // For forward declares that will go inside the class definition
-        public HashSet<TypeName> NestedForwardDeclares { get; } = new HashSet<TypeName>();
+        public HashSet<ResolvedType> NestedForwardDeclares { get; } = new HashSet<ResolvedType>();
 
         public HashSet<string> Includes { get; } = new HashSet<string>();
         public string FileName { get; private set; }
@@ -24,8 +31,8 @@ namespace Il2Cpp_Modding_Codegen.Serialization
         public string TypeName { get; }
         public string QualifiedTypeName { get; }
 
-        // Maps TypeRefs to resolved names
-        private Dictionary<TypeRef, (TypeInfo, string)> _references = new Dictionary<TypeRef, (TypeInfo, string)>();
+        // Maps TypeRefs to resolved types. This includes forward declares and #includes
+        private Dictionary<TypeRef, ResolvedType> _references = new Dictionary<TypeRef, ResolvedType>();
 
         // Holds generic types (ex: T1, T2, ...) defined by the type
         private HashSet<TypeRef> _genericTypes = new HashSet<TypeRef>();
@@ -33,6 +40,7 @@ namespace Il2Cpp_Modding_Codegen.Serialization
         private ITypeContext _context;
         private ITypeData _rootType;
         private ITypeData _localType;
+        private ResolvedType _localDeclaringType;
         private bool _cpp;
 
         private void GetGenericTypes(ITypeData data)
@@ -66,7 +74,10 @@ namespace Il2Cpp_Modding_Codegen.Serialization
             GetGenericTypes(data);
             // Nested types need to include their declaring type
             if (!cpp && data.This.DeclaringType != null)
+            {
+                _localDeclaringType = ResolveType(data.This.DeclaringType);
                 Includes.Add(ConvertTypeToInclude(context.ResolvedTypeRef(data.This.DeclaringType)) + ".hpp");
+            }
             // Declaring types need to forward declare ALL of their nested types
             // TODO: also add them to _references?
             if (!cpp)
@@ -74,6 +85,23 @@ namespace Il2Cpp_Modding_Codegen.Serialization
                 foreach (var nested in data.NestedTypes)
                     NestedForwardDeclares.Add(context.ResolvedTypeRef(nested.This));
             }
+        }
+
+        // TODO: Make this do stuff with same namespace and whatnot
+        public void AddForwardDeclare(ResolvedType type)
+        {
+            if (!ForwardDeclares.Contains(type))
+                ForwardDeclares.Add(type);
+            // If type is generic, for each generic type, we need to add that to either the FDs or the includes (depending on the type)
+            // Should almost always be includes
+            foreach (var g in type.Generics)
+                AddInclude(g);
+        }
+
+        public void AddPrimitive(ResolvedType type)
+        {
+            if (!type.Primitive)
+                throw new InvalidOperationException($"{nameof(type)} must be a primitive type!");
         }
 
         private string ForceName(TypeInfo info, string name, ForceAsType force)
@@ -151,43 +179,66 @@ namespace Il2Cpp_Modding_Codegen.Serialization
             return typeStr;
         }
 
-        public string ConvertTypeToName(TypeName def, bool generics = true)
-        {
-            var name = def.Name;
-            if (!generics || !def.IsGeneric)
-                return name;
-
-            var types = GenericsToStr(def);
-            // Nothing left to do unless declaring type has additional generic args/params
-            if (!DeclaringTypeHasGenerics(def))
-                return name + types;
-
-            var declaring = _context.ResolvedTypeRef(def.DeclaringType);
-            int nestInd = name.LastIndexOf("::");
-            if (nestInd >= 0)
-                name = name.Substring(nestInd);
-            return ConvertTypeToName(declaring, generics) + name + types;
-        }
-
-        public string ConvertTypeToQualifiedName(TypeName def, bool generics = true)
-        {
-            return def.ConvertTypeToNamespace() + "::" + ConvertTypeToName(def, generics);
-        }
-
-        public string ConvertTypeToInclude(TypeName def)
-        {
-            // TODO: instead split on :: and Path.Combine?
-            var fileName = string.Join("-", ConvertTypeToName(def, false).Replace("::", "_").Split(Path.GetInvalidFileNameChars()));
-            var directory = string.Join("-", def.ConvertTypeToNamespace().Replace("::", "_").Split(Path.GetInvalidPathChars()));
-            return $"{directory}/{fileName}";
-        }
-
         private bool IsLocalTypeOrNestedUnderIt(TypeRef type)
         {
             //if (_localType.This.Equals(type)) return true;
             //if (type is null) return false;
             //return IsLocalTypeOrNestedUnderIt(type.DeclaringType);
             return _localType.This.Equals(type) || _localType.This.Equals(type.DeclaringType);
+        }
+
+        /// <summary>
+        /// Returns the <see cref="ResolvedType"/> that matches the provided <see cref="TypeRef"/>.
+        /// Returns null if it the <see cref="ResolvedType"/> cannot be created (most likely because the <see cref="ITypeData"/> does not exist)
+        /// </summary>
+        /// <param name="def"></param>
+        /// <returns></returns>
+        public ResolvedType ResolveType(TypeRef typeRef)
+        {
+            // If typeRef is a generic type, we return a ResolvedType that maps to a null ITypeData.
+            if (_genericTypes.Contains(typeRef))
+                return new ResolvedType(typeRef);
+            // If typeRef is ourselves, return ourselves.
+            if (_localType.This.Equals(typeRef))
+                return new ResolvedType(typeRef, _localType, _localDeclaringType);
+            // If typeRef is a primitive type, return the primitive resolved type
+            var primitive = ResolvePrimitive(typeRef);
+            if (!(primitive is null))
+                return primitive;
+            // If typeRef is already in our references, return it.
+            if (_references.TryGetValue(typeRef, out var val))
+                return val;
+            // Attempt to resolve typeRef in the ITypeContext
+            var type = _context.Resolve(typeRef);
+            if (type is null)
+                // We cannot resolve the type, therefore it does not exist.
+                return null;
+            // If the type is generic, we need to resolve all of its generic parameters too
+            var generics = new List<ResolvedType>();
+            if (typeRef.IsGeneric)
+            {
+                foreach (var g in typeRef.Generics)
+                {
+                    var r = ResolveType(g);
+                    if (r is null)
+                        // If any of the generic types fail to resolve, we can't resolve the type at all.
+                        return null;
+                    generics.Add(r);
+                }
+            }
+            // If the type has a declaring type, resolve it.
+            // TODO: Ensure this doesn't stack overflow.
+            ResolvedType declaring = null;
+            if (!(typeRef.DeclaringType is null))
+            {
+                declaring = ResolveType(typeRef.DeclaringType);
+                if (declaring is null)
+                    // If we cannot resolve the declaring type, we cannot resolve at all.
+                    return null;
+            }
+            var ret = new ResolvedType(typeRef, type, declaring, generics);
+            _references.Add(typeRef, ret);
+            return ret;
         }
 
         /// <summary>
@@ -282,20 +333,29 @@ namespace Il2Cpp_Modding_Codegen.Serialization
             return ForceName(type.Info, qualified ? ConvertTypeToQualifiedName(resolvedTd, genericArgs) : ConvertTypeToName(resolvedTd, genericArgs), force);
         }
 
-        private string ResolvePrimitive(TypeRef def, ForceAsType force)
+        private ResolvedType ResolvePrimitive(TypeRef def)
         {
             var name = def.Name.ToLower();
-            if (def.Name == "void*" || (def.Name == "Void" && def.IsPointer(_context)))
-                return "void*";
+            if (name == "void*" || (def.Name == "Void" && def.IsPointer(_context)))
+                return new ResolvedType(def, null, "void*", null);
             else if (name == "void")
-                return "void";
+                return new ResolvedType(def, null, "void", null);
 
             // Note: names on the right side of an || are for Dll only
             string s = null;
+            ResolvedType elementType = null;
+            ITypeData resolved = _context.Resolve(def);
             if (def.IsArray())
-                s = $"Array<{GetNameFromReference(def.ElementType)}>";
+            {
+                // We need to resolve the element type
+                elementType = ResolveType(def.ElementType);
+                s = $"Array<{elementType.GetTypeName()}>";
+            }
             else if (def.IsPointer(_context))
-                s = $"{GetNameFromReference(def.ElementType)}*";
+            {
+                elementType = ResolveType(def.ElementType);
+                s = $"{elementType.GetTypeName()}*";
+            }
             else if (name == "object")
                 s = "Il2CppObject";
             else if (name == "string")
@@ -328,30 +388,13 @@ namespace Il2Cpp_Modding_Codegen.Serialization
 
             if (s.StartsWith("Il2Cpp") || s.StartsWith("Array<"))
             {
-                if (_cpp || force == ForceAsType.Literal)  // for .cpp or as a parent
-                    Includes.Add("utils/typedefs.h");
-                else
-                    ForwardDeclares.Add(new TypeName(null, s));
-
                 bool defaultPtr = false;
                 if (s != "Il2CppChar")
                     defaultPtr = true;
                 // For Il2CppTypes, should refer to type as :: to avoid ambiguity
-                if (force != ForceAsType.Literal)
-                    s = "::" + s + (defaultPtr ? "*" : "");
+                s = "::" + s + (defaultPtr ? "*" : "");
             }
-
-            switch (force)
-            {
-                case ForceAsType.Pointer:
-                    return s + "*";
-
-                case ForceAsType.Reference:
-                    return s + "&";
-
-                default:
-                    return s;
-            }
+            return new ResolvedType(def, resolved, s, elementType);
         }
     }
 }

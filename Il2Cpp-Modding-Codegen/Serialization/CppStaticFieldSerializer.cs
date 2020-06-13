@@ -8,7 +8,7 @@ using System.Text;
 
 namespace Il2Cpp_Modding_Codegen.Serialization
 {
-    public class CppStaticFieldSerializer : ISerializer<IField>
+    public class CppStaticFieldSerializer : Serializer<IField>
     {
         private string _declaringFullyQualified;
         private Dictionary<IField, string> _resolvedTypeNames = new Dictionary<IField, string>();

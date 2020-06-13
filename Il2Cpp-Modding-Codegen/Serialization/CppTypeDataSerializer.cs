@@ -9,7 +9,7 @@ using System.Text;
 
 namespace Il2Cpp_Modding_Codegen.Serialization
 {
-    public class CppTypeDataSerializer : ISerializer<ITypeData>
+    public class CppTypeDataSerializer : Serializer<ITypeData>
     {
         private bool _asHeader;
 
@@ -44,18 +44,18 @@ namespace Il2Cpp_Modding_Codegen.Serialization
                     Console.WriteLine($"{type.This.Name} -> {s.typeName}");
                     throw new Exception("GetNameFromReference gave empty typeName");
                 }
-                    if (type.Parent != null)
-                    {
-                        // System::ValueType should be the 1 type where we want to extend System::Object without the Il2CppObject fields
-                        if (_asHeader && type.This.Namespace == "System" && type.This.Name == "ValueType")
-                            s.parentName = "Object";
-                        else
-                            s.parentName = context.GetNameFromReference(type.Parent, ForceAsType.Literal, genericArgs: true);
-                    }
-                    stateDict[type] = s;
+                if (type.Parent != null)
+                {
+                    // System::ValueType should be the 1 type where we want to extend System::Object without the Il2CppObject fields
+                    if (_asHeader && type.This.Namespace == "System" && type.This.Name == "ValueType")
+                        s.parentName = "Object";
+                    else
+                        s.parentName = context.GetNameFromReference(type.Parent, ForceAsType.Literal, genericArgs: true);
+                }
+                stateDict[type] = s;
 
-                    if (fieldSerializer is null)
-                        fieldSerializer = new CppFieldSerializer();
+                if (fieldSerializer is null)
+                    fieldSerializer = new CppFieldSerializer();
             }
             if (type.Type != TypeEnum.Interface)
             {
@@ -85,8 +85,9 @@ namespace Il2Cpp_Modding_Codegen.Serialization
             //    PreSerialize(context, nested);
         }
 
-        CppHeaderCreator _header;
-        CppSerializerContext _context;
+        private CppHeaderCreator _header;
+        private CppSerializerContext _context;
+
         public void Serialize(IndentedTextWriter writer, ITypeData type, CppHeaderCreator header, CppSerializerContext context)
         {
             _header = header;

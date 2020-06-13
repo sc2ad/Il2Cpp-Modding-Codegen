@@ -9,15 +9,6 @@ namespace Il2Cpp_Modding_Codegen.Data
 {
     public static class TypeNameExtensions
     {
-        private const string NoNamespace = "GlobalNamespace";
-
-        public static string ConvertTypeToNamespace(this TypeName def)
-        {
-            if (def.Namespace == string.Empty)
-                return NoNamespace;
-            return def.Namespace;
-        }
-
         public static string ConvertTypeToIl2CppMetadata(this TypeName def)
         {
             var s = "";

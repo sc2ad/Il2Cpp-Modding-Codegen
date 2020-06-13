@@ -1,21 +1,19 @@
 ﻿using Il2Cpp_Modding_Codegen.Config;
 using Il2Cpp_Modding_Codegen.Data;
 using Il2Cpp_Modding_Codegen.Data.DllHandling;
-using Il2Cpp_Modding_Codegen.Serialization.Interfaces;
 using System.CodeDom.Compiler;
 using System.Collections.Generic;
 
 namespace Il2Cpp_Modding_Codegen.Serialization
 {
-    public class CppMethodSerializer : ISerializer<IMethod>
+    public class CppMethodSerializer : Serializer<IMethod>
     {
         private static readonly HashSet<string> IgnoredMethods = new HashSet<string>() { "op_Implicit", "op_Explicit" };
         private bool _asHeader;
         private SerializationConfig _config;
 
-        private Dictionary<IMethod, string> _resolvedTypeNames = new Dictionary<IMethod, string>();
-        private Dictionary<IMethod, string> _declaringTypeNames = new Dictionary<IMethod, string>();
-        private Dictionary<IMethod, List<string>> _parameterMaps = new Dictionary<IMethod, List<string>>();
+        private Dictionary<IMethod, ResolvedType> _resolvedReturns = new Dictionary<IMethod, ResolvedType>();
+        private Dictionary<IMethod, List<(ResolvedType, ParameterFlags)>> _parameterMaps = new Dictionary<IMethod, List<(ResolvedType, ParameterFlags)>>();
         private string _declaringFullyQualified;
 
         public CppMethodSerializer(SerializationConfig config, bool asHeader = true)
@@ -24,29 +22,39 @@ namespace Il2Cpp_Modding_Codegen.Serialization
             _asHeader = asHeader;
         }
 
-        public void PreSerialize(ISerializerContext context, IMethod method)
+        public override void PreSerialize(CppSerializerContext context, IMethod method)
         {
-            // Get the fully qualified name of the context
-            _declaringFullyQualified = context.QualifiedTypeName;
             if (method.Generic)
                 // Skip generic methods
                 return;
-            // We need to forward declare/include all types that are either returned from the method or are parameters
-            _resolvedTypeNames.Add(method, context.GetNameFromReference(method.ReturnType));
-            // The declaringTypeName needs to be a reference, even if the type itself is a value type.
-            _declaringTypeNames.Add(method, context.GetNameFromReference(method.DeclaringType, ForceAsType.Pointer));
-            var parameterMap = new List<string>();
+            // Get the fully qualified name of the context
+            bool success = true;
+            _declaringFullyQualified = context.QualifiedTypeName;
+            // We need to forward declare everything used in methods (return types and parameters)
+            var resolvedReturn = context.ResolveType(method.ReturnType);
+            if (resolvedReturn is null)
+                // If we fail to resolve the return type, we will simply add a null item to our dictionary.
+                // However, we should not call Resolved(method)
+                success = false;
+            _resolvedReturns.Add(method, resolvedReturn);
+            var parameterMap = new List<(ResolvedType, ParameterFlags)>();
             foreach (var p in method.Parameters)
             {
-                string s;
-                if (p.Flags != ParameterFlags.None)
-                    // TODO: ParameterFlags.In can be const&
-                    s = context.GetNameFromReference(p.Type, ForceAsType.Reference);
-                else
-                    s = context.GetNameFromReference(p.Type);
-                parameterMap.Add(s);
+                var s = context.ResolveType(p.Type);
+                if (s is null)
+                    // If we fail to resolve a parameter, we will simply add a (null, p.Flags) item to our mapping.
+                    // However, we should not call Resolved(method)
+                    success = false;
+                parameterMap.Add((s, p.Flags));
             }
             _parameterMaps.Add(method, parameterMap);
+            if (success)
+            {
+                context.AddForwardDeclare(resolvedReturn);
+                foreach (var rt in parameterMap)
+                    context.AddForwardDeclare(rt.Item1);
+                Resolved(method);
+            }
         }
 
         private string WriteMethod(bool staticFunc, IMethod method, bool namespaceQualified)
@@ -61,7 +69,7 @@ namespace Il2Cpp_Modding_Codegen.Serialization
                 staticString = "static ";
             // Returns an optional
             // TODO: Should be configurable
-            var retStr = _resolvedTypeNames[method];
+            var retStr = _resolvedReturns[method];
             if (!method.ReturnType.IsVoid())
             {
                 if (_config.OutputStyle == OutputStyle.Normal)
@@ -73,16 +81,16 @@ namespace Il2Cpp_Modding_Codegen.Serialization
         }
 
         // Write the method here
-        public void Serialize(IndentedTextWriter writer, IMethod method)
+        public override void Serialize(CppStreamWriter writer, IMethod method)
         {
-            if (!_resolvedTypeNames.ContainsKey(method))
+            if (!_resolvedReturns.ContainsKey(method))
                 // In the event we have decided to not parse this method (in PreSerialize) don't even bother.
                 return;
-            if (_resolvedTypeNames[method] == null)
+            if (_resolvedReturns[method] == null)
                 throw new UnresolvedTypeException(method.DeclaringType, method.ReturnType);
             if (_declaringTypeNames[method] == null)
                 throw new UnresolvedTypeException(method.DeclaringType, method.DeclaringType);
-            var val = _parameterMaps[method].FindIndex(s => s == null);
+            var val = _parameterMaps[method].FindIndex(s => s.Item1 is null);
             if (val != -1)
                 throw new UnresolvedTypeException(method.DeclaringType, method.Parameters[val].Type);
             if (IgnoredMethods.Contains(method.Name) || _config.BlacklistMethods.Contains(method.Name))
@@ -131,7 +139,7 @@ namespace Il2Cpp_Modding_Codegen.Serialization
                 if (!method.ReturnType.IsVoid())
                 {
                     s = "return ";
-                    innard = $"<{_resolvedTypeNames[method]}>";
+                    innard = $"<{_resolvedReturns[method]}>";
                     if (_config.OutputStyle != OutputStyle.CrashUnless) macro = "";
                 }
                 // TODO: Replace with RET_NULLOPT_UNLESS or another equivalent (perhaps literally just the ret)

@@ -65,21 +65,6 @@ namespace Il2Cpp_Modding_Codegen.Data
             return s;
         }
 
-        public string SafeName()
-        {
-            return Name.Replace('<', '_').Replace('>', '_').Replace('`', '_').Replace("/", "::");
-        }
-
-        public string SafeNamespace()
-        {
-            return Namespace?.Replace('<', '_').Replace('>', '_').Replace('`', '_').Replace('/', '_').Replace(".", "::");
-        }
-
-        public string SafeFullName()
-        {
-            return SafeNamespace() + "::" + SafeName();
-        }
-
         public override bool Equals(object obj)
         {
             return Equals(obj as TypeRef);
