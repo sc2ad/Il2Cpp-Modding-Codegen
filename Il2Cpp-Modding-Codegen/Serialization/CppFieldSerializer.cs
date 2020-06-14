@@ -31,12 +31,11 @@ namespace Il2Cpp_Modding_Codegen.Serialization
             var resolvedType = context.ResolveType(field.Type);
             if (resolvedType is null)
                 goto end;
-            if (resolvedType.Info.TypeFlags == TypeFlags.ReferenceType)
+            if (resolvedType.Info?.TypeFlags == TypeFlags.ReferenceType)
                 context.AddForwardDeclare(resolvedType);
-            else if (resolvedType.Primitive)
-                context.AddPrimitive(resolvedType);
             else
-                context.AddInclude(resolvedType.GetIncludeLocation());
+                // Add all required includes to the context
+                context.AddInclude(resolvedType);
             Resolved(field);
         end:
             // In order to ensure we get an UnresolvedTypeException when we serialize

@@ -1,6 +1,7 @@
 ﻿using Il2Cpp_Modding_Codegen.Data;
 using System;
 using System.Collections.Generic;
+using System.Collections.ObjectModel;
 using System.IO;
 using System.Linq;
 using System.Text;
@@ -14,7 +15,7 @@ namespace Il2Cpp_Modding_Codegen.Serialization
     /// </summary>
     public class ResolvedType : IEquatable<ResolvedType>
     {
-        private const string NoNamespace = "GlobalNamespace";
+        internal const string NoNamespace = "GlobalNamespace";
 
         public TypeRef Reference { get; }
         public TypeInfo Info { get; }
@@ -25,7 +26,7 @@ namespace Il2Cpp_Modding_Codegen.Serialization
         public bool Primitive { get; }
         public string PrimitiveName { get; }
         public bool GenericInstance { get; }
-        public IReadOnlyList<ResolvedType> Generics { get; }
+        public IReadOnlyList<ResolvedType> Generics { get; } = new List<ResolvedType>();
         public ResolvedType ElementType { get; }
 
         public ResolvedType(TypeRef reference, ITypeData type, ResolvedType declaringType)
@@ -68,11 +69,6 @@ namespace Il2Cpp_Modding_Codegen.Serialization
             if (!string.IsNullOrEmpty(def.Namespace))
                 return def.Namespace?.Replace('<', '_').Replace('>', '_').Replace('`', '_').Replace('/', '_').Replace(".", "::");
             return NoNamespace;
-        }
-
-        private static string SafeFullName(TypeRef def)
-        {
-            return SafeNamespace(def) + "::" + SafeName(def);
         }
 
         // TODO: Figure out a clean (ish?) way of managing this without having to resolve everything and its mother
@@ -127,31 +123,54 @@ namespace Il2Cpp_Modding_Codegen.Serialization
 
             var types = type.GenericsToStr();
             // Nothing left to do unless declaring type has additional generic args/params
-            if (!type.Definition.DeclaringType.IsGeneric)
+            if (!type.Definition.DeclaringType?.IsGeneric == true)
                 return name + types;
 
             int nestInd = name.LastIndexOf("::");
             if (nestInd >= 0)
                 name = name.Substring(nestInd);
-            return type.GetQualifiedTypeName(DeclaringType, generics) + name + types;
+            return DeclaringType?.GetQualifiedTypeName(generics) + name + types;
         }
 
-        public string GetTypeName(bool generics = true)
-        {
-            return GetTypeName(this, generics);
-        }
+        public string GetNamespace() => !Primitive && !GenericParameter ? Definition.Namespace : null;
 
-        public string GetQualifiedTypeName(ResolvedType def, bool generics = true) => SafeNamespace(def.Definition) + "::" + GetTypeName(def, generics);
+        public string GetTypeName(bool generics = true) => GetTypeName(this, generics);
+
+        public string GetQualifiedTypeName(bool generics = true) => !Primitive && !GenericParameter ? SafeNamespace(Definition) + "::" + GetTypeName(generics) : GetTypeName(generics);
 
         public string GetIncludeLocation()
         {
             if (GenericParameter)
                 throw new InvalidOperationException("Cannot get the include location of a generic parameter!");
+            if (Primitive)
+            {
+                if (PrimitiveName.StartsWith("Array<") || PrimitiveName.StartsWith("Il2Cpp"))
+                    // For now, just include all il2cpp types, no need to FD them (really)
+                    return "utils/typedefs.h";
+                else
+                    return "";
+            }
             var fileName = string.Join("-", string.Join("_", Definition.Name.Split('<', '>', '`', '/')).Split(Path.GetInvalidFileNameChars()));
             var directory = string.Join("-",
                 (string.IsNullOrEmpty(Definition.Namespace) ? NoNamespace : string.Join("_", Definition.Namespace.Split('<', '>', '`', '/', '.')))
                 .Split(Path.GetInvalidPathChars()));
             return $"{directory}/{fileName}.hpp";
+        }
+
+        public IReadOnlyList<string> GetIncludeLocations()
+        {
+            // Get current location, add our generic parameters to our locations
+            var includes = new List<string>();
+            var name = GetIncludeLocation();
+            if (!string.IsNullOrEmpty(name))
+                includes.Add(name);
+            foreach (var g in Generics)
+            {
+                // Need to add an include to all the generics this type could have as well.
+                if (!g.GenericParameter)
+                    includes.AddRange(g.GetIncludeLocations());
+            }
+            return includes;
         }
 
         public bool Equals(ResolvedType other)

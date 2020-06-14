@@ -16,7 +16,7 @@ namespace Il2Cpp_Modding_Codegen.Data.DllHandling
         public string Name => "Dll Data";
         public List<IImage> Images { get; } = new List<IImage>();
         public IEnumerable<ITypeData> Types { get { return _types.Values; } }
-        private Dictionary<TypeRef, TypeName> _resolvedTypeNames { get; } = new Dictionary<TypeRef, TypeName>();
+        private Dictionary<TypeRef, ResolvedType> _resolvedTypes { get; } = new Dictionary<TypeRef, ResolvedType>();
         private DllConfig _config;
         private string _dir;
         private ReaderParameters _readerParams;
@@ -122,40 +122,6 @@ namespace Il2Cpp_Modding_Codegen.Data.DllHandling
                 // else likely a T, which can never "resolve"
             }
             return ret;
-        }
-
-        // Resolves the TypeRef def in the current context and returns a TypeRef that is guaranteed unique
-        public TypeName ResolvedTypeRef(TypeRef def)
-        {
-            // If the type we are looking for exactly matches a type we have resolved
-            if (_resolvedTypeNames.TryGetValue(def, out TypeName v))
-            {
-                return v;
-            }
-            // Otherwise, check our set of created names (values) until we are unique
-            var tn = new TypeName(def);
-
-            int i = 0;
-            while (_resolvedTypeNames.ContainsValue(tn))
-            {
-                foreach (var pair in _resolvedTypeNames.Where(x => x.Value.Equals(tn))) {
-                    if (def.Equals(pair.Key))
-                    {
-                        Console.Error.WriteLine($"_resolvedTypeNames should have found {pair.Key}!");
-                        return pair.Value;
-                    }
-                    else if (TypeRef.PrintEqual(pair.Key, def))
-                        throw new Exception($"PrintEqual is wrong for {pair.Key}, {def}!");
-                }
-                // The type we are trying to add a reference to is already resolved, but is not referenced.
-                // This means that tn is a duplicate typename. We will unique-ify this one by suffixing _{i} to the original typename
-                // until the typename is unique.
-                i++;
-                tn = new TypeName(def, i);
-            }
-            if (i > 0) Console.WriteLine($"Unique-ified to {tn}");
-            _resolvedTypeNames.Add(def, tn);
-            return tn;
         }
     }
 }

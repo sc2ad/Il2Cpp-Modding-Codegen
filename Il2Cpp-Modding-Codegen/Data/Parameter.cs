@@ -1,5 +1,6 @@
 ﻿using Il2Cpp_Modding_Codegen.Data.DllHandling;
 using Il2Cpp_Modding_Codegen.Data.DumpHandling;
+using Il2Cpp_Modding_Codegen.Serialization;
 using Mono.Cecil;
 using System;
 using System.Collections.Generic;
@@ -77,7 +78,19 @@ namespace Il2Cpp_Modding_Codegen.Data
 
     public static class ParameterExtensions
     {
-        public static string FormatParameters(this List<Parameter> parameters, List<string> resolvedNames = null, FormatParameterMode mode = FormatParameterMode.Normal)
+        public static string PrintParameter(this (ResolvedType, ParameterFlags) param)
+        {
+            var s = param.Item1.GetQualifiedTypeName();
+            if (param.Item2.HasFlag(ParameterFlags.Out))
+                s = "out " + s;
+            if (param.Item2.HasFlag(ParameterFlags.Ref))
+                s = "ref " + s;
+            if (param.Item2.HasFlag(ParameterFlags.In))
+                s = "in " + s;
+            return s;
+        }
+
+        public static string FormatParameters(this List<Parameter> parameters, List<(ResolvedType, ParameterFlags)> resolvedNames = null, FormatParameterMode mode = FormatParameterMode.Normal)
         {
             var s = "";
             for (int i = 0; i < parameters.Count; i++)
@@ -102,7 +115,7 @@ namespace Il2Cpp_Modding_Codegen.Data
                     // Only types
                     if (resolvedNames != null)
                     {
-                        s += $"{resolvedNames[i]}";
+                        s += $"{resolvedNames[i].PrintParameter()}";
                     }
                     else
                     {
@@ -115,7 +128,7 @@ namespace Il2Cpp_Modding_Codegen.Data
                     // Types and names
                     if (resolvedNames != null)
                     {
-                        s += $"{resolvedNames[i]} {nameStr}";
+                        s += $"{resolvedNames[i].PrintParameter()} {nameStr}";
                     }
                     else
                     {

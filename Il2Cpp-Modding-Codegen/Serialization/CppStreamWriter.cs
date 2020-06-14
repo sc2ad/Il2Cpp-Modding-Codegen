@@ -15,6 +15,10 @@ namespace Il2Cpp_Modding_Codegen.Serialization
         {
         }
 
+        public CppStreamWriter(TextWriter writer, string tabString) : base(writer, tabString)
+        {
+        }
+
         /// <summary>
         /// Write a single line comment
         /// </summary>
@@ -64,10 +68,10 @@ namespace Il2Cpp_Modding_Codegen.Serialization
         /// <summary>
         /// Close a body with }
         /// </summary>
-        public void CloseDefinition()
+        public void CloseDefinition(string suffix = "")
         {
             Indent--;
-            WriteLine("}");
+            WriteLine("}" + suffix);
         }
     }
 }

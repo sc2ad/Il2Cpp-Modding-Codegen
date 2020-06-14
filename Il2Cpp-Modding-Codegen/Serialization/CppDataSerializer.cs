@@ -1,6 +1,5 @@
 ﻿using Il2Cpp_Modding_Codegen.Config;
 using Il2Cpp_Modding_Codegen.Data;
-using Il2Cpp_Modding_Codegen.Serialization.Interfaces;
 using System;
 using System.CodeDom.Compiler;
 using System.Collections.Generic;
@@ -29,7 +28,7 @@ namespace Il2Cpp_Modding_Codegen.Serialization
             _config = config;
         }
 
-        public void PreSerialize(ISerializerContext _unused_, IParsedData data)
+        public override void PreSerialize(CppSerializerContext _unused_, IParsedData data)
         {
             foreach (var t in data.Types)
             {
@@ -62,7 +61,7 @@ namespace Il2Cpp_Modding_Codegen.Serialization
             }
         }
 
-        public void Serialize(IndentedTextWriter writer, IParsedData data)
+        public override void Serialize(CppStreamWriter writer, IParsedData data)
         {
             throw new InvalidOperationException($"Cannot serialize a {nameof(CppDataSerializer)}, since it serializes in {nameof(PreSerialize)}!");
         }
