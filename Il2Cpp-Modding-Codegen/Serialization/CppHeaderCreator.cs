@@ -14,6 +14,7 @@ namespace Il2Cpp_Modding_Codegen.Serialization
     {
         private SerializationConfig _config;
         private CppSerializerContext _context;
+        static HashSet<string> filesWritten = new HashSet<string>();
 
         public CppHeaderCreator(SerializationConfig config, CppSerializerContext context)
         {
@@ -113,6 +114,9 @@ namespace Il2Cpp_Modding_Codegen.Serialization
         {
             var headerLocation = Path.Combine(_config.OutputDirectory, _config.OutputHeaderDirectory, _context.FileName) + ".hpp";
             Directory.CreateDirectory(Path.GetDirectoryName(headerLocation));
+            if (filesWritten.Contains(headerLocation))
+                throw new ArgumentException($"Type {data.This} tried to write to already written header {headerLocation}!");
+            filesWritten.Add(headerLocation);
             using (var ms = new MemoryStream())
             {
                 bool isSystemValueType = (data.This.Namespace == "System") && (data.This.Name == "ValueType");
@@ -152,8 +156,8 @@ namespace Il2Cpp_Modding_Codegen.Serialization
                 }
                 // Write namespace
                 writer.WriteLine("namespace " + _context.TypeNamespace + " {");
-                writer.Flush();
                 writer.Indent++;
+                writer.Flush();
                 if (_context.NamespaceForwardDeclares.Count > 0)
                 {
                     writer.WriteLine("// Same-namespace forward declarations");
@@ -183,6 +187,7 @@ namespace Il2Cpp_Modding_Codegen.Serialization
                     else if (_config.UnresolvedTypeExceptionHandling.TypeHandling == UnresolvedTypeExceptionHandling.Elevate)
                         throw new InvalidOperationException($"Cannot elevate {e} to a parent type- there is no parent type!");
                 }
+                writer.Flush();
                 // End the namespace
                 writer.Indent--;
                 writer.WriteLine("}");
@@ -206,6 +211,7 @@ namespace Il2Cpp_Modding_Codegen.Serialization
 
                 writer.WriteLine("#pragma pack(pop)");
                 writer.Flush();
+                rawWriter.Flush();
                 using (var fs = File.OpenWrite(headerLocation))
                 {
                     rawWriter.BaseStream.Position = 0;

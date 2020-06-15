@@ -278,13 +278,16 @@ namespace Il2Cpp_Modding_Codegen.Serialization
                 {
                     def.DeclaringType.Resolve(_context)?.NestedInPlace.Add(type);
                     resolvedTd.GetsOwnHeader = false;
+                    type.This.GetsOwnHeader = false;
                     def.GetsOwnHeader = false;
                 }
                 else
+                {
                     // Get path to this type (namespace/name)
                     // TODO: If we have namespace headers, we need to namespace declare our return value:
                     // namespace::typeName
                     Includes.Add(ConvertTypeToInclude(resolvedTd) + ".hpp");
+                }
             }
 
             // Add newly created name to _references

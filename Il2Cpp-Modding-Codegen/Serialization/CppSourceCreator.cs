@@ -28,6 +28,7 @@ namespace Il2Cpp_Modding_Codegen.Serialization
                 return;
             }
 
+            // TODO: if in-place nested types get their own .cpp, this won't work anymore
             var headerLocation = _context.FileName + ".hpp";
             var sourceLocation = Path.Combine(_config.OutputDirectory, _config.OutputSourceDirectory, _context.FileName) + ".cpp";
             Directory.CreateDirectory(Path.GetDirectoryName(sourceLocation));
@@ -72,6 +73,7 @@ namespace Il2Cpp_Modding_Codegen.Serialization
                         throw new InvalidOperationException($"Cannot elevate {e} to a parent type- there is no parent type!");
                 }
                 writer.Flush();
+                rawWriter.Flush();
                 using (var fs = File.OpenWrite(sourceLocation))
                 {
                     rawWriter.BaseStream.Position = 0;
