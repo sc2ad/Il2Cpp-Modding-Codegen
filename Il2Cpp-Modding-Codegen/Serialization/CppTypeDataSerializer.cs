@@ -38,9 +38,14 @@ namespace Il2Cpp_Modding_Codegen.Serialization
             _context = context as CppSerializerContext;
             if (_asHeader)
             {
+                var name = context.GetNameFromReference(type.This, ForceAsType.Literal, false, false);
+                int nestInd = name.LastIndexOf("::");
+                if (nestInd >= 0)
+                    name = name.Substring(nestInd + 2);
+
                 State s = new State
                 {
-                    typeName = context.GetNameFromReference(type.This, ForceAsType.Literal, false, false)
+                    typeName = name
                 };
                 if (string.IsNullOrEmpty(s.typeName))
                 {
