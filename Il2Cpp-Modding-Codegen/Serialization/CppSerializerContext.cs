@@ -278,8 +278,7 @@ namespace Il2Cpp_Modding_Codegen.Serialization
                 {
                     def.DeclaringType.Resolve(_context)?.NestedInPlace.Add(type);
                     resolvedTd.GetsOwnHeader = false;
-                    type.This.GetsOwnHeader = false;
-                    def.GetsOwnHeader = false;
+                    type.GetsOwnHeader = false;
                 }
                 else
                 {

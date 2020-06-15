@@ -19,5 +19,6 @@ namespace Il2Cpp_Modding_Codegen.Data
         List<IField> Fields { get; }
         List<IProperty> Properties { get; }
         List<IMethod> Methods { get; }
+        bool GetsOwnHeader { get; set; }
     }
 }
