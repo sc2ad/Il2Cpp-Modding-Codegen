@@ -60,6 +60,7 @@ namespace Il2Cpp_Modding_Codegen.Serialization
                 if (fieldSerializer is null)
                     fieldSerializer = new CppFieldSerializer();
             }
+
             if (type.Type != TypeEnum.Interface)
             {
                 foreach (var f in type.Fields)
@@ -85,19 +86,16 @@ namespace Il2Cpp_Modding_Codegen.Serialization
             // TODO: Add a specific interface method serializer here, or provide more state to the original method serializer to support it
 
             // PreSerialize any in-place nested types
-            if (_asHeader)
+            // Until NestedInPlace no longer gains new children, copy all its elements and PreSerialize the new ones
+            var prevInPlace = new HashSet<ITypeData>();
+            var newInPlace = new HashSet<ITypeData>(type.NestedInPlace);
+            do
             {
-                // Until NestedInPlace no longer gains new children, copy all its elements and PreSerialize the new ones
-                var prevInPlace = new HashSet<ITypeData>();
-                var newInPlace = new HashSet<ITypeData>(type.NestedInPlace);
-                do
-                {
-                    foreach (var nested in newInPlace)
-                        PreSerialize(context, nested);
-                    prevInPlace.UnionWith(newInPlace);
-                    newInPlace = new HashSet<ITypeData>(type.NestedInPlace.Except(prevInPlace));
-                } while (newInPlace.Count > 0);
-            }
+                foreach (var nested in newInPlace)
+                    PreSerialize(context, nested);
+                prevInPlace.UnionWith(newInPlace);
+                newInPlace = new HashSet<ITypeData>(type.NestedInPlace.Except(prevInPlace));
+            } while (newInPlace.Count > 0);
         }
 
         CppHeaderCreator _header;

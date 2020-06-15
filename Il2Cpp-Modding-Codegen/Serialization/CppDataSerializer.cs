@@ -51,6 +51,8 @@ namespace Il2Cpp_Modding_Codegen.Serialization
                 var cppContext = new CppSerializerContext(_context, t, true);
                 header.PreSerialize(headerContext, t);
                 cpp.PreSerialize(cppContext, t);
+
+                if (!t.This.GetsOwnHeader) continue;
                 // Ensure that we are going to write everything in this context:
                 // Global context should have everything now, all names are also resolved!
                 // Now, we create the folders/files for the particular type we would like to create
