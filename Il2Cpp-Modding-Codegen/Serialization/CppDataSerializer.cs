@@ -42,13 +42,14 @@ namespace Il2Cpp_Modding_Codegen.Serialization
                     // Skip the generic type, ensure it doesn't get serialized.
                     continue;
                 }
-                // TODO: wrap all of this in if(t.This.GetsOwnHeader) and remove the if (_cpp) from TypeDataSerializer's InPlace handling to make
-                // in-place nested types use their declaring type's cpp file?
-                var header = t.This.GetsOwnHeader ? new CppTypeDataSerializer(_config, true) : null;
+                // TODO: give in-place nested types their own cpp files?
+                if (!t.This.GetsOwnHeader) continue;
+
+                var header = new CppTypeDataSerializer(_config, true);
                 var cpp = new CppTypeDataSerializer(_config, false);
-                var headerContext = t.This.GetsOwnHeader ? new CppSerializerContext(_context, t) : null;
+                var headerContext = new CppSerializerContext(_context, t);
                 var cppContext = new CppSerializerContext(_context, t, true);
-                if (t.This.GetsOwnHeader) header.PreSerialize(headerContext, t);
+                header.PreSerialize(headerContext, t);
                 cpp.PreSerialize(cppContext, t);
                 // Ensure that we are going to write everything in this context:
                 // Global context should have everything now, all names are also resolved!
@@ -58,7 +59,7 @@ namespace Il2Cpp_Modding_Codegen.Serialization
                 // Then, we write the actual file data (call header or cpp .Serialize on the stream)
                 // That's it!
                 // Now we serialize
-                if (t.This.GetsOwnHeader) new CppHeaderCreator(_config, headerContext).Serialize(header, t);
+                new CppHeaderCreator(_config, headerContext).Serialize(header, t);
                 new CppSourceCreator(_config, cppContext).Serialize(cpp, t);
             }
         }
