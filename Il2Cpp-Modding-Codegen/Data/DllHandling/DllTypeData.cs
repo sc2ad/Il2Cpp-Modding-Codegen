@@ -16,6 +16,7 @@ namespace Il2Cpp_Modding_Codegen.Data.DllHandling
         public TypeRef This { get; }
         public TypeRef Parent { get; }
         public HashSet<ITypeData> NestedTypes { get; } = new HashSet<ITypeData>();
+        public HashSet<ITypeData> NestedInPlace { get; } = new HashSet<ITypeData>();
         public List<TypeRef> ImplementingInterfaces { get; } = new List<TypeRef>();
         public int TypeDefIndex { get; }
         public List<IAttribute> Attributes { get; } = new List<IAttribute>();
@@ -45,9 +46,7 @@ namespace Il2Cpp_Modding_Codegen.Data.DllHandling
                 Parent = DllTypeRef.From(def.BaseType);
 
             foreach (var nestedType in def.NestedTypes)
-            {
                 NestedTypes.Add(new DllTypeData(nestedType, config));
-            }
 
             // TODO: Parse this eventually
             TypeDefIndex = -1;

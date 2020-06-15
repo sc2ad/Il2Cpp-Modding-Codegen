@@ -25,7 +25,7 @@ namespace Il2Cpp_Modding_Codegen.Serialization
             // In this situation, if the type is a pointer, we can simply forward declare.
             // Otherwise, we need to include the corresponding file. This must be resolved via context
             // If the resolved type name is null, we won't serialize this field
-            _resolvedTypeNames.Add(field, context.GetNameFromReference(field.Type));
+            _resolvedTypeNames.Add(field, context.GetNameFromReference(field.Type, mayNeedComplete: true));
         }
 
         // Write the field here

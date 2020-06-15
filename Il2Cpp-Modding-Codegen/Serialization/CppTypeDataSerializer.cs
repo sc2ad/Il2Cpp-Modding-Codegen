@@ -5,6 +5,7 @@ using System;
 using System.CodeDom.Compiler;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Text;
 
 namespace Il2Cpp_Modding_Codegen.Serialization
@@ -24,6 +25,7 @@ namespace Il2Cpp_Modding_Codegen.Serialization
         private CppStaticFieldSerializer staticFieldSerializer;
         private CppMethodSerializer methodSerializer;
         private SerializationConfig _config;
+        CppSerializerContext _context;
 
         public CppTypeDataSerializer(SerializationConfig config, bool asHeader = true)
         {
@@ -33,6 +35,7 @@ namespace Il2Cpp_Modding_Codegen.Serialization
 
         public void PreSerialize(ISerializerContext context, ITypeData type)
         {
+            _context = context as CppSerializerContext;
             if (_asHeader)
             {
                 State s = new State
@@ -50,7 +53,7 @@ namespace Il2Cpp_Modding_Codegen.Serialization
                         if (_asHeader && type.This.Namespace == "System" && type.This.Name == "ValueType")
                             s.parentName = "Object";
                         else
-                            s.parentName = context.GetNameFromReference(type.Parent, ForceAsType.Literal, genericArgs: true);
+                            s.parentName = context.GetNameFromReference(type.Parent, ForceAsType.Literal, genericArgs: true, mayNeedComplete: true);
                     }
                     stateDict[type] = s;
 
@@ -80,17 +83,26 @@ namespace Il2Cpp_Modding_Codegen.Serialization
             }
             // TODO: Add a specific interface method serializer here, or provide more state to the original method serializer to support it
 
-            //// PreSerialize any nested types
-            //foreach (var nested in type.NestedTypes)
-            //    PreSerialize(context, nested);
+            // PreSerialize any in-place nested types
+            if (_asHeader)
+            {
+                // Until NestedInPlace no longer gains new children, copy all its elements and PreSerialize the new ones
+                var prevInPlace = new HashSet<ITypeData>();
+                var newInPlace = new HashSet<ITypeData>(type.NestedInPlace);
+                do
+                {
+                    foreach (var nested in newInPlace)
+                        PreSerialize(context, nested);
+                    prevInPlace.UnionWith(newInPlace);
+                    newInPlace = new HashSet<ITypeData>(type.NestedInPlace.Except(prevInPlace));
+                } while (newInPlace.Count > 0);
+            }
         }
 
         CppHeaderCreator _header;
-        CppSerializerContext _context;
-        public void Serialize(IndentedTextWriter writer, ITypeData type, CppHeaderCreator header, CppSerializerContext context)
+        public void Serialize(IndentedTextWriter writer, ITypeData type, CppHeaderCreator header)
         {
             _header = header;
-            _context = context;
             Serialize(writer, type);
         }
 
@@ -151,14 +163,19 @@ namespace Il2Cpp_Modding_Codegen.Serialization
                 //}
 
                 // write any class forward declares
-                if (_asHeader && _context.NestedForwardDeclares.Count > 0)
+                if (_asHeader)
                 {
-                    writer.WriteLine("// Nested forward declarations");
-                    foreach (var fd in _context.NestedForwardDeclares)
+                    foreach (var nested in type.NestedInPlace)
+                        Serialize(writer, nested);
+                    // This may FD in-place fds that we just wrote, but that should work fine
+                    if (_context.NestedForwardDeclares.Count > 0)
                     {
-                        _header.WriteForwardDeclare(writer, fd);
+                        writer.WriteLine("// Nested forward declarations");
+                        foreach (var fd in _context.NestedForwardDeclares)
+                            if (fd.GetsOwnHeader)
+                                _header.WriteForwardDeclare(writer, fd);
+                        writer.WriteLine("// End nested forward declarations");
                     }
-                    writer.WriteLine("// End nested forward declarations");
                 }
                 writer.Flush();
             }

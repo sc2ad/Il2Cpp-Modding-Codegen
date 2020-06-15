@@ -18,6 +18,7 @@ namespace Il2Cpp_Modding_Codegen.Data
         public abstract IReadOnlyList<TypeRef> Generics { get; }
         public abstract TypeRef DeclaringType { get; }
         public abstract TypeRef ElementType { get; }
+        public bool GetsOwnHeader = true;
 
         private ITypeData _resolvedType;
 

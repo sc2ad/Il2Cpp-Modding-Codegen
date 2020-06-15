@@ -176,6 +176,8 @@ namespace Il2Cpp_Modding_Codegen.Serialization
 
         public string ConvertTypeToInclude(TypeName def)
         {
+            if (!def.GetsOwnHeader)
+                return ConvertTypeToInclude(_context.ResolvedTypeRef(def.DeclaringType));
             // TODO: instead split on :: and Path.Combine?
             var fileName = string.Join("-", ConvertTypeToName(def, false).Replace("::", "_").Split(Path.GetInvalidFileNameChars()));
             var directory = string.Join("-", def.ConvertTypeToNamespace().Replace("::", "_").Split(Path.GetInvalidPathChars()));
@@ -199,7 +201,8 @@ namespace Il2Cpp_Modding_Codegen.Serialization
         /// <param name="def"></param>
         /// <param name="force"></param>
         /// <returns></returns>
-        public string GetNameFromReference(TypeRef def, ForceAsType force = ForceAsType.None, bool qualified = true, bool genericArgs = true)
+        public string GetNameFromReference(TypeRef def, ForceAsType force = ForceAsType.None, bool qualified = true, bool genericArgs = true,
+            bool mayNeedComplete = false)
         {
             // For resolving generic type paramters
             // ex: TypeName<T1, T2>, GetNameFromReference(T1)
@@ -235,8 +238,8 @@ namespace Il2Cpp_Modding_Codegen.Serialization
             // If we have not, map the type definition to a safe, unique name (TypeName)
             var resolvedTd = _context.ResolvedTypeRef(def);
 
-            // If the type is us or !cpp and the type is nested directly under us, no need to include/forward declare it (see constructor)
-            if (_localType.Equals(type) || (!_cpp && _localType.This.Equals(def.DeclaringType)))
+            // If the type is us, no need to include/forward declare it
+            if (_localType.Equals(type))
             {
                 return ForceName(type.Info,
                     qualified ? ConvertTypeToQualifiedName(resolvedTd, genericArgs) : ConvertTypeToName(resolvedTd, genericArgs), force);
@@ -245,11 +248,13 @@ namespace Il2Cpp_Modding_Codegen.Serialization
             // If we are the context for a header:
             // AND the type is not a nested type
             // AND the type is our child
-            // OR, if the type is being asked to be used as a POINTER
+            // OR, the type's use definitely doesn't require a complete definition
+            // OR, the type is being asked to be used as a POINTER
             // OR, it is a reference type AND it is being asked to be used NOT(as a literal or as a reference):
             // Forward declare
             if (!_cpp && (def.DeclaringType is null) && (
                 _localType.This.Equals(type.Parent)
+                || (!mayNeedComplete && force != ForceAsType.Literal)
                 || force == ForceAsType.Pointer
                 || (type.Info.TypeFlags == TypeFlags.ReferenceType && force != ForceAsType.Literal && force != ForceAsType.Reference)
             ))
@@ -269,10 +274,17 @@ namespace Il2Cpp_Modding_Codegen.Serialization
             }
             else
             {
-                // Get path to this type (namespace/name)
-                // TODO: If we have namespace headers, we need to namespace declare our return value:
-                // namespace::typeName
-                Includes.Add(ConvertTypeToInclude(resolvedTd) + ".hpp");
+                if (!_cpp && IsLocalTypeOrNestedUnderIt(def))
+                {
+                    def.DeclaringType.Resolve(_context)?.NestedInPlace.Add(type);
+                    resolvedTd.GetsOwnHeader = false;
+                    def.GetsOwnHeader = false;
+                }
+                else
+                    // Get path to this type (namespace/name)
+                    // TODO: If we have namespace headers, we need to namespace declare our return value:
+                    // namespace::typeName
+                    Includes.Add(ConvertTypeToInclude(resolvedTd) + ".hpp");
             }
 
             // Add newly created name to _references

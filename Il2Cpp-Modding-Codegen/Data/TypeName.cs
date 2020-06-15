@@ -18,6 +18,7 @@ namespace Il2Cpp_Modding_Codegen.Data
         public bool IsGenericTemplate { get; }
         public IReadOnlyList<TypeRef> Generics { get; }
         public TypeRef DeclaringType { get; }
+        public bool GetsOwnHeader = true;
 
         public TypeName(TypeRef tr, int dupCount = 0)
         {

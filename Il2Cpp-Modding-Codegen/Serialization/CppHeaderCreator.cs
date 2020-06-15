@@ -167,8 +167,7 @@ namespace Il2Cpp_Modding_Codegen.Serialization
                 // Write actual type
                 try
                 {
-                    // TODO: use the indentWriter?
-                    serializer.Serialize(writer, data, this, _context);
+                    serializer.Serialize(writer, data, this);
                 }
                 catch (UnresolvedTypeException e)
                 {
