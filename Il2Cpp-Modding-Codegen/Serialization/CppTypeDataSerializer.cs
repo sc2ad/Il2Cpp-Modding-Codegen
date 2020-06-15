@@ -47,25 +47,21 @@ namespace Il2Cpp_Modding_Codegen.Serialization
                     Console.WriteLine($"{type.This.Name} -> {s.typeName}");
                     throw new Exception("GetNameFromReference gave empty typeName");
                 }
-                    if (type.Parent != null)
-                    {
-                        // System::ValueType should be the 1 type where we want to extend System::Object without the Il2CppObject fields
-                        if (_asHeader && type.This.Namespace == "System" && type.This.Name == "ValueType")
-                            s.parentName = "Object";
-                        else
-                            s.parentName = context.GetNameFromReference(type.Parent, ForceAsType.Literal, genericArgs: true, mayNeedComplete: true);
-                    }
-                    stateDict[type] = s;
+                if (type.Parent != null)
+                {
+                    // System::ValueType should be the 1 type where we want to extend System::Object without the Il2CppObject fields
+                    if (_asHeader && type.This.Namespace == "System" && type.This.Name == "ValueType")
+                        s.parentName = "Object";
+                    else
+                        s.parentName = context.GetNameFromReference(type.Parent, ForceAsType.Literal, genericArgs: true, mayNeedComplete: true);
+                }
+                stateDict[type] = s;
 
-                    if (fieldSerializer is null)
-                        fieldSerializer = new CppFieldSerializer();
+                if (fieldSerializer is null)
+                    fieldSerializer = new CppFieldSerializer();
             }
             if (type.Type != TypeEnum.Interface)
             {
-                if (methodSerializer is null)
-                    methodSerializer = new CppMethodSerializer(_config, _asHeader);
-                foreach (var m in type.Methods)
-                    methodSerializer?.PreSerialize(context, m);
                 foreach (var f in type.Fields)
                 {
                     // If the field is a static field, we want to create two methods, (get and set for the static field)
@@ -80,6 +76,11 @@ namespace Il2Cpp_Modding_Codegen.Serialization
                     else if (_asHeader)
                         fieldSerializer.PreSerialize(context, f);
                 }
+
+                if (methodSerializer is null)
+                    methodSerializer = new CppMethodSerializer(_config, _asHeader);
+                foreach (var m in type.Methods)
+                    methodSerializer?.PreSerialize(context, m);
             }
             // TODO: Add a specific interface method serializer here, or provide more state to the original method serializer to support it
 
