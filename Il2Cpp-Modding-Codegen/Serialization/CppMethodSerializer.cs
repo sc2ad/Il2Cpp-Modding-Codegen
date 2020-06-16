@@ -16,7 +16,7 @@ namespace Il2Cpp_Modding_Codegen.Serialization
         private Dictionary<IMethod, string> _resolvedTypeNames = new Dictionary<IMethod, string>();
         private Dictionary<IMethod, string> _declaringTypeNames = new Dictionary<IMethod, string>();
         private Dictionary<IMethod, List<string>> _parameterMaps = new Dictionary<IMethod, List<string>>();
-        private string _declaringFullyQualified;
+        private Dictionary<TypeRef, string> _declaringFullyQualified = new Dictionary<TypeRef, string>();
 
         public CppMethodSerializer(SerializationConfig config, bool asHeader = true)
         {
@@ -27,7 +27,8 @@ namespace Il2Cpp_Modding_Codegen.Serialization
         public void PreSerialize(ISerializerContext context, IMethod method)
         {
             // Get the fully qualified name of the context
-            _declaringFullyQualified = context.QualifiedTypeName;
+            if (!_declaringFullyQualified.ContainsKey(method.DeclaringType))
+                _declaringFullyQualified.Add(method.DeclaringType, context.GetNameFromReference(method.DeclaringType, ForceAsType.Literal));
             if (method.Generic)
                 // Skip generic methods
                 return;
@@ -56,7 +57,7 @@ namespace Il2Cpp_Modding_Codegen.Serialization
             var ns = "";
             var staticString = "";
             if (namespaceQualified)
-                ns = _declaringFullyQualified + "::";
+                ns = _declaringFullyQualified[method.DeclaringType] + "::";
             if (!namespaceQualified && staticFunc)
                 staticString = "static ";
             // Returns an optional
