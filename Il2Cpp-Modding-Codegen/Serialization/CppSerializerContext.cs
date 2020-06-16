@@ -186,6 +186,7 @@ namespace Il2Cpp_Modding_Codegen.Serialization
 
         private bool IsLocalTypeOrNestedUnderIt(TypeRef type)
         {
+            // TODO: re-write to only include in-place nested types
             //if (_localType.This.Equals(type)) return true;
             //if (type is null) return false;
             //return IsLocalTypeOrNestedUnderIt(type.DeclaringType);
@@ -252,9 +253,9 @@ namespace Il2Cpp_Modding_Codegen.Serialization
             // OR, the type is being asked to be used as a POINTER
             // OR, it is a reference type AND it is being asked to be used NOT(as a literal or as a reference):
             // Forward declare
-            if (!_cpp && (def.DeclaringType is null) && (
+            if (!_cpp && (def.DeclaringType is null || typeIsInThisFile) && (
                 _localType.This.Equals(type.Parent)
-                || (!mayNeedComplete && force != ForceAsType.Literal)
+                || !mayNeedComplete
                 || force == ForceAsType.Pointer
                 || (type.Info.TypeFlags == TypeFlags.ReferenceType && force != ForceAsType.Literal && force != ForceAsType.Reference)
             ))
@@ -274,7 +275,7 @@ namespace Il2Cpp_Modding_Codegen.Serialization
             }
             else
             {
-                if (!_cpp && IsLocalTypeOrNestedUnderIt(def))
+                if (!_cpp && typeIsInThisFile)
                 {
                     def.DeclaringType.Resolve(_context)?.NestedInPlace.Add(type);
                     resolvedTd.GetsOwnHeader = false;
