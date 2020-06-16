@@ -10,7 +10,7 @@ namespace Il2Cpp_Modding_Codegen.Serialization
 {
     public class CppStaticFieldSerializer : ISerializer<IField>
     {
-        private string _declaringFullyQualified;
+        private Dictionary<TypeRef, string> _declaringFullyQualified = new Dictionary<TypeRef, string>();
         private Dictionary<IField, string> _resolvedTypeNames = new Dictionary<IField, string>();
         private bool _asHeader;
         private SerializationConfig _config;
@@ -24,7 +24,8 @@ namespace Il2Cpp_Modding_Codegen.Serialization
         public void PreSerialize(ISerializerContext context, IField field)
         {
             _resolvedTypeNames.Add(field, context.GetNameFromReference(field.Type));
-            _declaringFullyQualified = context.QualifiedTypeName;
+            if (!_declaringFullyQualified.ContainsKey(field.DeclaringType))
+                _declaringFullyQualified.Add(field.DeclaringType, context.GetNameFromReference(field.DeclaringType, ForceAsType.Literal));
         }
 
         private string SafeName(IField field)
@@ -39,7 +40,7 @@ namespace Il2Cpp_Modding_Codegen.Serialization
             if (_config.OutputStyle == OutputStyle.Normal)
                 retStr = "std::optional<" + retStr + ">";
             if (namespaceQualified)
-                ns = _declaringFullyQualified + "::";
+                ns = _declaringFullyQualified[field.DeclaringType] + "::";
             // Collisions with this name are incredibly unlikely.
             return $"{retStr} {ns}_get_{SafeName(field)}()";
         }
@@ -48,7 +49,7 @@ namespace Il2Cpp_Modding_Codegen.Serialization
         {
             var ns = "";
             if (namespaceQualified)
-                ns = _declaringFullyQualified + "::";
+                ns = _declaringFullyQualified[field.DeclaringType] + "::";
             return $"void {ns}_set_{SafeName(field)}({fieldTypeName} value)";
         }
 
