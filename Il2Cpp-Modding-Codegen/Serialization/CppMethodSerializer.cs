@@ -26,6 +26,10 @@ namespace Il2Cpp_Modding_Codegen.Serialization
 
         public void PreSerialize(ISerializerContext context, IMethod method)
         {
+            if (method.DeclaringType.IsGenericTemplate && !_asHeader)
+                // Need to create the method ENTIRELY in the header, instead of split between the C++ and the header
+                return;
+
             // Get the fully qualified name of the context
             if (!_declaringFullyQualified.ContainsKey(method.DeclaringType))
                 _declaringFullyQualified.Add(method.DeclaringType, context.GetNameFromReference(method.DeclaringType, ForceAsType.Literal));
@@ -42,9 +46,9 @@ namespace Il2Cpp_Modding_Codegen.Serialization
                 string s;
                 if (p.Flags != ParameterFlags.None)
                     // TODO: ParameterFlags.In can be const&
-                    s = context.GetNameFromReference(p.Type, ForceAsType.Reference);
+                    s = context.GetNameFromReference(p.Type, ForceAsType.Reference, mayNeedComplete: method.DeclaringType.IsGenericTemplate);
                 else
-                    s = context.GetNameFromReference(p.Type);
+                    s = context.GetNameFromReference(p.Type, mayNeedComplete: method.DeclaringType.IsGenericTemplate);
                 parameterMap.Add(s);
             }
             _parameterMaps.Add(method, parameterMap);
@@ -76,6 +80,10 @@ namespace Il2Cpp_Modding_Codegen.Serialization
         // Write the method here
         public void Serialize(IndentedTextWriter writer, IMethod method)
         {
+            if (method.DeclaringType.IsGenericTemplate && !_asHeader)
+                // Need to create the method ENTIRELY in the header, instead of split between the C++ and the header
+                return;
+
             if (!_resolvedTypeNames.ContainsKey(method))
                 // In the event we have decided to not parse this method (in PreSerialize) don't even bother.
                 return;
@@ -89,9 +97,6 @@ namespace Il2Cpp_Modding_Codegen.Serialization
             if (IgnoredMethods.Contains(method.Name) || _config.BlacklistMethods.Contains(method.Name))
                 return;
 
-            if (method.DeclaringType.IsGeneric && !_asHeader)
-                // Need to create the method ENTIRELY in the header, instead of split between the C++ and the header
-                return;
             bool writeContent = !_asHeader || method.DeclaringType.IsGeneric;
 
             if (_asHeader)

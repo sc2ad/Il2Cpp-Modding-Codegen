@@ -22,9 +22,9 @@ namespace Il2Cpp_Modding_Codegen.Serialization
 
         public void Serialize(ISerializer<ITypeData> serializer, ITypeData data)
         {
-            if (data.Type == TypeEnum.Interface || data.Methods.Count == 0 || data.This.IsGeneric)
+            if (data.Type == TypeEnum.Interface || data.Methods.Count == 0 || data.This.IsGenericTemplate)
             {
-                // Don't create C++ for types with no methods, or if it is an interface, or if it is generic
+                // Don't create C++ for types with no methods, or if it is an interface, or if it is a generic template
                 return;
             }
 
