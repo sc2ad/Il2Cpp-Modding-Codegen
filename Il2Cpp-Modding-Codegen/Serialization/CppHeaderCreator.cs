@@ -145,21 +145,19 @@ namespace Il2Cpp_Modding_Codegen.Serialization
                 {
                     if (isSystemValueType) _context.Includes.Add("System/Object.hpp");
                     foreach (var include in _context.Includes)
-                    {
                         writer.WriteLine($"#include \"{include}\"");
-                    }
-                    writer.WriteLine("// End Includes");
-                    // Write forward declarations
-                    if (_context.ForwardDeclares.Count > 0)
-                    {
-                        writer.WriteLine("// Forward declarations");
-                        foreach (var fd in _context.ForwardDeclares)
-                        {
-                            WriteForwardDeclare(writer, fd, ForwardDeclareLevel.Global);
-                        }
-                        writer.WriteLine("// End Forward declarations");
-                    }
                 }
+                writer.WriteLine("// End Includes");
+
+                // Write forward declarations
+                if (data.Type != TypeEnum.Interface && _context.ForwardDeclares.Count > 0)
+                {
+                    writer.WriteLine("// Forward declarations");
+                    foreach (var fd in _context.ForwardDeclares)
+                        WriteForwardDeclare(writer, fd, ForwardDeclareLevel.Global);
+                    writer.WriteLine("// End Forward declarations");
+                }
+
                 // Write namespace
                 writer.WriteLine("namespace " + _context.TypeNamespace + " {");
                 writer.Indent++;
