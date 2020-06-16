@@ -29,6 +29,15 @@ namespace Il2Cpp_Modding_Codegen.Serialization
             _config = config;
         }
 
+        private bool CheckGetsOwnHeader(ITypeData t, CppSerializerContext context)
+        {
+            if (t.GetsOwnHeader) return true;
+            string[] lines = { $"#include \"{context.ConvertTypeToInclude(context.type)}.hpp\"" };
+            var headerLocation = Path.Combine(_config.OutputDirectory, _config.OutputHeaderDirectory, context.FileName) + ".hpp";
+            File.WriteAllLines(headerLocation, lines);
+            return false;
+        }
+
         public void PreSerialize(ISerializerContext _unused_, IParsedData data)
         {
             foreach (var t in data.Types)
@@ -42,17 +51,18 @@ namespace Il2Cpp_Modding_Codegen.Serialization
                     // Skip the generic type, ensure it doesn't get serialized.
                     continue;
                 }
-                // TODO: give in-place nested types their own cpp files?
-                if (!t.GetsOwnHeader) continue;
 
+                var headerContext = new CppSerializerContext(_context, t);
+                // TODO: give in-place nested types their own cpp files?
+                if (!CheckGetsOwnHeader(t, headerContext)) continue;
+
+                var cppContext = new CppSerializerContext(_context, t, true);
                 var header = new CppTypeDataSerializer(_config, true);
                 var cpp = new CppTypeDataSerializer(_config, false);
-                var headerContext = new CppSerializerContext(_context, t);
-                var cppContext = new CppSerializerContext(_context, t, true);
                 header.PreSerialize(headerContext, t);
                 cpp.PreSerialize(cppContext, t);
 
-                if (!t.GetsOwnHeader) continue;
+                if (!CheckGetsOwnHeader(t, headerContext)) continue;
                 // Ensure that we are going to write everything in this context:
                 // Global context should have everything now, all names are also resolved!
                 // Now, we create the folders/files for the particular type we would like to create

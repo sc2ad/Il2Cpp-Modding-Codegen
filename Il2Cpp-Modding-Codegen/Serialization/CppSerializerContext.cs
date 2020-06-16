@@ -22,6 +22,7 @@ namespace Il2Cpp_Modding_Codegen.Serialization
         public string FileName { get; private set; }
         public string TypeNamespace { get; }
         public string TypeName { get; }
+        public readonly TypeName type;
         public string QualifiedTypeName { get; }
 
         // Maps TypeRefs to resolved names
@@ -58,21 +59,22 @@ namespace Il2Cpp_Modding_Codegen.Serialization
             _rootType = _localType = data;
             _cpp = cpp;
             var resolvedTd = _context.ResolvedTypeRef(data.This);
+            type = resolvedTd;
             QualifiedTypeName = ConvertTypeToQualifiedName(resolvedTd, false);
             TypeNamespace = resolvedTd.ConvertTypeToNamespace();
             TypeName = ConvertTypeToName(resolvedTd, false);
-            FileName = ConvertTypeToInclude(resolvedTd);
+            FileName = ConvertTypeToInclude(resolvedTd, original: true);
             // Check all nested classes (and ourselves) if we have generic arguments/parameters. If we do, add them to _genericTypes.
             GetGenericTypes(data);
             // Nested types need to include their declaring type
             if (!cpp && data.This.DeclaringType != null)
-                Includes.Add(ConvertTypeToInclude(context.ResolvedTypeRef(data.This.DeclaringType)) + ".hpp");
+                Includes.Add(ConvertTypeToInclude(_context.ResolvedTypeRef(data.This.DeclaringType)) + ".hpp");
             // Declaring types need to forward declare ALL of their nested types
             // TODO: also add them to _references?
             if (!cpp)
             {
                 foreach (var nested in data.NestedTypes)
-                    NestedForwardDeclares.Add(context.ResolvedTypeRef(nested.This));
+                    NestedForwardDeclares.Add(_context.ResolvedTypeRef(nested.This));
             }
         }
 
@@ -174,10 +176,14 @@ namespace Il2Cpp_Modding_Codegen.Serialization
             return def.ConvertTypeToNamespace() + "::" + ConvertTypeToName(def, generics);
         }
 
-        public string ConvertTypeToInclude(TypeName def)
+        public string ConvertTypeToInclude(TypeName def, bool original = false)
         {
-            if (!def.GetsOwnHeader)
-                return ConvertTypeToInclude(_context.ResolvedTypeRef(def.DeclaringType));
+            if (!original)
+            {
+                if (!def.GetsOwnHeader)
+                    return ConvertTypeToInclude(_context.ResolvedTypeRef(def.DeclaringType));
+                def.IncludeCount++;
+            }
             // TODO: instead split on :: and Path.Combine?
             var fileName = string.Join("-", ConvertTypeToName(def, false).Replace("::", "_").Split(Path.GetInvalidFileNameChars()));
             var directory = string.Join("-", def.ConvertTypeToNamespace().Replace("::", "_").Split(Path.GetInvalidPathChars()));

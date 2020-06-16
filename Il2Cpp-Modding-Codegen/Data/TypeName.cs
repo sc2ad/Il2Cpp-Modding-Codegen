@@ -18,7 +18,18 @@ namespace Il2Cpp_Modding_Codegen.Data
         public bool IsGenericTemplate { get; }
         public IReadOnlyList<TypeRef> Generics { get; }
         public TypeRef DeclaringType { get; }
-        public bool GetsOwnHeader = true;
+        public int IncludeCount { get; set; } = 0;
+        private bool _getsOwnHeader = true;
+        public bool GetsOwnHeader
+        {
+            get => _getsOwnHeader;
+            set
+            {
+                if (_getsOwnHeader == true && value == false && IncludeCount > 0)
+                    Console.Error.WriteLine($"In-place nesting requested on {this} which has been included {IncludeCount} times!");
+                _getsOwnHeader = value;
+            }
+        }
 
         public TypeName(TypeRef tr, int dupCount = 0)
         {
