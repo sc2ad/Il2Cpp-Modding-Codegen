@@ -235,6 +235,7 @@ namespace Il2Cpp_Modding_Codegen.Serialization
             {
                 writer.Indent--;
                 writer.WriteLine($"}};  // {typeHeader}");
+                _header.AddArgType(type);
             }
             writer.Flush();
         }

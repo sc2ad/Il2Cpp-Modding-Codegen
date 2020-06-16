@@ -15,6 +15,7 @@ namespace Il2Cpp_Modding_Codegen.Serialization
         private SerializationConfig _config;
         private CppSerializerContext _context;
         static HashSet<string> filesWritten = new HashSet<string>();
+        private List<ITypeData> defineArgTypes = new List<ITypeData>();
 
         public CppHeaderCreator(SerializationConfig config, CppSerializerContext context)
         {
@@ -110,6 +111,11 @@ namespace Il2Cpp_Modding_Codegen.Serialization
             WriteForwardDeclare(writer, fd, ForwardDeclareLevel.Class);
         }
 
+        internal void AddArgType(ITypeData type)
+        {
+            defineArgTypes.Insert(0, type);
+        }
+
         public void Serialize(CppTypeDataSerializer serializer, ITypeData data)
         {
             var headerLocation = Path.Combine(_config.OutputDirectory, _config.OutputHeaderDirectory, _context.FileName) + ".hpp";
@@ -199,15 +205,18 @@ namespace Il2Cpp_Modding_Codegen.Serialization
                 }
 
                 // DEFINE_IL2CPP_ARG_TYPE
-                string arg0 = _context.QualifiedTypeName;
-                string arg1 = "";
-                if (data.Info.TypeFlags == TypeFlags.ReferenceType)
-                    arg1 = "*";
-                // For Name and Namespace here, we DO want all the `, /, etc
-                if (!data.This.IsGeneric)
-                    writer.WriteLine($"DEFINE_IL2CPP_ARG_TYPE({arg0+arg1}, \"{data.This.Namespace}\", \"{data.This.Name}\");");
-                else
-                    writer.WriteLine($"DEFINE_IL2CPP_ARG_TYPE_GENERIC({arg0}, {arg1}, \"{data.This.Namespace}\", \"{data.This.Name}\");");
+                foreach (var argType in defineArgTypes)
+                {
+                    string arg0 = _context.GetNameFromReference(argType.This, ForceAsType.Literal, genericArgs: false);
+                    string arg1 = "";
+                    if (argType.Info.TypeFlags == TypeFlags.ReferenceType)
+                        arg1 = "*";
+                    // For Name and Namespace here, we DO want all the `, /, etc
+                    if (!argType.This.IsGeneric)
+                        writer.WriteLine($"DEFINE_IL2CPP_ARG_TYPE({arg0 + arg1}, \"{argType.This.Namespace}\", \"{argType.This.Name}\");");
+                    else
+                        writer.WriteLine($"DEFINE_IL2CPP_ARG_TYPE_GENERIC({arg0}, {arg1}, \"{argType.This.Namespace}\", \"{argType.This.Name}\");");
+                }
 
                 writer.WriteLine("#pragma pack(pop)");
                 writer.Flush();
