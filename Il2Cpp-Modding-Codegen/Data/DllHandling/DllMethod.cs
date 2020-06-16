@@ -67,7 +67,7 @@ namespace Il2Cpp_Modding_Codegen.Data.DllHandling
             }
             Parameters.AddRange(m.Parameters.Select(p => new Parameter(p)));
             Specifiers.AddRange(DllSpecifierHelpers.From(m));
-            // This is not necessary: !m.GenericParameters.All(param => m.DeclaringType.GenericParameters.Contains(param));
+            // This is not necessary: m.GenericParameters.Any(param => !m.DeclaringType.GenericParameters.Contains(param));
             Generic = m.HasGenericParameters;
         }
 
