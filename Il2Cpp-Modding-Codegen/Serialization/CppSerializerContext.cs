@@ -186,11 +186,11 @@ namespace Il2Cpp_Modding_Codegen.Serialization
 
         private bool IsLocalTypeOrNestedUnderIt(TypeRef type)
         {
-            // TODO: re-write to only include in-place nested types
-            //if (_localType.This.Equals(type)) return true;
-            //if (type is null) return false;
-            //return IsLocalTypeOrNestedUnderIt(type.DeclaringType);
-            return _localType.This.Equals(type) || _localType.This.Equals(type.DeclaringType);
+            // TODO: re-write to only include in-place nested types?
+            if (_localType.This.Equals(type)) return true;
+            if (type is null) return false;
+            return IsLocalTypeOrNestedUnderIt(type.DeclaringType);
+            // return _localType.This.Equals(type) || _localType.This.Equals(type.DeclaringType);
         }
 
         /// <summary>
@@ -211,8 +211,8 @@ namespace Il2Cpp_Modding_Codegen.Serialization
                 // TODO: Check to ensure ValueType is correct here. Perhaps assuming reference type is better?
                 return ForceName(new TypeInfo() { TypeFlags = TypeFlags.ValueType }, def.Name, force);
 
-            bool typeIsInThisFile = IsLocalTypeOrNestedUnderIt(def);
-            if (!typeIsInThisFile)  // prevents System::Object from becoming Il2CppObject in its own definition, etc
+            bool typeCouldGoInThisFile = IsLocalTypeOrNestedUnderIt(def);
+            if (!typeCouldGoInThisFile)  // prevents System::Object from becoming Il2CppObject in its own definition, etc
             {
                 // TODO: Need to determine a better way of resolving special names
                 var primitiveName = ResolvePrimitive(def, force);
@@ -253,7 +253,7 @@ namespace Il2Cpp_Modding_Codegen.Serialization
             // OR, the type is being asked to be used as a POINTER
             // OR, it is a reference type AND it is being asked to be used NOT(as a literal or as a reference):
             // Forward declare
-            if (!_cpp && (def.DeclaringType is null || typeIsInThisFile) && (
+            if (!_cpp && (def.DeclaringType is null || def.DeclaringType.Equals(_localType.This)) && (
                 _localType.This.Equals(type.Parent)
                 || !mayNeedComplete
                 || force == ForceAsType.Pointer
@@ -275,11 +275,19 @@ namespace Il2Cpp_Modding_Codegen.Serialization
             }
             else
             {
-                if (!_cpp && typeIsInThisFile)
+                if (!_cpp && typeCouldGoInThisFile)
                 {
-                    def.DeclaringType.Resolve(_context)?.NestedInPlace.Add(type);
-                    resolvedTd.GetsOwnHeader = false;
-                    type.GetsOwnHeader = false;
+                    var tmpType = type;
+                    while (!tmpType.Equals(_localType))
+                    {
+                        var declaringType = tmpType.This.DeclaringType.Resolve(_context);
+                        if (declaringType is null)
+                            throw new UnresolvedTypeException(tmpType.This, tmpType.This.DeclaringType);
+                        declaringType.NestedInPlace.Add(tmpType);
+                        _context.ResolvedTypeRef(tmpType.This).GetsOwnHeader = false;
+                        tmpType.GetsOwnHeader = false;
+                        tmpType = declaringType;
+                    }
                 }
                 else
                 {

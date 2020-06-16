@@ -71,6 +71,12 @@ namespace Il2Cpp_Modding_Codegen.Serialization
 
             if (type.Type != TypeEnum.Interface)
             {
+                // do the non-static fields first
+                if (_asHeader)
+                    foreach (var f in type.Fields)
+                        if (!f.Specifiers.IsStatic())
+                            fieldSerializer.PreSerialize(context, f);
+                // then, the static fields
                 foreach (var f in type.Fields)
                 {
                     // If the field is a static field, we want to create two methods, (get and set for the static field)
@@ -81,9 +87,6 @@ namespace Il2Cpp_Modding_Codegen.Serialization
                             staticFieldSerializer = new CppStaticFieldSerializer(_asHeader, _config);
                         staticFieldSerializer.PreSerialize(context, f);
                     }
-                    // Otherwise, if we are a header, preserialize the field
-                    else if (_asHeader)
-                        fieldSerializer.PreSerialize(context, f);
                 }
 
                 if (methodSerializer is null)
