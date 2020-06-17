@@ -213,9 +213,10 @@ namespace Il2Cpp_Modding_Codegen.Serialization
         public string GetNameFromReference(TypeRef def, ForceAsType force = ForceAsType.None, bool qualified = true, bool genericArgs = true,
             bool mayNeedComplete = false)
         {
-            if (def.Name == "IActivator" && force == ForceAsType.Literal && mayNeedComplete)
+            // if (def.Name.StartsWith("IActivator" && force == ForceAsType.Literal && mayNeedComplete)
+            if (!_cpp && def.Name.StartsWith("IEnumerator") && _localType.This.Name.StartsWith("IEnumerable") && _localType.This.IsGeneric)
             {
-                Console.WriteLine("Hello world");
+                Console.WriteLine("Breakpoint condition met.");
             }
             // For resolving generic type paramters
             // ex: TypeName<T1, T2>, GetNameFromReference(T1)
@@ -227,7 +228,7 @@ namespace Il2Cpp_Modding_Codegen.Serialization
             if (!typeCouldGoInThisFile)  // prevents System::Object from becoming Il2CppObject in its own definition, etc
             {
                 // TODO: Need to determine a better way of resolving special names
-                var primitiveName = ResolvePrimitive(def, force);
+                var primitiveName = ResolvePrimitive(def, force, mayNeedComplete);
                 // Primitives are automatically resolved via this call
                 if (primitiveName != null)
                     return primitiveName;
@@ -263,14 +264,16 @@ namespace Il2Cpp_Modding_Codegen.Serialization
             // AND the type is not a nested type
             // AND the type is our child
             // OR, the type's use definitely doesn't require a complete definition
-            // OR, the type is being asked to be used as a POINTER
+            // OR, the type is not a generic instance
+            // AND the type is being asked to be used as a POINTER
             // OR, it is a reference type AND it is being asked to be used NOT(as a literal or as a reference):
             // Forward declare
             if (!_cpp && (def.DeclaringType is null || def.DeclaringType.Equals(_localType.This)) && (
                 _localType.This.Equals(type.Parent)
                 || !mayNeedComplete
-                || force == ForceAsType.Pointer
-                || (type.Info.TypeFlags == TypeFlags.ReferenceType && force != ForceAsType.Literal && force != ForceAsType.Reference)
+                || !def.IsGenericInstance &&
+                ( force == ForceAsType.Pointer
+                || (type.Info.TypeFlags == TypeFlags.ReferenceType && force != ForceAsType.Literal && force != ForceAsType.Reference))
             ))
             {
                 // Since forward declaring a generic instance gives a template specialization, which is at best a small AOT optimization
@@ -319,7 +322,7 @@ namespace Il2Cpp_Modding_Codegen.Serialization
                 : ConvertTypeToName(resolvedTd, genericArgs, mayNeedComplete), force);
         }
 
-        private string ResolvePrimitive(TypeRef def, ForceAsType force)
+        private string ResolvePrimitive(TypeRef def, ForceAsType force, bool mayNeedComplete)
         {
             var name = def.Name.ToLower();
             if (def.Name == "void*" || (def.Name == "Void" && def.IsPointer(_types)))
@@ -330,9 +333,9 @@ namespace Il2Cpp_Modding_Codegen.Serialization
             // Note: names on the right side of an || are for Dll only
             string s = null;
             if (def.IsArray())
-                s = $"Array<{GetNameFromReference(def.ElementType)}>";
+                s = $"Array<{GetNameFromReference(def.ElementType, mayNeedComplete: mayNeedComplete)}>";
             else if (def.IsPointer(_types))
-                s = $"{GetNameFromReference(def.ElementType)}*";
+                s = $"{GetNameFromReference(def.ElementType, mayNeedComplete: mayNeedComplete)}*";
             else if (name == "object")
                 s = "Il2CppObject";
             else if (name == "string")

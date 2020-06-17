@@ -28,7 +28,7 @@ namespace Il2Cpp_Modding_Codegen.Data.DllHandling
             ReturnType = DllTypeRef.From(m.ReturnType);
             DeclaringType = DllTypeRef.From(m.DeclaringType);
             var baseMethod = m.GetBaseMethod();
-            if (baseMethod != null)
+            if (baseMethod != m)
                 ImplementedFrom = DllTypeRef.From(baseMethod.DeclaringType);
             Name = m.Name;
             RVA = -1;

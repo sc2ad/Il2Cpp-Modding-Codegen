@@ -153,15 +153,21 @@ namespace Il2Cpp_Modding_Codegen.Serialization
 
                 if (type.This.IsGenericTemplate)
                 {
-                    var templateStr = "template<";
-                    bool first = true;
-                    foreach (var genParam in type.This.Generics)
+                    var generics = type.This.Generics;
+                    if (!type.GetsOwnHeader)
+                        generics = generics.Except(type.This.DeclaringType.Generics, TypeRef.fastComparer).ToList();
+                    if (generics.Count > 0)
                     {
-                        if (!first) templateStr += ", ";
-                        templateStr += "typename " + genParam.Name;
-                        first = false;
+                        var templateStr = "template<";
+                        bool first = true;
+                        foreach (var genParam in generics)
+                        {
+                            if (!first) templateStr += ", ";
+                            templateStr += "typename " + genParam.Name;
+                            first = false;
+                        }
+                        writer.WriteLine(templateStr + ">");
                     }
-                    writer.WriteLine(templateStr + ">");
                 }
 
                 // TODO: print enums as actual C++ smart enums? backing type is type of _value and A = #, should work for the lines inside the enum

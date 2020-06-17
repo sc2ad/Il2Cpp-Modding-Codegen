@@ -59,7 +59,12 @@ namespace Il2Cpp_Modding_Codegen.Data.DllHandling
             if (_config.ParseTypeProperties)
                 Properties.AddRange(def.Properties.Select(p => new DllProperty(p)));
             if (_config.ParseTypeMethods)
-                Methods.AddRange(def.Methods.Select(m => new DllMethod(m)));
+            {
+                var methods = def.Methods.Select(m => new DllMethod(m));
+                // It's important that Foo.IBar.func() goes after func() (if present)
+                Methods.AddRange(methods.Where(m => !m.Name.Substring(1).Contains(".")));
+                Methods.AddRange(methods.Where(m => m.Name.Substring(1).Contains(".")));
+            }
         }
 
         public override string ToString()

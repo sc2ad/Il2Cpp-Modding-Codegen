@@ -1,10 +1,9 @@
 ﻿using Il2Cpp_Modding_Codegen.Config;
 using Il2Cpp_Modding_Codegen.Data;
-using Il2Cpp_Modding_Codegen.Data.DllHandling;
 using Il2Cpp_Modding_Codegen.Serialization.Interfaces;
-using System;
 using System.CodeDom.Compiler;
 using System.Collections.Generic;
+using System.IO;
 
 namespace Il2Cpp_Modding_Codegen.Serialization
 {
@@ -19,6 +18,8 @@ namespace Il2Cpp_Modding_Codegen.Serialization
         private Dictionary<IMethod, List<string>> _parameterMaps = new Dictionary<IMethod, List<string>>();
         private Dictionary<TypeRef, string> _declaringFullyQualified = new Dictionary<TypeRef, string>();
         private Dictionary<TypeRef, bool> _isInterface = new Dictionary<TypeRef, bool>();
+
+        private HashSet<(TypeRef, string)> _signatures = new HashSet<(TypeRef, string)>();
 
         public CppMethodSerializer(SerializationConfig config, bool asHeader = true)
         {
@@ -36,13 +37,15 @@ namespace Il2Cpp_Modding_Codegen.Serialization
             if (!_declaringFullyQualified.ContainsKey(method.DeclaringType))
             {
                 _declaringFullyQualified.Add(method.DeclaringType, context.GetNameFromReference(method.DeclaringType, ForceAsType.Literal));
-                _isInterface.Add(method.DeclaringType, context.Types.Resolve(method.DeclaringType)?.Type == TypeEnum.Interface);
+                _isInterface.Add(method.DeclaringType, !method.DeclaringType.IsGeneric && context.Types.Resolve(method.DeclaringType)?.Type == TypeEnum.Interface);
             }
             if (method.Generic)
                 // Skip generic methods
                 return;
+
+            bool mayNeedComplete = method.DeclaringType.IsGenericTemplate  || _isInterface[method.DeclaringType];
             // We need to forward declare/include all types that are either returned from the method or are parameters
-            _resolvedTypeNames.Add(method, context.GetNameFromReference(method.ReturnType));
+            _resolvedTypeNames.Add(method, context.GetNameFromReference(method.ReturnType, mayNeedComplete: mayNeedComplete));
             // The declaringTypeName needs to be a reference, even if the type itself is a value type.
             _declaringTypeNames.Add(method, context.GetNameFromReference(method.DeclaringType, ForceAsType.Pointer));
             var parameterMap = new List<string>();
@@ -51,9 +54,9 @@ namespace Il2Cpp_Modding_Codegen.Serialization
                 string s;
                 if (p.Flags != ParameterFlags.None)
                     // TODO: ParameterFlags.In can be const&
-                    s = context.GetNameFromReference(p.Type, ForceAsType.Reference, mayNeedComplete: method.DeclaringType.IsGenericTemplate);
+                    s = context.GetNameFromReference(p.Type, ForceAsType.Reference, mayNeedComplete: mayNeedComplete);
                 else
-                    s = context.GetNameFromReference(p.Type, mayNeedComplete: method.DeclaringType.IsGenericTemplate);
+                    s = context.GetNameFromReference(p.Type, mayNeedComplete: mayNeedComplete);
                 parameterMap.Add(s);
             }
             _parameterMaps.Add(method, parameterMap);
@@ -66,24 +69,25 @@ namespace Il2Cpp_Modding_Codegen.Serialization
 
         private string WriteMethod(bool staticFunc, IMethod method, bool namespaceQualified)
         {
-            // If the method is an instance method, first parameter should be a pointer to the declaringType.
-            string paramString = "";
             var ns = "";
             var preRetStr = "";
             var overrideStr = "";
+            var impl = "";
             if (namespaceQualified)
                 ns = _declaringFullyQualified[method.DeclaringType] + "::";
             else
             {
                 if (staticFunc)
                     preRetStr += "static ";
-                if (_isInterface[method.DeclaringType] || IsOverride(method))
+
+                // TODO: apply override correctly? It basically requires making all methods virtual
+                // and if you miss any override the compiler gives you warnings
+                //if (IsOverride(method))
+                //    overrideStr += " override";
+                if (_isInterface[method.DeclaringType])
                 {
                     preRetStr += "virtual ";
-                    if (IsOverride(method))
-                        overrideStr += " override";
-                    else
-                        overrideStr += " = 0";
+                    impl += " = 0";
                 }
             }
             // Returns an optional
@@ -98,11 +102,29 @@ namespace Il2Cpp_Modding_Codegen.Serialization
             var nameStr = method.Name;
             if (nameStr.StartsWith(".")) nameStr = nameStr.ReplaceFirst(".", "_");
             if (nameStr.StartsWith("<")) nameStr = nameStr.ReplaceFirst("<", "$").ReplaceFirst(">", "$");
-            var copy = nameStr;
-            nameStr = nameStr.Replace('<', '$').Replace('>', '$').Replace('.', '_');
-            if (nameStr != copy)
-                overrideStr = "";
-            return $"{preRetStr}{retStr} {ns}{nameStr}({paramString + method.Parameters.FormatParameters(_parameterMaps[method], FormatParameterMode.Names | FormatParameterMode.Types)}){overrideStr}";
+
+            // If the method is an instance method, first parameter should be a pointer to the declaringType.
+            string paramString = method.Parameters.FormatParameters(_parameterMaps[method], FormatParameterMode.Names | FormatParameterMode.Types);
+            string Signature(string methodName) => $"{methodName}({paramString})";
+
+            // Given a method like `void System.Runtime.Serialization.ISerializable.GetObjectData(params);`, transform to
+            // `void GetObjectData(params);` for interface implementing purposes if that does not conflict with another method
+            int idx = nameStr.LastIndexOfAny(new char[] { '<', '>', '.' });
+            if (idx >= 0)
+            {
+                var tmp = nameStr.Substring(idx+1);
+                if (!_signatures.Contains((method.DeclaringType, Signature(tmp))))
+                    nameStr = tmp;
+                else
+                {
+                    nameStr = nameStr.Replace('<', '$').Replace('>', '$').Replace('.', '_');
+                    overrideStr = "";
+                }
+            }
+            var finalSig = Signature(nameStr);
+            if (!_signatures.Add((method.DeclaringType, finalSig)))
+                throw new InvalidDataException($"Multiple methods in {method.DeclaringType} resolved to {finalSig}!");
+            return $"{preRetStr}{retStr} {ns}{finalSig}{overrideStr}{impl}";
         }
 
         // Write the method here
