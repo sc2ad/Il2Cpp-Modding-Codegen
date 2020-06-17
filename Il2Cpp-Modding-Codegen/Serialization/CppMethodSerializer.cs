@@ -2,6 +2,7 @@
 using Il2Cpp_Modding_Codegen.Data;
 using Il2Cpp_Modding_Codegen.Data.DllHandling;
 using Il2Cpp_Modding_Codegen.Serialization.Interfaces;
+using System;
 using System.CodeDom.Compiler;
 using System.Collections.Generic;
 
@@ -17,6 +18,7 @@ namespace Il2Cpp_Modding_Codegen.Serialization
         private Dictionary<IMethod, string> _declaringTypeNames = new Dictionary<IMethod, string>();
         private Dictionary<IMethod, List<string>> _parameterMaps = new Dictionary<IMethod, List<string>>();
         private Dictionary<TypeRef, string> _declaringFullyQualified = new Dictionary<TypeRef, string>();
+        private Dictionary<TypeRef, bool> _isInterface = new Dictionary<TypeRef, bool>();
 
         public CppMethodSerializer(SerializationConfig config, bool asHeader = true)
         {
@@ -32,7 +34,10 @@ namespace Il2Cpp_Modding_Codegen.Serialization
 
             // Get the fully qualified name of the context
             if (!_declaringFullyQualified.ContainsKey(method.DeclaringType))
+            {
                 _declaringFullyQualified.Add(method.DeclaringType, context.GetNameFromReference(method.DeclaringType, ForceAsType.Literal));
+                _isInterface.Add(method.DeclaringType, context.Types.Resolve(method.DeclaringType)?.Type == TypeEnum.Interface);
+            }
             if (method.Generic)
                 // Skip generic methods
                 return;
@@ -59,11 +64,13 @@ namespace Il2Cpp_Modding_Codegen.Serialization
             // If the method is an instance method, first parameter should be a pointer to the declaringType.
             string paramString = "";
             var ns = "";
-            var staticString = "";
+            var preRetStr = "";
             if (namespaceQualified)
                 ns = _declaringFullyQualified[method.DeclaringType] + "::";
             if (!namespaceQualified && staticFunc)
-                staticString = "static ";
+                preRetStr += "static ";
+            if (!namespaceQualified && _isInterface[method.DeclaringType])
+                preRetStr += "virtual ";
             // Returns an optional
             // TODO: Should be configurable
             var retStr = _resolvedTypeNames[method];
@@ -73,8 +80,12 @@ namespace Il2Cpp_Modding_Codegen.Serialization
                     retStr = "std::optional<" + retStr + ">";
             }
             // Handles i.e. ".ctor"
-            var nameStr = method.Name.Replace('.', '_').Replace('<', '$').Replace('>', '$');
-            return $"{staticString}{retStr} {ns}{nameStr}({paramString + method.Parameters.FormatParameters(_parameterMaps[method], FormatParameterMode.Names | FormatParameterMode.Types)})";
+            var nameStr = method.Name;
+            if (nameStr.StartsWith(".")) nameStr = nameStr.ReplaceFirst(".", "_");
+            nameStr = nameStr.Replace(".", "::");
+            if (nameStr.StartsWith("<")) nameStr = nameStr.ReplaceFirst("<", "$").ReplaceFirst(">", "$");
+            // TODO: if (nameStr.Contains("::I")) preRetStr += "override "; ?
+            return $"{preRetStr}{retStr} {ns}{nameStr}({paramString + method.Parameters.FormatParameters(_parameterMaps[method], FormatParameterMode.Names | FormatParameterMode.Types)})";
         }
 
         // Write the method here
@@ -97,6 +108,7 @@ namespace Il2Cpp_Modding_Codegen.Serialization
             if (IgnoredMethods.Contains(method.Name) || _config.BlacklistMethods.Contains(method.Name))
                 return;
 
+            bool interfaceMethod = (method.ImplementedFrom is null) && _isInterface[method.DeclaringType];
             bool writeContent = !_asHeader || method.DeclaringType.IsGeneric;
 
             if (_asHeader)
@@ -116,7 +128,9 @@ namespace Il2Cpp_Modding_Codegen.Serialization
                 writer.WriteLine($"// {methodString}");
                 if (method.ImplementedFrom != null)
                     writer.WriteLine($"// Implemented from: {method.ImplementedFrom}");
-                if (!writeContent)
+                if (interfaceMethod)
+                    writer.WriteLine(WriteMethod(staticFunc, method, false) + " = 0;");
+                else if (!writeContent)
                     writer.WriteLine(WriteMethod(staticFunc, method, false) + ";");
             }
             else
@@ -140,6 +154,14 @@ namespace Il2Cpp_Modding_Codegen.Serialization
                     innard = $"<{_resolvedTypeNames[method]}>";
                     if (_config.OutputStyle != OutputStyle.CrashUnless) macro = "";
                 }
+
+                var macroEnd = string.IsNullOrEmpty(macro) ? "" : ")";
+                if (!string.IsNullOrEmpty(macro) && innard.Contains(","))
+                {
+                    macro += "(";
+                    macroEnd += ")";
+                }
+
                 // TODO: Replace with RET_NULLOPT_UNLESS or another equivalent (perhaps literally just the ret)
                 s += $"{macro}il2cpp_utils::RunMethod{innard}(";
                 if (!isStatic)
@@ -154,7 +176,7 @@ namespace Il2Cpp_Modding_Codegen.Serialization
                 var paramString = method.Parameters.FormatParameters(_parameterMaps[method], FormatParameterMode.Names);
                 if (!string.IsNullOrEmpty(paramString))
                     paramString = ", " + paramString;
-                s += $"\"{method.Name}\"{paramString}){(!string.IsNullOrEmpty(macro) ? ")" : "")};";
+                s += $"\"{method.Name}\"{paramString}){macroEnd};";
                 // Write method with return
                 writer.WriteLine(s);
                 // Close method

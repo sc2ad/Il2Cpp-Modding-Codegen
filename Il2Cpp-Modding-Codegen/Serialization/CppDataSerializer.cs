@@ -15,17 +15,17 @@ namespace Il2Cpp_Modding_Codegen.Serialization
         // This class is responsible for creating the contexts and passing them to each of the types
         // It then needs to create a header and a non-header for each class, with reasonable file structuring
         // Images, fortunately, don't have to be created at all
-        private ITypeContext _context;
+        private ITypeCollection _types;
 
         private SerializationConfig _config;
 
         /// <summary>
         /// Creates a C++ Serializer with the given type context, which is a wrapper for a list of all types to serialize
         /// </summary>
-        /// <param name="context"></param>
-        public CppDataSerializer(SerializationConfig config, ITypeContext context)
+        /// <param name="types"></param>
+        public CppDataSerializer(SerializationConfig config, ITypeCollection types)
         {
-            _context = context;
+            _types = types;
             _config = config;
         }
 
@@ -52,11 +52,11 @@ namespace Il2Cpp_Modding_Codegen.Serialization
                     continue;
                 }
 
-                var headerContext = new CppSerializerContext(_context, t);
+                var headerContext = new CppSerializerContext(_types, t);
                 // TODO: give in-place nested types their own cpp files?
                 if (!CheckGetsOwnHeader(t, headerContext)) continue;
 
-                var cppContext = new CppSerializerContext(_context, t, true);
+                var cppContext = new CppSerializerContext(_types, t, true);
                 var header = new CppTypeDataSerializer(_config, true);
                 var cpp = new CppTypeDataSerializer(_config, false);
                 header.PreSerialize(headerContext, t);

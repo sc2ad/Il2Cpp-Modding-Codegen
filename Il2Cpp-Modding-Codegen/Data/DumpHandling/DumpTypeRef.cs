@@ -18,13 +18,13 @@ namespace Il2Cpp_Modding_Codegen.Data.DumpHandling
         public override TypeRef DeclaringType { get; }
         public override TypeRef ElementType { get; }
 
-        public override bool IsPointer(ITypeContext context)
+        public override bool IsPointer(ITypeCollection types)
         {
             if (Name.EndsWith("*"))
             {
                 return true;
             }
-            return base.IsPointer(context);
+            return base.IsPointer(types);
         }
 
         public override bool IsArray()

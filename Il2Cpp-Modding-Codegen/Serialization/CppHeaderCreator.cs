@@ -136,21 +136,19 @@ namespace Il2Cpp_Modding_Codegen.Serialization
                 writer.WriteLine("#pragma once");
                 // TODO: determine when/if we need this
                 writer.WriteLine("#pragma pack(push, 8)");
+
                 // Write includes
                 writer.WriteLine("// Includes");
                 writer.WriteLine("#include \"utils/il2cpp-utils.hpp\"");
                 if (_config.OutputStyle == OutputStyle.Normal)
                     writer.WriteLine("#include <optional>");
-                if (data.Type != TypeEnum.Interface)
-                {
-                    if (isSystemValueType) _context.Includes.Add("System/Object.hpp");
-                    foreach (var include in _context.Includes)
-                        writer.WriteLine($"#include \"{include}\"");
-                }
+                if (isSystemValueType) _context.Includes.Add("System/Object.hpp");
+                foreach (var include in _context.Includes)
+                    writer.WriteLine($"#include \"{include}\"");
                 writer.WriteLine("// End Includes");
 
                 // Write forward declarations
-                if (data.Type != TypeEnum.Interface && _context.ForwardDeclares.Count > 0)
+                if (_context.ForwardDeclares.Count > 0)
                 {
                     writer.WriteLine("// Forward declarations");
                     foreach (var fd in _context.ForwardDeclares)

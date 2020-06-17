@@ -34,7 +34,7 @@ namespace Il2Cpp_Modding_Codegen.Data.DllHandling
             }
         }
 
-        public override bool IsPointer(ITypeContext context) => This.IsPointer;
+        public override bool IsPointer(ITypeCollection types) => This.IsPointer;
         public override bool IsArray() => This.IsArray;
 
         private static readonly Dictionary<TypeReference, DllTypeRef> cache = new Dictionary<TypeReference, DllTypeRef>();

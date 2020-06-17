@@ -25,8 +25,8 @@ namespace Il2Cpp_Modding_Codegen.Data
             get => _getsOwnHeader;
             set
             {
-                if (_getsOwnHeader == true && value == false && IncludeCount > 0)
-                    Console.Error.WriteLine($"In-place nesting requested on {this} which has been included {IncludeCount} times!");
+                //if (_getsOwnHeader == true && value == false && IncludeCount > 0)
+                //    Console.WriteLine($"In-place nesting requested on {this} which has been included {IncludeCount} times!");
                 _getsOwnHeader = value;
             }
         }

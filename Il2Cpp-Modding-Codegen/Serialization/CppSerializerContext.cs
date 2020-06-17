@@ -22,6 +22,7 @@ namespace Il2Cpp_Modding_Codegen.Serialization
         public string FileName { get; private set; }
         public string TypeNamespace { get; }
         public string TypeName { get; }
+        public ITypeCollection Types { get => _types; }
         public readonly TypeName type;
         public string QualifiedTypeName { get; }
 
@@ -31,7 +32,7 @@ namespace Il2Cpp_Modding_Codegen.Serialization
         // Holds generic types (ex: T1, T2, ...) defined by the type
         private HashSet<TypeRef> _genericTypes = new HashSet<TypeRef>();
 
-        private ITypeContext _context;
+        private ITypeCollection _types;
         private ITypeData _rootType;
         private ITypeData _localType;
         private bool _cpp;
@@ -53,12 +54,12 @@ namespace Il2Cpp_Modding_Codegen.Serialization
             //}
         }
 
-        public CppSerializerContext(ITypeContext context, ITypeData data, bool cpp = false)
+        public CppSerializerContext(ITypeCollection types, ITypeData data, bool cpp = false)
         {
-            _context = context;
+            _types = types;
             _rootType = _localType = data;
             _cpp = cpp;
-            var resolvedTd = _context.ResolvedTypeRef(data.This);
+            var resolvedTd = _types.ResolvedTypeRef(data.This);
             type = resolvedTd;
             QualifiedTypeName = ConvertTypeToQualifiedName(resolvedTd, false);
             TypeNamespace = resolvedTd.ConvertTypeToNamespace();
@@ -68,13 +69,13 @@ namespace Il2Cpp_Modding_Codegen.Serialization
             GetGenericTypes(data);
             // Nested types need to include their declaring type
             if (!cpp && data.This.DeclaringType != null)
-                Includes.Add(ConvertTypeToInclude(_context.ResolvedTypeRef(data.This.DeclaringType)) + ".hpp");
-            // Declaring types need to forward declare ALL of their nested types
+                Includes.Add(ConvertTypeToInclude(_types.ResolvedTypeRef(data.This.DeclaringType)) + ".hpp");
+            // Declaring types need to declare ALL of their nested types (even the ones they don't use)
             // TODO: also add them to _references?
             if (!cpp)
             {
                 foreach (var nested in data.NestedTypes)
-                    NestedForwardDeclares.Add(_context.ResolvedTypeRef(nested.This));
+                    NestedForwardDeclares.Add(_types.ResolvedTypeRef(nested.This));
             }
         }
 
@@ -100,7 +101,7 @@ namespace Il2Cpp_Modding_Codegen.Serialization
             return (type.DeclaringType != null) && (type.DeclaringType.IsGeneric);
         }
 
-        private string GenericsToStr(TypeName type)
+        private string GenericsToStr(TypeName type, bool mayNeedComplete)
         {
             var generics = type.Generics.ToList();
             int origCount = generics.Count;
@@ -116,24 +117,25 @@ namespace Il2Cpp_Modding_Codegen.Serialization
                     if (matchLength <= origCount)
                     {
                         var possibleMatch = generics.GetRange(0, matchLength);
-                        if (TypeRef.SequenceEqualOrPrint(possibleMatch, type.DeclaringType.Generics))
+                        // if (TypeRef.SequenceEqualOrPrint(possibleMatch, type.DeclaringType.Generics))
+                        if (possibleMatch.SequenceEqual(type.DeclaringType.Generics))
                         {
                             generics.RemoveRange(0, matchLength);
                             if (generics.Count != origCount - possibleMatch.Count) throw new Exception("Failed to change generics list!");
                         }
-                        else
-                        {
-                            Console.Error.WriteLine("Hence, did not remove any generics.");
-                            Console.Error.WriteLine($"(type was {type}, declaring was {type.DeclaringType})\n");
-                        }
+                        //else
+                        //{
+                        //    Console.Error.WriteLine("Hence, did not remove any generics.");
+                        //    Console.Error.WriteLine($"(type was {type}, declaring was {type.DeclaringType})\n");
+                        //}
                     }
                     else
                         Console.Error.WriteLine("Cannot remove generics: declaring type has more, but we are Instance!");
                 }
-                if (generics.Count > 0 && generics.Count < origCount)
-                    Console.WriteLine($"{type}: removed {{{String.Join(", ", type.DeclaringType.Generics)}}}, left with " +
-                        $"{{{String.Join(", ", generics)}}} " +
-                        $"(IsGenInst? {type.IsGenericInstance} declaring.IsGenInst? {type.DeclaringType.IsGenericInstance})");
+                //if (generics.Count > 0 && generics.Count < origCount)
+                //    Console.WriteLine($"{type}: removed {{{String.Join(", ", type.DeclaringType.Generics)}}}, left with " +
+                //        $"{{{String.Join(", ", generics)}}} " +
+                //        $"(IsGenInst? {type.IsGenericInstance} declaring.IsGenInst? {type.DeclaringType.IsGenericInstance})");
             }
             if (generics.Count == 0)
                 return "";
@@ -144,7 +146,7 @@ namespace Il2Cpp_Modding_Codegen.Serialization
             {
                 if (!first)
                     typeStr += ", ";
-                typeStr += GetNameFromReference(genParam) ?? (genParam.SafeName());
+                typeStr += GetNameFromReference(genParam, mayNeedComplete: mayNeedComplete) ?? (genParam.SafeName());
                 first = false;
             }
             typeStr += ">";
@@ -153,27 +155,27 @@ namespace Il2Cpp_Modding_Codegen.Serialization
             return typeStr;
         }
 
-        public string ConvertTypeToName(TypeName def, bool generics = true)
+        public string ConvertTypeToName(TypeName def, bool generics = true, bool mayNeedComplete = false)
         {
             var name = def.Name;
             if (!generics || !def.IsGeneric)
                 return name;
 
-            var types = GenericsToStr(def);
+            var types = GenericsToStr(def, mayNeedComplete);
             // Nothing left to do unless declaring type has additional generic args/params
             if (!DeclaringTypeHasGenerics(def))
                 return name + types;
 
-            var declaring = _context.ResolvedTypeRef(def.DeclaringType);
+            var declaring = _types.ResolvedTypeRef(def.DeclaringType);
             int nestInd = name.LastIndexOf("::");
             if (nestInd >= 0)
                 name = name.Substring(nestInd);
-            return ConvertTypeToName(declaring, generics) + name + types;
+            return ConvertTypeToName(declaring, generics, mayNeedComplete) + name + types;
         }
 
-        public string ConvertTypeToQualifiedName(TypeName def, bool generics = true)
+        public string ConvertTypeToQualifiedName(TypeName def, bool generics = true, bool mayNeedComplete = false)
         {
-            return def.ConvertTypeToNamespace() + "::" + ConvertTypeToName(def, generics);
+            return def.ConvertTypeToNamespace() + "::" + ConvertTypeToName(def, generics, mayNeedComplete);
         }
 
         public string ConvertTypeToInclude(TypeName def, bool original = false)
@@ -181,7 +183,7 @@ namespace Il2Cpp_Modding_Codegen.Serialization
             if (!original)
             {
                 if (!def.GetsOwnHeader)
-                    return ConvertTypeToInclude(_context.ResolvedTypeRef(def.DeclaringType));
+                    return ConvertTypeToInclude(_types.ResolvedTypeRef(def.DeclaringType));
                 def.IncludeCount++;
             }
             // TODO: instead split on :: and Path.Combine?
@@ -232,7 +234,7 @@ namespace Il2Cpp_Modding_Codegen.Serialization
                 return ForceName(resolvedName.Item1, resolvedName.Item2, force);
 
             // Resolve the TypeRef. If the TypeRef is a generic instance, it will resolve to the generic definition.
-            var type = def.Resolve(_context);
+            var type = def.Resolve(_types);
             if (type == null)
             {
                 // for Dll parsing, should only happen for true generics (i.e. T, TValue, etc)
@@ -243,13 +245,14 @@ namespace Il2Cpp_Modding_Codegen.Serialization
 
             // TODO: instead, just use type
             // If we have not, map the type definition to a safe, unique name (TypeName)
-            var resolvedTd = _context.ResolvedTypeRef(def);
+            var resolvedTd = _types.ResolvedTypeRef(def);
 
             // If the type is us, no need to include/forward declare it
             if (_localType.Equals(type))
             {
                 return ForceName(type.Info,
-                    qualified ? ConvertTypeToQualifiedName(resolvedTd, genericArgs) : ConvertTypeToName(resolvedTd, genericArgs), force);
+                    qualified ? ConvertTypeToQualifiedName(resolvedTd, genericArgs, mayNeedComplete)
+                    : ConvertTypeToName(resolvedTd, genericArgs, mayNeedComplete), force);
             }
 
             // If we are the context for a header:
@@ -270,7 +273,7 @@ namespace Il2Cpp_Modding_Codegen.Serialization
                 // and at worst a reference to an undefined template, we want to forward declare their generic definitions instead
                 var fd = resolvedTd;
                 if (resolvedTd.IsGenericInstance)
-                    fd = _context.ResolvedTypeRef(type.This);
+                    fd = _types.ResolvedTypeRef(type.This);
 
                 if (_localType.This.Equals(def.DeclaringType))
                     NestedForwardDeclares.Add(fd);
@@ -286,11 +289,11 @@ namespace Il2Cpp_Modding_Codegen.Serialization
                     var tmpType = type;
                     while (!tmpType.Equals(_localType))
                     {
-                        var declaringType = tmpType.This.DeclaringType.Resolve(_context);
+                        var declaringType = tmpType.This.DeclaringType.Resolve(_types);
                         if (declaringType is null)
                             throw new UnresolvedTypeException(tmpType.This, tmpType.This.DeclaringType);
                         declaringType.NestedInPlace.Add(tmpType);
-                        _context.ResolvedTypeRef(tmpType.This).GetsOwnHeader = false;
+                        _types.ResolvedTypeRef(tmpType.This).GetsOwnHeader = false;
                         tmpType.GetsOwnHeader = false;
                         tmpType = declaringType;
                     }
@@ -305,16 +308,17 @@ namespace Il2Cpp_Modding_Codegen.Serialization
             }
 
             // Add newly created name to _references
-            _references.Add(def, (type.Info, ConvertTypeToQualifiedName(resolvedTd, genericArgs)));
+            _references.Add(def, (type.Info, ConvertTypeToQualifiedName(resolvedTd, genericArgs, mayNeedComplete)));
 
             // Return safe created name
-            return ForceName(type.Info, qualified ? ConvertTypeToQualifiedName(resolvedTd, genericArgs) : ConvertTypeToName(resolvedTd, genericArgs), force);
+            return ForceName(type.Info, qualified ? ConvertTypeToQualifiedName(resolvedTd, genericArgs, mayNeedComplete)
+                : ConvertTypeToName(resolvedTd, genericArgs, mayNeedComplete), force);
         }
 
         private string ResolvePrimitive(TypeRef def, ForceAsType force)
         {
             var name = def.Name.ToLower();
-            if (def.Name == "void*" || (def.Name == "Void" && def.IsPointer(_context)))
+            if (def.Name == "void*" || (def.Name == "Void" && def.IsPointer(_types)))
                 return "void*";
             else if (name == "void")
                 return "void";
@@ -323,7 +327,7 @@ namespace Il2Cpp_Modding_Codegen.Serialization
             string s = null;
             if (def.IsArray())
                 s = $"Array<{GetNameFromReference(def.ElementType)}>";
-            else if (def.IsPointer(_context))
+            else if (def.IsPointer(_types))
                 s = $"{GetNameFromReference(def.ElementType)}*";
             else if (name == "object")
                 s = "Il2CppObject";

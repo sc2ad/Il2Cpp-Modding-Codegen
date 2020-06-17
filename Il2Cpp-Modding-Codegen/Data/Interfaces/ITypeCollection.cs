@@ -5,7 +5,7 @@ using System.Text;
 
 namespace Il2Cpp_Modding_Codegen.Data
 {
-    public interface ITypeContext
+    public interface ITypeCollection
     {
         IEnumerable<ITypeData> Types { get; }
 

@@ -24,11 +24,11 @@ namespace Il2Cpp_Modding_Codegen.Data
         /// <summary>
         /// Resolves the type in the given context
         /// </summary>
-        public ITypeData Resolve(ITypeContext context)
+        public ITypeData Resolve(ITypeCollection types)
         {
             if (_resolvedType == null)
             {
-                _resolvedType = context.Resolve(this);
+                _resolvedType = types.Resolve(this);
             }
             return _resolvedType;
         }
@@ -38,10 +38,10 @@ namespace Il2Cpp_Modding_Codegen.Data
             return Name.Equals("void", StringComparison.OrdinalIgnoreCase);
         }
 
-        public virtual bool IsPointer(ITypeContext context)
+        public virtual bool IsPointer(ITypeCollection types)
         {
             // Resolve type, if type is not a value type, it is a pointer
-            Resolve(context);
+            Resolve(types);
             return _resolvedType?.Info.TypeFlags == TypeFlags.ReferenceType;
         }
 
