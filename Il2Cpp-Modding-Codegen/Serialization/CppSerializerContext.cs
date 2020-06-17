@@ -213,6 +213,10 @@ namespace Il2Cpp_Modding_Codegen.Serialization
         public string GetNameFromReference(TypeRef def, ForceAsType force = ForceAsType.None, bool qualified = true, bool genericArgs = true,
             bool mayNeedComplete = false)
         {
+            if (def.Name == "IActivator" && force == ForceAsType.Literal && mayNeedComplete)
+            {
+                Console.WriteLine("Hello world");
+            }
             // For resolving generic type paramters
             // ex: TypeName<T1, T2>, GetNameFromReference(T1)
             if (_genericTypes.Contains(def))

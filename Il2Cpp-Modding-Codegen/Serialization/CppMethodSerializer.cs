@@ -59,18 +59,33 @@ namespace Il2Cpp_Modding_Codegen.Serialization
             _parameterMaps.Add(method, parameterMap);
         }
 
+        private bool IsOverride(IMethod method)
+        {
+            return (method.ImplementedFrom != null) && !method.ImplementedFrom.Equals(method.DeclaringType);
+        }
+
         private string WriteMethod(bool staticFunc, IMethod method, bool namespaceQualified)
         {
             // If the method is an instance method, first parameter should be a pointer to the declaringType.
             string paramString = "";
             var ns = "";
             var preRetStr = "";
+            var overrideStr = "";
             if (namespaceQualified)
                 ns = _declaringFullyQualified[method.DeclaringType] + "::";
-            if (!namespaceQualified && staticFunc)
-                preRetStr += "static ";
-            if (!namespaceQualified && _isInterface[method.DeclaringType])
-                preRetStr += "virtual ";
+            else
+            {
+                if (staticFunc)
+                    preRetStr += "static ";
+                if (_isInterface[method.DeclaringType] || IsOverride(method))
+                {
+                    preRetStr += "virtual ";
+                    if (IsOverride(method))
+                        overrideStr += " override";
+                    else
+                        overrideStr += " = 0";
+                }
+            }
             // Returns an optional
             // TODO: Should be configurable
             var retStr = _resolvedTypeNames[method];
@@ -82,10 +97,12 @@ namespace Il2Cpp_Modding_Codegen.Serialization
             // Handles i.e. ".ctor"
             var nameStr = method.Name;
             if (nameStr.StartsWith(".")) nameStr = nameStr.ReplaceFirst(".", "_");
-            nameStr = nameStr.Replace(".", "::");
             if (nameStr.StartsWith("<")) nameStr = nameStr.ReplaceFirst("<", "$").ReplaceFirst(">", "$");
-            // TODO: if (nameStr.Contains("::I")) preRetStr += "override "; ?
-            return $"{preRetStr}{retStr} {ns}{nameStr}({paramString + method.Parameters.FormatParameters(_parameterMaps[method], FormatParameterMode.Names | FormatParameterMode.Types)})";
+            var copy = nameStr;
+            nameStr = nameStr.Replace('<', '$').Replace('>', '$').Replace('.', '_');
+            if (nameStr != copy)
+                overrideStr = "";
+            return $"{preRetStr}{retStr} {ns}{nameStr}({paramString + method.Parameters.FormatParameters(_parameterMaps[method], FormatParameterMode.Names | FormatParameterMode.Types)}){overrideStr}";
         }
 
         // Write the method here
@@ -108,7 +125,6 @@ namespace Il2Cpp_Modding_Codegen.Serialization
             if (IgnoredMethods.Contains(method.Name) || _config.BlacklistMethods.Contains(method.Name))
                 return;
 
-            bool interfaceMethod = (method.ImplementedFrom is null) && _isInterface[method.DeclaringType];
             bool writeContent = !_asHeader || method.DeclaringType.IsGeneric;
 
             if (_asHeader)
@@ -128,9 +144,7 @@ namespace Il2Cpp_Modding_Codegen.Serialization
                 writer.WriteLine($"// {methodString}");
                 if (method.ImplementedFrom != null)
                     writer.WriteLine($"// Implemented from: {method.ImplementedFrom}");
-                if (interfaceMethod)
-                    writer.WriteLine(WriteMethod(staticFunc, method, false) + " = 0;");
-                else if (!writeContent)
+                if (!writeContent)
                     writer.WriteLine(WriteMethod(staticFunc, method, false) + ";");
             }
             else
