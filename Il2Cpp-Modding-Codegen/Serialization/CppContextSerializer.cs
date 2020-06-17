@@ -91,21 +91,23 @@ namespace Il2Cpp_Modding_Codegen.Serialization
             else
                 writer.WriteComment(comment);
             // Write forward declarations
+            string typeStr;
             switch (typeData.Type)
             {
                 case TypeEnum.Class:
                 case TypeEnum.Interface:
-                    writer.WriteDeclaration("typedef class " + resolved.GetName() + " " + resolved.GetName());
+                    typeStr = "class";
                     break;
 
                 case TypeEnum.Struct:
-                    writer.WriteDeclaration("typedef struct " + resolved.GetName() + " " + resolved.GetName());
+                    typeStr = "struct";
                     break;
 
                 case TypeEnum.Enum:
                 default:
                     throw new InvalidOperationException($"Cannot forward declare {resolved}! It is an: {typeData.Type}!");
             }
+            writer.WriteDeclaration($"typedef {typeStr}  {resolved.GetName()} {resolved.GetName()}");
         }
 
         public void Serialize(CppStreamWriter writer, CppSerializerContext context)
@@ -182,33 +184,6 @@ namespace Il2Cpp_Modding_Codegen.Serialization
             }
             writer.WriteComment("Completed forward declares");
             writer.Flush();
-        }
-
-        public void WriteNestedForwardDeclares(CppStreamWriter writer, CppSerializerContext context)
-        {
-            var ns = context.TypeNamespace;
-            if (!_contextMap.TryGetValue(context, out var value))
-                throw new InvalidOperationException("Must resolve context before attempting to serialize it! context: " + context);
-            var completedFds = new HashSet<TypeRef>();
-            if (value.Item2.TryGetValue(ns, out var decls))
-            {
-                // If we have declarations under the same namespace as ourselves, check to ensure they are declaring types.
-                foreach (var t in decls)
-                {
-                    var typeData = t.Resolve(_collection);
-                    if (typeData is null)
-                        throw new UnresolvedTypeException(context.LocalType.This, t);
-                    var resolved = typeData.This;
-                    if (completedFds.Contains(resolved))
-                        // Skip already forward declared types
-                        continue;
-                    if (t.DeclaringType != null && t.DeclaringType.Equals(context.LocalType.This))
-                    {
-                        WriteForwardDeclaration(writer, resolved, typeData);
-                        completedFds.Add(resolved);
-                    }
-                }
-            }
         }
     }
 }

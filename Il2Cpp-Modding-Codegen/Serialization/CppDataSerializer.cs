@@ -42,6 +42,11 @@ namespace Il2Cpp_Modding_Codegen.Serialization
 
             _contextSerializer = new CppContextSerializer(_config, data);
 
+            // Holds a mapping of DeclaringType --> all nested type serializers.
+            // This is important because we may accidentally go out of order, so we would need to populate this map.
+            var nestedMap = new Dictionary<TypeRef, Dictionary<TypeRef, CppTypeDataSerializer>>();
+            var declaringMap = new Dictionary<TypeRef, CppTypeDataSerializer>();
+
             foreach (var t in data.Types)
             {
                 // We need to create both a header and a non-header serializer (and a context for each)
@@ -58,8 +63,33 @@ namespace Il2Cpp_Modding_Codegen.Serialization
                 var cppContext = new CppSerializerContext(_collection, t, false);
                 header.PreSerialize(headerContext, t);
                 cpp.PreSerialize(cppContext, t);
+                if (t.This.DeclaringType != null)
+                {
+                    // First, we should check to see if our declaring type has already been created.
+                    // If it has, we simply add 'header' to our declaring type's type serializer.
+                    if (declaringMap.TryGetValue(t.This.DeclaringType, out var declaringSerializer))
+                        declaringSerializer.AddNestedSerializer(t.This, header);
+                    else
+                    {
+                        // If our declaring type isn't in the declaringMap, it hasn't been created yet.
+                        // If the current type has a declaring type, add 'header' to our declaring type's nestedMap
+                        if (nestedMap.TryGetValue(t.This.DeclaringType, out var nestedD))
+                            nestedD.Add(t.This, header);
+                        else
+                            nestedMap.Add(t.This.DeclaringType, new Dictionary<TypeRef, CppTypeDataSerializer>());
+                    }
+                }
                 _map.Add(t, (header, cpp));
                 _headerOnlyMap.Add(t, headerContext);
+                declaringMap.Add(t.This, header);
+                if (nestedMap.TryGetValue(t.This, out var nested))
+                {
+                    // Add each nested type to our declaring serializer
+                    foreach (var pair in nested)
+                        header.AddNestedSerializer(pair.Key, pair.Value);
+                    // Remove from nestedMap once we have used it
+                    nestedMap.Remove(t.This);
+                }
             }
         }
 

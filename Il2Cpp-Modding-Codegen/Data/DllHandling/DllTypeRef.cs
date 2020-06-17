@@ -92,8 +92,8 @@ namespace Il2Cpp_Modding_Codegen.Data.DllHandling
                 }
             }
 
-            if (refDeclaring != null)
-                _name = refDeclaring.Name + "/" + _name;
+            //if (refDeclaring != null)
+            //    _name = refDeclaring.Name + "/" + _name;
 
             // Remove *, [] from end of variable name
             _name = Regex.Replace(_name, @"\W+$", "");

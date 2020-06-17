@@ -4,6 +4,7 @@ using System;
 using System.CodeDom.Compiler;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Text;
 
 namespace Il2Cpp_Modding_Codegen.Serialization
@@ -18,7 +19,10 @@ namespace Il2Cpp_Modding_Codegen.Serialization
             internal string parentName;
         }
 
-        private Dictionary<ITypeData, State> map = new Dictionary<ITypeData, State>();
+        // Uses TypeRef instead of ITypeData because nested types have different pointers
+        private Dictionary<TypeRef, State> map = new Dictionary<TypeRef, State>();
+
+        private Dictionary<TypeRef, CppTypeDataSerializer> nestedSerializers = new Dictionary<TypeRef, CppTypeDataSerializer>();
         private CppFieldSerializer fieldSerializer;
         private CppStaticFieldSerializer staticFieldSerializer;
         private CppMethodSerializer methodSerializer;
@@ -34,11 +38,16 @@ namespace Il2Cpp_Modding_Codegen.Serialization
             this.serializer = serializer;
         }
 
+        public void AddNestedSerializer(TypeRef type, CppTypeDataSerializer serializer)
+        {
+            nestedSerializers.Add(type, serializer);
+        }
+
         public override void PreSerialize(CppSerializerContext context, ITypeData type)
         {
             if (_asHeader)
             {
-                var resolved = context.GetCppName(type.This, false, CppSerializerContext.ForceAsType.Literal);
+                var resolved = context.GetCppName(type.This, false, false, CppSerializerContext.ForceAsType.Literal);
                 if (resolved is null)
                     throw new InvalidOperationException($"Could not resolve provided type: {type.This}!");
                 var s = new State
@@ -51,9 +60,9 @@ namespace Il2Cpp_Modding_Codegen.Serialization
                     if (_asHeader && type.This.Namespace == "System" && type.This.Name == "ValueType")
                         s.parentName = "Object";
                     else
-                        s.parentName = context.GetCppName(type.Parent, false, CppSerializerContext.ForceAsType.Literal);
+                        s.parentName = context.GetCppName(type.Parent, true, false, CppSerializerContext.ForceAsType.Literal);
                 }
-                map[type] = s;
+                map.Add(type.This, s);
 
                 if (fieldSerializer is null)
                     fieldSerializer = new CppFieldSerializer();
@@ -82,10 +91,72 @@ namespace Il2Cpp_Modding_Codegen.Serialization
             Resolved(type);
             // TODO: Add a specific interface method serializer here, or provide more state to the original method serializer to support it
 
+            // TODO: Add back PreSerialization of nested types instead of our weird header map stuff
             //// PreSerialize any nested types
             //foreach (var nested in type.NestedTypes)
             //    PreSerialize(context, nested);
             Context = context;
+        }
+
+        private void WriteNestedType(CppStreamWriter writer, ITypeData type)
+        {
+            // TODO: Have some more comparison for true nested in place here
+            var comment = "Nested type: " + type.This.GetQualifiedName();
+            string typeStr = null;
+            bool nestedInPlace = false;
+            switch (type.Type)
+            {
+                case TypeEnum.Class:
+                case TypeEnum.Interface:
+                    typeStr = "class";
+                    break;
+
+                case TypeEnum.Struct:
+                    typeStr = "struct";
+                    break;
+
+                case TypeEnum.Enum:
+                    // For now, serialize enums as structs
+                    typeStr = "struct";
+                    nestedInPlace = true;
+                    break;
+
+                default:
+                    throw new InvalidOperationException($"Cannot nested declare {type.This}! It is an: {type.Type}!");
+            }
+            // TODO: Actually add nestedInPlace
+            if (!nestedInPlace || nestedInPlace)
+            {
+                // Only write the template for the declaration if and only if we are not nested in place
+                // Because nested in place will write the template for itself.
+                if (type.This.IsGenericTemplate)
+                {
+                    // If the type being resolved is generic, we must template it.
+                    var generics = "template<";
+                    bool first = true;
+                    foreach (var g in type.This.Generics)
+                    {
+                        if (!first)
+                            generics += ", ";
+                        else
+                            first = false;
+                        generics += "typename " + g.GetName();
+                    }
+                    writer.WriteComment(comment + "<" + string.Join(", ", type.This.Generics.Select(tr => tr.Name)) + ">");
+                    writer.WriteLine(generics + ">");
+                }
+                else
+                    writer.WriteComment(comment);
+                writer.WriteDeclaration(typeStr + " " + type.This.GetName());
+            }
+            //if (nestedInPlace)
+            //    // We need to serialize the nested type using the nested type's context/serializer.
+            //    // We should perform some sort of lookup here in order to accomplish this, since making a new one means we would have to preserialize again
+            //    // We want to map from type --> CppTypeDataSerializer
+            //    if (nestedSerializers.TryGetValue(type.This, out var s))
+            //        s.Serialize(writer, type);
+            //    else
+            //        throw new UnresolvedTypeException(type.This.DeclaringType, type.This);
         }
 
         // Should be provided a file, with all references resolved:
@@ -97,7 +168,8 @@ namespace Il2Cpp_Modding_Codegen.Serialization
             string typeHeader = "";
             if (_asHeader)
             {
-                var state = map[type];
+                if (!map.TryGetValue(type.This, out var state))
+                    throw new UnresolvedTypeException(type.This.DeclaringType, type.This);
                 // Write the actual type definition start
                 var specifiers = "";
                 foreach (var spec in type.Specifiers)
@@ -148,8 +220,15 @@ namespace Il2Cpp_Modding_Codegen.Serialization
 
                 // write any class forward declares
                 // We use the context serializer here, once more.
-                if (_asHeader)
-                    serializer.WriteNestedForwardDeclares(writer, Context);
+                if (_asHeader && type.NestedTypes.Count > 0)
+                {
+                    // Write a type declaration for each of these nested types, unless we want to write them as literals.
+                    // We can even use this.Serialize for in-place-nested.
+                    foreach (var nt in type.NestedTypes)
+                    {
+                        WriteNestedType(writer, nt);
+                    }
+                }
                 writer.Flush();
             }
 

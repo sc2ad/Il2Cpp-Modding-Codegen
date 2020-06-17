@@ -50,7 +50,7 @@ namespace Il2Cpp_Modding_Codegen.Serialization
             _context = context;
             Header = asHeader;
             LocalType = data;
-            QualifiedTypeName = GetCppName(data.This, false, ForceAsType.Literal);
+            QualifiedTypeName = GetCppName(data.This, true, false, ForceAsType.Literal);
             TypeNamespace = data.This.GetNamespace();
             TypeName = data.This.GetName();
             FileName = data.This.GetIncludeLocation();
@@ -130,7 +130,7 @@ namespace Il2Cpp_Modding_Codegen.Serialization
         /// Gets the C++ fully qualified name for the TypeRef.
         /// </summary>
         /// <returns>Null if the type has not been resolved (and is not a generic parameter or primitive)</returns>
-        public string GetCppName(TypeRef data, bool generics = true, ForceAsType forceAsType = ForceAsType.None)
+        public string GetCppName(TypeRef data, bool qualified, bool generics = true, ForceAsType forceAsType = ForceAsType.None)
         {
             // If the TypeRef is a generic parameter, return its name
             if (_genericTypes.Contains(data))
@@ -149,7 +149,9 @@ namespace Il2Cpp_Modding_Codegen.Serialization
             var resolved = ResolveAndStore(data, NeedAs.Declaration);
             if (resolved is null)
                 return null;
-            var name = data.GetNamespace() + "::";
+            var name = string.Empty;
+            if (qualified)
+                name = data.GetNamespace() + "::";
             if (data.DeclaringType != null)
             {
                 // Each declaring type must be defined (confirm this is the case)
@@ -183,7 +185,7 @@ namespace Il2Cpp_Modding_Codegen.Serialization
                     else if (data.IsGenericInstance)
                     {
                         // If this is a generic instance, call each of the generic's GetCppName
-                        name += GetCppName(g);
+                        name += GetCppName(g, qualified, true, ForceAsType.None);
                     }
                 }
                 name += ">";
@@ -247,12 +249,12 @@ namespace Il2Cpp_Modding_Codegen.Serialization
             {
                 // Technically, we only need to add a declaration for the array (if it isn't needed as a definition)
                 // however, we will add it as a definition, because it's annoying to create a new generic ITypeData for it.
-                var eName = GetCppName(def.ElementType);
+                var eName = GetCppName(def.ElementType, true, true);
                 s = $"Array<{eName}>";
             }
             else if (def.IsPointer())
             {
-                s = GetCppName(def.ElementType) + "*";
+                s = GetCppName(def.ElementType, true, true) + "*";
             }
             else if (name == "object")
                 s = "Il2CppObject";

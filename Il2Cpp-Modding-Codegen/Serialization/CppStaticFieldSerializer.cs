@@ -23,7 +23,7 @@ namespace Il2Cpp_Modding_Codegen.Serialization
         public override void PreSerialize(CppSerializerContext context, IField field)
         {
             _declaringFullyQualified = context.QualifiedTypeName;
-            var resolved = context.GetCppName(field.Type);
+            var resolved = context.GetCppName(field.Type, true);
             if (!(resolved is null))
             {
                 // Add static field to forward declares, since it is used by the static _get and _set methods

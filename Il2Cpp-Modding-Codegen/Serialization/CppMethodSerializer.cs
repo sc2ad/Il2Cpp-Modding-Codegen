@@ -32,7 +32,7 @@ namespace Il2Cpp_Modding_Codegen.Serialization
             bool success = true;
             _declaringFullyQualified = context.QualifiedTypeName;
             // We need to forward declare everything used in methods (return types and parameters)
-            var resolvedReturn = context.GetCppName(method.ReturnType);
+            var resolvedReturn = context.GetCppName(method.ReturnType, true);
             if (resolvedReturn is null)
                 // If we fail to resolve the return type, we will simply add a null item to our dictionary.
                 // However, we should not call Resolved(method)
@@ -41,7 +41,7 @@ namespace Il2Cpp_Modding_Codegen.Serialization
             var parameterMap = new List<(string, ParameterFlags)>();
             foreach (var p in method.Parameters)
             {
-                var s = context.GetCppName(p.Type);
+                var s = context.GetCppName(p.Type, true);
                 if (s is null)
                     // If we fail to resolve a parameter, we will simply add a (null, p.Flags) item to our mapping.
                     // However, we should not call Resolved(method)

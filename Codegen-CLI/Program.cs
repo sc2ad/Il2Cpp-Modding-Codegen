@@ -50,7 +50,7 @@ namespace Codegen_CLI
             }
             watch.Stop();
             //Console.WriteLine(parsed);
-            Console.WriteLine($"Parsing took: {watch.ElapsedMilliseconds}ms");
+            Console.WriteLine($"Parsing took: {watch.Elapsed}!");
             Console.WriteLine("============================================");
             Console.WriteLine("Type the name of an output style (or don't for Normal) then press enter to serialize:");
             var input = Console.ReadLine();
