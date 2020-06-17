@@ -38,7 +38,7 @@ namespace Il2Cpp_Modding_Codegen.Serialization
         {
             if (_asHeader)
             {
-                var resolved = context.GetCppName(type.This);
+                var resolved = context.GetCppName(type.This, false, CppSerializerContext.ForceAsType.Literal);
                 if (resolved is null)
                     throw new InvalidOperationException($"Could not resolve provided type: {type.This}!");
                 var s = new State
@@ -51,7 +51,7 @@ namespace Il2Cpp_Modding_Codegen.Serialization
                     if (_asHeader && type.This.Namespace == "System" && type.This.Name == "ValueType")
                         s.parentName = "Object";
                     else
-                        s.parentName = context.GetCppName(type.Parent);
+                        s.parentName = context.GetCppName(type.Parent, false, CppSerializerContext.ForceAsType.Literal);
                 }
                 map[type] = s;
 

@@ -107,6 +107,11 @@ namespace Il2Cpp_Modding_Codegen.Data.DllHandling
                 return ret;
             }
 
+            if (typeRef.IsPointer())
+            {
+                // Pointers should be resolved without double checking the cache, they should resolve to what they were before pointing.
+                return Resolve(typeRef.ElementType);
+            }
             if (!_types.TryGetValue(typeRef, out ret))
             {
                 var def = (typeRef as DllTypeRef).This.Resolve();
@@ -116,7 +121,7 @@ namespace Il2Cpp_Modding_Codegen.Data.DllHandling
                     if (!_types.ContainsKey(ret.This))
                         Console.Error.WriteLine($"Too late to add {def} to Types!");
                     else
-                        Console.Error.WriteLine($"{def} already existed in _types! Matching item: {_types[ret.This].This}");
+                        Console.Error.WriteLine($"{typeRef} already existed in _types! Matching item: {_types[ret.This].This}");
                 }
                 // else likely a T, which can never "resolve"
             }

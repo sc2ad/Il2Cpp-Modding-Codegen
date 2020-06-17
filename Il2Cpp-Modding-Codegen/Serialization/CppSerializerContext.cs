@@ -75,25 +75,48 @@ namespace Il2Cpp_Modding_Codegen.Serialization
             {
                 // This should only happen in the declaring type's header, however.
                 foreach (var nested in data.NestedTypes)
-                    AddDeclaration(nested.This);
+                    AddDeclaration(nested.This, nested.This.Resolve(_context));
             }
             // Add ourselves (and any truly nested types) to our Definitions
             Definitions.Add(data.This);
         }
 
-        private void AddDefinition(TypeRef def)
+        private void AddDefinition(TypeRef def, ITypeData resolved = null)
         {
             // Adding a definition is simple, ensure the type is resolved and add it
-            var resolved = def.Resolve(_context);
+            if (resolved is null)
+                resolved = def.Resolve(_context);
             if (resolved != null)
                 RequiredDefinitions.Add(def);
         }
 
-        private void AddDeclaration(TypeRef def)
+        private void AddDeclaration(TypeRef def, ITypeData resolved)
         {
-            var resolved = def.Resolve(_context);
-            if (resolved != null)
-                RequiredDeclarations.Add(def);
+            if (resolved is null)
+                resolved = def.Resolve(_context);
+            if (def.IsVoid())
+                return;
+            if (Header)
+            {
+                if (resolved.This.DeclaringType is null || !Definitions.Contains(resolved.This.DeclaringType))
+                    // If the declaring type is not defined, we need to define it.
+                    AddDefinition(def, resolved);
+                else if (resolved.Type == TypeEnum.Enum)
+                    // If the type is an enum, we need to define it, we can't forward declare it.
+                    AddDefinition(def, resolved);
+                else if (def.IsPointer() || resolved.Info.TypeFlags == TypeFlags.ReferenceType)
+                {
+                    // Otherwise, if it is a pointer or a reference type, we can declare it
+                    if (resolved != null)
+                        RequiredDeclarations.Add(def);
+                }
+                else
+                    // Failing that, we define it
+                    AddDefinition(def, resolved);
+            }
+            else
+                // If we are a C++ file, we must have a definition since we need this type resolved
+                AddDefinition(def, resolved);
         }
 
         /// <summary>
@@ -107,7 +130,12 @@ namespace Il2Cpp_Modding_Codegen.Serialization
                 return data.Name;
             // If the TypeRef is a primitive, we need to convert it to a C++ name upfront.
             if (data.IsPrimitive())
-                return ConvertPrimitive(data);
+            {
+                var primitiveName = ConvertPrimitive(data);
+                if (!string.IsNullOrEmpty(primitiveName))
+                    return primitiveName;
+                // Failsafe return non-primitive converted name for special types like System.IntPtr
+            }
             var resolved = ResolveAndStore(data, NeedAs.Declaration);
             if (resolved is null)
                 return null;
@@ -126,7 +154,7 @@ namespace Il2Cpp_Modding_Codegen.Serialization
                 name += declString;
             }
             name += data.Name;
-            if (generics && data.Generics != null)
+            if (generics && data.Generics.Count > 0)
             {
                 name += "<";
                 bool first = true;
@@ -179,17 +207,7 @@ namespace Il2Cpp_Modding_Codegen.Serialization
             switch (needAs)
             {
                 case NeedAs.Declaration:
-                    if (Header)
-                    {
-                        // If we need it as a declaration, but it isn't a reference type, then we add it to definitions
-                        if (resolved.Info.TypeFlags == TypeFlags.ReferenceType)
-                            AddDeclaration(typeRef);
-                        else
-                            AddDefinition(typeRef);
-                    }
-                    else
-                        // If we are a C++ file, we must have a definition since we need this type resolved
-                        AddDefinition(typeRef);
+                    AddDeclaration(typeRef, resolved);
                     break;
 
                 case NeedAs.Definition:

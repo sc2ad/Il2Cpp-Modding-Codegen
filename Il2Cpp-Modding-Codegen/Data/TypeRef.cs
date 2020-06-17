@@ -50,7 +50,7 @@ namespace Il2Cpp_Modding_Codegen.Data
 
         public abstract bool IsArray();
 
-        public string GetNamespace() => string.IsNullOrEmpty(Namespace) ? Namespace.Replace(".", "::") : NoNamespace;
+        public string GetNamespace() => !string.IsNullOrEmpty(Namespace) ? Namespace.Replace(".", "::") : NoNamespace;
 
         public string GetName() => Name.Replace('`', '_').Replace('<', '$').Replace('>', '$');
 

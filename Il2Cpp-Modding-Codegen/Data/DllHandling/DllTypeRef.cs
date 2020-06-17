@@ -17,9 +17,12 @@ namespace Il2Cpp_Modding_Codegen.Data.DllHandling
         private readonly string _name;
         public override string Name { get => _name; }
 
-        public override bool IsGenericInstance { get => This.IsGenericInstance; }
-        public override bool IsGenericTemplate { get => This.HasGenericParameters; }
-        public override IReadOnlyList<TypeRef> Generics { get; } = new List<TypeRef>();
+        private bool _isGenericInstance;
+        public override bool IsGenericInstance { get => _isGenericInstance; }
+        private bool _isGenericTemplate;
+        public override bool IsGenericTemplate { get => _isGenericTemplate; }
+        private List<TypeRef> _generics = new List<TypeRef>();
+        public override IReadOnlyList<TypeRef> Generics { get => _generics; }
 
         public override TypeRef DeclaringType { get => From(This.DeclaringType); }
 
@@ -58,9 +61,36 @@ namespace Il2Cpp_Modding_Codegen.Data.DllHandling
             }
             _name = This.Name;
 
+            _isGenericTemplate = This.HasGenericParameters;
+            _isGenericInstance = This.IsGenericInstance;
+
+            if (IsGenericInstance)
+                _generics.AddRange((This as GenericInstanceType).GenericArguments.Select(From));
+            else if (IsGenericTemplate)
+                _generics.AddRange(This.GenericParameters.Select(From));
+            if (IsGeneric && Generics.Count == 0)
+                throw new InvalidDataException($"Wtf? In DllTypeRef constructor, a generic with no generics: {this}, IsGenInst: {this.IsGenericInstance}");
+
             DllTypeRef refDeclaring = null;
             if (!This.IsGenericParameter && This.IsNested)
                 refDeclaring = From(This.DeclaringType);
+
+            // If I am a nested type, and I have a generic parameter, and my declaring type has a generic parameter:
+            // I need to make sure their generic parameter name isn't !generic_index
+            // If it is, we need to replace that generic index with our own generic parameter and recurse upwards.
+            // If our own generic parameter is an !index, we can simply wait until our nested type comes around and replaces it for us.
+            if (refDeclaring != null && IsGeneric && Generics.Count > 0 && refDeclaring.IsGeneric && refDeclaring.Generics.Count > 0)
+            {
+                for (int i = 0; i < refDeclaring.Generics.Count; i++)
+                {
+                    if (refDeclaring.Generics[i].Name.StartsWith("!"))
+                    {
+                        var genericIdx = int.Parse(refDeclaring.Generics[i].Name.Substring(1));
+                        // Replace it with a new type from ourselves that matches index
+                        refDeclaring.SetGeneric(i, Generics[genericIdx]);
+                    }
+                }
+            }
 
             if (refDeclaring != null)
                 _name = refDeclaring.Name + "/" + _name;
@@ -70,13 +100,16 @@ namespace Il2Cpp_Modding_Codegen.Data.DllHandling
             if (!char.IsLetterOrDigit(_name.Last())) Console.WriteLine(reference);
 
             _namespace = (refDeclaring?.Namespace ?? This.Namespace) ?? "";
+        }
 
-            if (IsGenericInstance)
-                Generics = (This as GenericInstanceType).GenericArguments.Select(From).ToList();
-            else if (IsGenericTemplate)
-                Generics = This.GenericParameters.Select(From).ToList();
-            if (IsGeneric && Generics.Count == 0)
-                throw new InvalidDataException($"Wtf? In DllTypeRef constructor, a generic with no generics: {this}, IsGenInst: {this.IsGenericInstance}");
+        private void SetGeneric(int idx, TypeRef toSet)
+        {
+            _generics[idx] = toSet;
+            if (IsGenericTemplate)
+            {
+                _isGenericTemplate = false;
+                _isGenericInstance = true;
+            }
         }
 
         public static DllTypeRef From(TypeReference type)
