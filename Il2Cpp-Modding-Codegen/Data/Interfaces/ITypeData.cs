@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Runtime.CompilerServices;
 using System.Text;
 
 namespace Il2Cpp_Modding_Codegen.Data
@@ -18,5 +19,14 @@ namespace Il2Cpp_Modding_Codegen.Data
         List<IField> Fields { get; }
         List<IProperty> Properties { get; }
         List<IMethod> Methods { get; }
+    }
+
+    // TODO: This is yucky, but also somewhat useful...
+    public static class ITypeDataExtensions
+    {
+        public static bool IsNestedInPlace(this ITypeData data)
+        {
+            return data.This.DeclaringType != null && data.Type == TypeEnum.Enum;
+        }
     }
 }

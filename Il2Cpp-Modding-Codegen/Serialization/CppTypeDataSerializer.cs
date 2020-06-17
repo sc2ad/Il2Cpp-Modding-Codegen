@@ -22,7 +22,6 @@ namespace Il2Cpp_Modding_Codegen.Serialization
         // Uses TypeRef instead of ITypeData because nested types have different pointers
         private Dictionary<TypeRef, State> map = new Dictionary<TypeRef, State>();
 
-        private Dictionary<TypeRef, CppTypeDataSerializer> nestedSerializers = new Dictionary<TypeRef, CppTypeDataSerializer>();
         private CppFieldSerializer fieldSerializer;
         private CppStaticFieldSerializer staticFieldSerializer;
         private CppMethodSerializer methodSerializer;
@@ -36,11 +35,6 @@ namespace Il2Cpp_Modding_Codegen.Serialization
             _config = config;
             _asHeader = asHeader;
             this.serializer = serializer;
-        }
-
-        public void AddNestedSerializer(TypeRef type, CppTypeDataSerializer serializer)
-        {
-            nestedSerializers.Add(type, serializer);
         }
 
         public override void PreSerialize(CppSerializerContext context, ITypeData type)
@@ -92,9 +86,10 @@ namespace Il2Cpp_Modding_Codegen.Serialization
             // TODO: Add a specific interface method serializer here, or provide more state to the original method serializer to support it
 
             // TODO: Add back PreSerialization of nested types instead of our weird header map stuff
-            //// PreSerialize any nested types
-            //foreach (var nested in type.NestedTypes)
-            //    PreSerialize(context, nested);
+            // PreSerialize any nested types
+            foreach (var nested in type.NestedTypes)
+                if (nested.IsNestedInPlace())
+                    PreSerialize(context, nested);
             Context = context;
         }
 
@@ -102,30 +97,9 @@ namespace Il2Cpp_Modding_Codegen.Serialization
         {
             // TODO: Have some more comparison for true nested in place here
             var comment = "Nested type: " + type.This.GetQualifiedName();
-            string typeStr = null;
-            bool nestedInPlace = false;
-            switch (type.Type)
-            {
-                case TypeEnum.Class:
-                case TypeEnum.Interface:
-                    typeStr = "class";
-                    break;
-
-                case TypeEnum.Struct:
-                    typeStr = "struct";
-                    break;
-
-                case TypeEnum.Enum:
-                    // For now, serialize enums as structs
-                    typeStr = "struct";
-                    nestedInPlace = true;
-                    break;
-
-                default:
-                    throw new InvalidOperationException($"Cannot nested declare {type.This}! It is an: {type.Type}!");
-            }
+            var typeStr = type.Type.TypeName();
             // TODO: Actually add nestedInPlace
-            if (!nestedInPlace || nestedInPlace)
+            if (!type.IsNestedInPlace())
             {
                 // Only write the template for the declaration if and only if we are not nested in place
                 // Because nested in place will write the template for itself.
@@ -149,14 +123,13 @@ namespace Il2Cpp_Modding_Codegen.Serialization
                     writer.WriteComment(comment);
                 writer.WriteDeclaration(typeStr + " " + type.This.GetName());
             }
-            //if (nestedInPlace)
-            //    // We need to serialize the nested type using the nested type's context/serializer.
-            //    // We should perform some sort of lookup here in order to accomplish this, since making a new one means we would have to preserialize again
-            //    // We want to map from type --> CppTypeDataSerializer
-            //    if (nestedSerializers.TryGetValue(type.This, out var s))
-            //        s.Serialize(writer, type);
-            //    else
-            //        throw new UnresolvedTypeException(type.This.DeclaringType, type.This);
+            else
+            {
+                writer.WriteComment(comment);
+                writer.Flush();
+                Serialize(writer, type);
+            }
+            writer.Flush();
         }
 
         // Should be provided a file, with all references resolved:
@@ -206,17 +179,11 @@ namespace Il2Cpp_Modding_Codegen.Serialization
                 }
 
                 // TODO: print enums as actual C++ smart enums? backing type is type of _value and A = #, should work for the lines inside the enum
-                typeHeader = (type.Type == TypeEnum.Struct ? "struct " : "class ") + state.type;
+                typeHeader = type.Type.TypeName() + " " + state.type;
                 writer.WriteDefinition(typeHeader + s);
                 if (type.Fields.Count > 0 || type.Methods.Count > 0 || type.NestedTypes.Count > 0)
                     writer.WriteLine("public:");
                 writer.Flush();
-
-                //// now write any nested types
-                //foreach (var nested in type.NestedTypes)
-                //{
-                //    Serialize(writer, nested);
-                //}
 
                 // write any class forward declares
                 // We use the context serializer here, once more.
@@ -225,9 +192,7 @@ namespace Il2Cpp_Modding_Codegen.Serialization
                     // Write a type declaration for each of these nested types, unless we want to write them as literals.
                     // We can even use this.Serialize for in-place-nested.
                     foreach (var nt in type.NestedTypes)
-                    {
                         WriteNestedType(writer, nt);
-                    }
                 }
                 writer.Flush();
             }

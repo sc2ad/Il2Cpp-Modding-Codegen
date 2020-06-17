@@ -91,23 +91,7 @@ namespace Il2Cpp_Modding_Codegen.Serialization
             else
                 writer.WriteComment(comment);
             // Write forward declarations
-            string typeStr;
-            switch (typeData.Type)
-            {
-                case TypeEnum.Class:
-                case TypeEnum.Interface:
-                    typeStr = "class";
-                    break;
-
-                case TypeEnum.Struct:
-                    typeStr = "struct";
-                    break;
-
-                case TypeEnum.Enum:
-                default:
-                    throw new InvalidOperationException($"Cannot forward declare {resolved}! It is an: {typeData.Type}!");
-            }
-            writer.WriteDeclaration($"typedef {typeStr}  {resolved.GetName()} {resolved.GetName()}");
+            writer.WriteDeclaration($"typedef {typeData.Type.TypeName()} {resolved.GetName()} {resolved.GetName()}");
         }
 
         public void Serialize(CppStreamWriter writer, CppSerializerContext context)

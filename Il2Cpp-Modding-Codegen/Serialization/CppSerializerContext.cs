@@ -53,7 +53,10 @@ namespace Il2Cpp_Modding_Codegen.Serialization
             QualifiedTypeName = GetCppName(data.This, true, false, ForceAsType.Literal);
             TypeNamespace = data.This.GetNamespace();
             TypeName = data.This.GetName();
-            FileName = data.This.GetIncludeLocation();
+            if (data.IsNestedInPlace())
+                FileName = data.This.DeclaringType.GetIncludeLocation();
+            else
+                FileName = data.This.GetIncludeLocation();
             // Check all nested classes (and ourselves) if we have generic arguments/parameters. If we do, add them to _genericTypes.
             if (data.This.IsGenericTemplate)
                 foreach (var g in data.This.Generics)
