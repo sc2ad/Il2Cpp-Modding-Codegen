@@ -25,6 +25,8 @@ namespace Il2Cpp_Modding_Codegen.Serialization
         private SerializationConfig _config;
         public readonly CppContextSerializer serializer;
 
+        public CppSerializerContext Context { get; private set; }
+
         public CppTypeDataSerializer(SerializationConfig config, CppContextSerializer serializer, bool asHeader = true)
         {
             _config = config;
@@ -83,16 +85,7 @@ namespace Il2Cpp_Modding_Codegen.Serialization
             //// PreSerialize any nested types
             //foreach (var nested in type.NestedTypes)
             //    PreSerialize(context, nested);
-        }
-
-        private CppHeaderCreator _header;
-        private CppSerializerContext _context;
-
-        public void Serialize(CppStreamWriter writer, ITypeData type, CppHeaderCreator header, CppSerializerContext context)
-        {
-            _header = header;
-            _context = context;
-            Serialize(writer, type);
+            Context = context;
         }
 
         // Should be provided a file, with all references resolved:
@@ -131,9 +124,11 @@ namespace Il2Cpp_Modding_Codegen.Serialization
                     bool first = true;
                     foreach (var genParam in type.This.Generics)
                     {
-                        if (!first) templateStr += ", ";
+                        if (!first)
+                            templateStr += ", ";
+                        else
+                            first = false;
                         templateStr += "typename " + genParam.Name;
-                        first = false;
                     }
                     writer.WriteLine(templateStr + ">");
                 }
@@ -141,7 +136,8 @@ namespace Il2Cpp_Modding_Codegen.Serialization
                 // TODO: print enums as actual C++ smart enums? backing type is type of _value and A = #, should work for the lines inside the enum
                 typeHeader = (type.Type == TypeEnum.Struct ? "struct " : "class ") + state.type;
                 writer.WriteDefinition(typeHeader + s);
-                writer.WriteLine("public:");
+                if (type.Fields.Count > 0 || type.Methods.Count > 0 || type.NestedTypes.Count > 0)
+                    writer.WriteLine("public:");
                 writer.Flush();
 
                 //// now write any nested types
@@ -153,7 +149,7 @@ namespace Il2Cpp_Modding_Codegen.Serialization
                 // write any class forward declares
                 // We use the context serializer here, once more.
                 if (_asHeader)
-                    serializer.WriteNestedForwardDeclares();
+                    serializer.WriteNestedForwardDeclares(writer, Context);
                 writer.Flush();
             }
 

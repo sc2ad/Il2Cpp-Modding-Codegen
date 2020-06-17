@@ -28,6 +28,11 @@ namespace Il2Cpp_Modding_Codegen.Serialization
             WriteLine("// " + commentString);
         }
 
+        public void WriteInclude(string include)
+        {
+            WriteLine("#include \"" + include + "\"");
+        }
+
         /// <summary>
         /// Write a single syntax ; terminated line (or a declaration)
         /// </summary>

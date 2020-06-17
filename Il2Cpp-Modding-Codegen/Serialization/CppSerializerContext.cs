@@ -26,6 +26,7 @@ namespace Il2Cpp_Modding_Codegen.Serialization
         public HashSet<TypeRef> RequiredDefinitions { get; } = new HashSet<TypeRef>();
         public CppSerializerContext DeclaringContext { get; }
         public IReadOnlyList<CppSerializerContext> NestedContexts { get; }
+        public HashSet<TypeRef> Definitions { get; } = new HashSet<TypeRef>();
         public string FileName { get; }
         public string TypeNamespace { get; }
         public string TypeName { get; }
@@ -37,14 +38,17 @@ namespace Il2Cpp_Modding_Codegen.Serialization
         /// </summary>
         public bool NeedPrimitives { get; private set; }
 
+        public bool Header { get; }
+
         // Holds generic types (ex: T1, T2, ...) defined by the type
         private HashSet<TypeRef> _genericTypes = new HashSet<TypeRef>();
 
         private ITypeCollection _context;
 
-        public CppSerializerContext(ITypeCollection context, ITypeData data, bool cpp = false)
+        public CppSerializerContext(ITypeCollection context, ITypeData data, bool asHeader = true)
         {
             _context = context;
+            Header = asHeader;
             LocalType = data;
             QualifiedTypeName = GetCppName(data.This);
             TypeNamespace = data.This.GetNamespace();
@@ -67,12 +71,14 @@ namespace Il2Cpp_Modding_Codegen.Serialization
             }
             // Declaring types need to declare ALL of their nested types
             // TODO: also add them to _references?
-            if (!cpp)
+            if (asHeader)
             {
                 // This should only happen in the declaring type's header, however.
                 foreach (var nested in data.NestedTypes)
                     AddDeclaration(nested.This);
             }
+            // Add ourselves (and any truly nested types) to our Definitions
+            Definitions.Add(data.This);
         }
 
         private void AddDefinition(TypeRef def)
@@ -127,10 +133,9 @@ namespace Il2Cpp_Modding_Codegen.Serialization
                 foreach (var g in data.Generics)
                 {
                     if (!first)
-                    {
                         name += ", ";
+                    else
                         first = false;
-                    }
                     if (data.IsGenericTemplate)
                     {
                         // If this is a generic template, use literal names for our generic parameters
@@ -174,10 +179,16 @@ namespace Il2Cpp_Modding_Codegen.Serialization
             switch (needAs)
             {
                 case NeedAs.Declaration:
-                    // If we need it as a declaration, but it isn't a reference type, then we add it to definitions
-                    if (resolved.Info.TypeFlags == TypeFlags.ReferenceType)
-                        AddDeclaration(typeRef);
+                    if (Header)
+                    {
+                        // If we need it as a declaration, but it isn't a reference type, then we add it to definitions
+                        if (resolved.Info.TypeFlags == TypeFlags.ReferenceType)
+                            AddDeclaration(typeRef);
+                        else
+                            AddDefinition(typeRef);
+                    }
                     else
+                        // If we are a C++ file, we must have a definition since we need this type resolved
                         AddDefinition(typeRef);
                     break;
 

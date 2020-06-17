@@ -14,11 +14,13 @@ namespace Il2Cpp_Modding_Codegen.Serialization
         // This class is responsible for creating the contexts and passing them to each of the types
         // It then needs to create a header and a non-header for each class, with reasonable file structuring
         // Images, fortunately, don't have to be created at all
-        private ITypeCollection _context;
+        private ITypeCollection _collection;
 
         private SerializationConfig _config;
 
+        private CppContextSerializer _contextSerializer;
         private Dictionary<ITypeData, (CppTypeDataSerializer, CppTypeDataSerializer)> _map = new Dictionary<ITypeData, (CppTypeDataSerializer, CppTypeDataSerializer)>();
+        private Dictionary<ITypeData, CppSerializerContext> _headerOnlyMap = new Dictionary<ITypeData, CppSerializerContext>();
 
         /// <summary>
         /// Creates a C++ Serializer with the given type context, which is a wrapper for a list of all types to serialize
@@ -26,7 +28,7 @@ namespace Il2Cpp_Modding_Codegen.Serialization
         /// <param name="context"></param>
         public CppDataSerializer(SerializationConfig config, ITypeCollection context)
         {
-            _context = context;
+            _collection = context;
             _config = config;
         }
 
@@ -38,8 +40,7 @@ namespace Il2Cpp_Modding_Codegen.Serialization
             // Then we iterate over all the types again, creating header and source creators for each, using our context serializers.
             // We then serialize the header and source creators, actually creating the data.
 
-            var headerContextSerializer = new CppContextSerializer(true);
-            var cppContextSerializer = new CppContextSerializer(false);
+            _contextSerializer = new CppContextSerializer(_config, data);
 
             foreach (var t in data.Types)
             {
@@ -51,13 +52,14 @@ namespace Il2Cpp_Modding_Codegen.Serialization
                     // Skip the generic type, ensure it doesn't get serialized.
                     continue;
                 // TODO: give nested types their own cpp files?
-                var header = new CppTypeDataSerializer(_config, headerContextSerializer, true);
-                var cpp = new CppTypeDataSerializer(_config, cppContextSerializer, false);
-                var headerContext = new CppSerializerContext(_context, t);
-                var cppContext = new CppSerializerContext(_context, t, true);
+                var header = new CppTypeDataSerializer(_config, _contextSerializer, true);
+                var cpp = new CppTypeDataSerializer(_config, _contextSerializer, false);
+                var headerContext = new CppSerializerContext(_collection, t, true);
+                var cppContext = new CppSerializerContext(_collection, t, false);
                 header.PreSerialize(headerContext, t);
                 cpp.PreSerialize(cppContext, t);
                 _map.Add(t, (header, cpp));
+                _headerOnlyMap.Add(t, headerContext);
             }
         }
 
@@ -73,8 +75,13 @@ namespace Il2Cpp_Modding_Codegen.Serialization
                 // Then, we write the actual file data (call header or cpp .Serialize on the stream)
                 // That's it!
                 // Now we serialize
-                new CppHeaderCreator(_config, pair.Value.Item1.serializer).Serialize(pair.Value.Item1, pair.Key);
-                new CppSourceCreator(_config, pair.Value.Item2.serializer).Serialize(pair.Value.Item2, pair.Key);
+                // We need to ensure that all of our definitions and declarations are resolved for our given type in both contexts.
+                // We do this by calling CppContextSerializer.Resolve(pair.Key, _map)
+                _contextSerializer.Resolve(pair.Value.Item1.Context, _headerOnlyMap);
+                _contextSerializer.Resolve(pair.Value.Item2.Context, _headerOnlyMap);
+
+                new CppHeaderCreator(_config, _contextSerializer, pair.Value.Item1).Serialize(pair.Value.Item1.Context);
+                new CppSourceCreator(_config, _contextSerializer, pair.Value.Item2).Serialize(pair.Value.Item2.Context);
             }
         }
     }
