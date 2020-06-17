@@ -58,7 +58,7 @@ namespace Il2Cpp_Modding_Codegen.Data
         {
             var fileName = string.Join("-", GetName().Split(Path.GetInvalidFileNameChars()));
             // Splits multiple namespaces into nested directories
-            var directory = string.Join("-", Path.Combine(GetNamespace().Split(new string[] { "::" }, StringSplitOptions.None)).Split(Path.GetInvalidPathChars()));
+            var directory = string.Join("-", string.Join("/", GetNamespace().Split(new string[] { "::" }, StringSplitOptions.None)).Split(Path.GetInvalidPathChars()));
             return directory + "/" + fileName;
         }
 
