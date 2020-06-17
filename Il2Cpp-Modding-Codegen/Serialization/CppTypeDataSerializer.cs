@@ -14,7 +14,7 @@ namespace Il2Cpp_Modding_Codegen.Serialization
 
         private struct State
         {
-            internal ResolvedType type;
+            internal string type;
             internal string parentName;
         }
 
@@ -23,18 +23,20 @@ namespace Il2Cpp_Modding_Codegen.Serialization
         private CppStaticFieldSerializer staticFieldSerializer;
         private CppMethodSerializer methodSerializer;
         private SerializationConfig _config;
+        public readonly CppContextSerializer serializer;
 
-        public CppTypeDataSerializer(SerializationConfig config, bool asHeader = true)
+        public CppTypeDataSerializer(SerializationConfig config, CppContextSerializer serializer, bool asHeader = true)
         {
             _config = config;
             _asHeader = asHeader;
+            this.serializer = serializer;
         }
 
         public override void PreSerialize(CppSerializerContext context, ITypeData type)
         {
             if (_asHeader)
             {
-                var resolved = context.ResolveType(type.This);
+                var resolved = context.GetCppName(type.This);
                 if (resolved is null)
                     throw new InvalidOperationException($"Could not resolve provided type: {type.This}!");
                 var s = new State
@@ -47,7 +49,7 @@ namespace Il2Cpp_Modding_Codegen.Serialization
                     if (_asHeader && type.This.Namespace == "System" && type.This.Name == "ValueType")
                         s.parentName = "Object";
                     else
-                        s.parentName = context.ResolveType(type.Parent).GetTypeName(false);
+                        s.parentName = context.GetCppName(type.Parent);
                 }
                 map[type] = s;
 
@@ -137,7 +139,7 @@ namespace Il2Cpp_Modding_Codegen.Serialization
                 }
 
                 // TODO: print enums as actual C++ smart enums? backing type is type of _value and A = #, should work for the lines inside the enum
-                typeHeader = (type.Type == TypeEnum.Struct ? "struct " : "class ") + state.type.GetTypeName();
+                typeHeader = (type.Type == TypeEnum.Struct ? "struct " : "class ") + state.type;
                 writer.WriteDefinition(typeHeader + s);
                 writer.WriteLine("public:");
                 writer.Flush();
@@ -149,15 +151,9 @@ namespace Il2Cpp_Modding_Codegen.Serialization
                 //}
 
                 // write any class forward declares
-                if (_asHeader && _context.NestedForwardDeclares.Count > 0)
-                {
-                    writer.WriteComment("Nested forward declarations");
-                    foreach (var fd in _context.NestedForwardDeclares)
-                    {
-                        _header.WriteForwardDeclare(writer, fd);
-                    }
-                    writer.WriteComment("End nested forward declarations");
-                }
+                // We use the context serializer here, once more.
+                if (_asHeader)
+                    serializer.WriteNestedForwardDeclares();
                 writer.Flush();
             }
 

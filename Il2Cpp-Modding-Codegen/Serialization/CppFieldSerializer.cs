@@ -12,7 +12,7 @@ namespace Il2Cpp_Modding_Codegen.Serialization
         // When we construct this class, we resolve the field by placing everything it needs in the context object
         // When serialize is called, we simply write the field we have.
 
-        private Dictionary<IField, ResolvedType> _resolvedTypeNames = new Dictionary<IField, ResolvedType>();
+        private Dictionary<IField, string> _resolvedTypeNames = new Dictionary<IField, string>();
 
         public CppFieldSerializer()
         {
@@ -28,16 +28,9 @@ namespace Il2Cpp_Modding_Codegen.Serialization
             // If it does, because it is a field, we can FD it if it is a pointer
             // If it is not a pointer, then we need to include it
             // If it is a nested class, we need to deal with some stuff (maybe)
-            var resolvedType = context.ResolveType(field.Type);
-            if (resolvedType is null)
-                goto end;
-            if (resolvedType.Info?.TypeFlags == TypeFlags.ReferenceType)
-                context.AddForwardDeclare(resolvedType);
-            else
-                // Add all required includes to the context
-                context.AddInclude(resolvedType);
-            Resolved(field);
-        end:
+            var resolvedType = context.GetCppName(field.Type);
+            if (!string.IsNullOrEmpty(resolvedType))
+                Resolved(field);
             // In order to ensure we get an UnresolvedTypeException when we serialize
             _resolvedTypeNames.Add(field, resolvedType);
         }
@@ -57,7 +50,7 @@ namespace Il2Cpp_Modding_Codegen.Serialization
             fieldString += $"{field.Type} {field.Name} // Offset: 0x{field.Offset:X}";
             writer.WriteComment(fieldString);
             if (!field.Specifiers.IsStatic() && !field.Specifiers.IsConst())
-                writer.WriteFieldDeclaration(_resolvedTypeNames[field].GetTypeName(), string.Join("$", field.Name.Split('<', '>')));
+                writer.WriteFieldDeclaration(_resolvedTypeNames[field], string.Join("$", field.Name.Split('<', '>')));
             writer.Flush();
             Serialized(field);
         }

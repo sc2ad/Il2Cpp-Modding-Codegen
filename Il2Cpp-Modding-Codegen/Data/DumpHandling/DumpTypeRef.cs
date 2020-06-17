@@ -18,18 +18,22 @@ namespace Il2Cpp_Modding_Codegen.Data.DumpHandling
         public override TypeRef DeclaringType { get; }
         public override TypeRef ElementType { get; }
 
-        public override bool IsPointer(ITypeContext context)
+        public override bool IsPointer()
         {
             if (Name.EndsWith("*"))
-            {
                 return true;
-            }
-            return base.IsPointer(context);
+            return base.IsPointer();
         }
 
         public override bool IsArray()
         {
             return Name.EndsWith("[]");
+        }
+
+        public override bool IsPrimitive()
+        {
+            // TODO
+            return Name.Equals("void", StringComparison.OrdinalIgnoreCase);
         }
 
         /// <summary>
@@ -113,6 +117,8 @@ namespace Il2Cpp_Modding_Codegen.Data.DumpHandling
             }
         }
 
-        public DumpTypeRef(string qualifiedName) : this("", qualifiedName) { }
+        public DumpTypeRef(string qualifiedName) : this("", qualifiedName)
+        {
+        }
     }
 }

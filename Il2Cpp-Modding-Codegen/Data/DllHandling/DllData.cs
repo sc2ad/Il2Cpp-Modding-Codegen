@@ -16,7 +16,6 @@ namespace Il2Cpp_Modding_Codegen.Data.DllHandling
         public string Name => "Dll Data";
         public List<IImage> Images { get; } = new List<IImage>();
         public IEnumerable<ITypeData> Types { get { return _types.Values; } }
-        private Dictionary<TypeRef, ResolvedType> _resolvedTypes { get; } = new Dictionary<TypeRef, ResolvedType>();
         private DllConfig _config;
         private string _dir;
         private ReaderParameters _readerParams;
@@ -117,7 +116,7 @@ namespace Il2Cpp_Modding_Codegen.Data.DllHandling
                     if (!_types.ContainsKey(ret.This))
                         Console.Error.WriteLine($"Too late to add {def} to Types!");
                     else
-                        Console.Error.WriteLine($"{def} already existed in _types! Matching item: {_types[ret.This]}");
+                        Console.Error.WriteLine($"{def} already existed in _types! Matching item: {_types[ret.This].This}");
                 }
                 // else likely a T, which can never "resolve"
             }

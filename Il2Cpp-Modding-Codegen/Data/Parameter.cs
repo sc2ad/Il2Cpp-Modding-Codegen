@@ -78,9 +78,9 @@ namespace Il2Cpp_Modding_Codegen.Data
 
     public static class ParameterExtensions
     {
-        public static string PrintParameter(this (ResolvedType, ParameterFlags) param)
+        public static string PrintParameter(this (string, ParameterFlags) param)
         {
-            var s = param.Item1.GetQualifiedTypeName();
+            var s = param.Item1;
             if (param.Item2.HasFlag(ParameterFlags.Out))
                 s = "out " + s;
             if (param.Item2.HasFlag(ParameterFlags.Ref))
@@ -90,7 +90,7 @@ namespace Il2Cpp_Modding_Codegen.Data
             return s;
         }
 
-        public static string FormatParameters(this List<Parameter> parameters, List<(ResolvedType, ParameterFlags)> resolvedNames = null, FormatParameterMode mode = FormatParameterMode.Normal)
+        public static string FormatParameters(this List<Parameter> parameters, List<(string, ParameterFlags)> resolvedNames = null, FormatParameterMode mode = FormatParameterMode.Normal)
         {
             var s = "";
             for (int i = 0; i < parameters.Count; i++)

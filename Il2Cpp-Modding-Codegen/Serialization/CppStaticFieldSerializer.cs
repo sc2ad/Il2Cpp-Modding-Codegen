@@ -10,7 +10,7 @@ namespace Il2Cpp_Modding_Codegen.Serialization
     public class CppStaticFieldSerializer : Serializer<IField>
     {
         private string _declaringFullyQualified;
-        private Dictionary<IField, ResolvedType> _resolvedTypes = new Dictionary<IField, ResolvedType>();
+        private Dictionary<IField, string> _resolvedTypes = new Dictionary<IField, string>();
         private bool _asHeader;
         private SerializationConfig _config;
 
@@ -23,11 +23,10 @@ namespace Il2Cpp_Modding_Codegen.Serialization
         public override void PreSerialize(CppSerializerContext context, IField field)
         {
             _declaringFullyQualified = context.QualifiedTypeName;
-            var resolved = context.ResolveType(field.Type);
+            var resolved = context.GetCppName(field.Type);
             if (!(resolved is null))
             {
                 // Add static field to forward declares, since it is used by the static _get and _set methods
-                context.AddForwardDeclare(resolved);
                 Resolved(field);
             }
             _resolvedTypes.Add(field, resolved);
@@ -38,9 +37,9 @@ namespace Il2Cpp_Modding_Codegen.Serialization
             return field.Name.Replace('<', '$').Replace('>', '$');
         }
 
-        private string GetGetter(ResolvedType fieldType, IField field, bool namespaceQualified)
+        private string GetGetter(string fieldType, IField field, bool namespaceQualified)
         {
-            var retStr = fieldType.GetQualifiedTypeName();
+            var retStr = fieldType;
             var ns = "";
             if (_config.OutputStyle == OutputStyle.Normal)
                 retStr = "std::optional<" + retStr + ">";
@@ -50,12 +49,12 @@ namespace Il2Cpp_Modding_Codegen.Serialization
             return $"{retStr} {ns}_get_{SafeName(field)}()";
         }
 
-        private string GetSetter(ResolvedType fieldType, IField field, bool namespaceQualified)
+        private string GetSetter(string fieldType, IField field, bool namespaceQualified)
         {
             var ns = "";
             if (namespaceQualified)
                 ns = _declaringFullyQualified + "::";
-            return $"void {ns}_set_{SafeName(field)}({fieldType.GetQualifiedTypeName()} value)";
+            return $"void {ns}_set_{SafeName(field)}({fieldType} value)";
         }
 
         public override void Serialize(CppStreamWriter writer, IField field)

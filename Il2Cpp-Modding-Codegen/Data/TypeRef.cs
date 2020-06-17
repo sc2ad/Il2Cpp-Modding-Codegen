@@ -2,6 +2,7 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Security.Principal;
 
@@ -9,6 +10,7 @@ namespace Il2Cpp_Modding_Codegen.Data
 {
     public abstract class TypeRef : IEquatable<TypeRef>
     {
+        private const string NoNamespace = "GlobalNamespace";
         public abstract string Namespace { get; }
         public abstract string Name { get; }
 
@@ -22,9 +24,9 @@ namespace Il2Cpp_Modding_Codegen.Data
         private ITypeData _resolvedType;
 
         /// <summary>
-        /// Resolves the type in the given context
+        /// Resolves the type from the given type collection
         /// </summary>
-        public ITypeData Resolve(ITypeContext context)
+        internal ITypeData Resolve(ITypeCollection context)
         {
             if (_resolvedType == null)
             {
@@ -33,36 +35,36 @@ namespace Il2Cpp_Modding_Codegen.Data
             return _resolvedType;
         }
 
-        public bool IsVoid()
+        public virtual bool IsVoid()
         {
             return Name.Equals("void", StringComparison.OrdinalIgnoreCase);
         }
 
-        public virtual bool IsPointer(ITypeContext context)
+        public virtual bool IsPointer()
         {
-            // Resolve type, if type is not a value type, it is a pointer
-            Resolve(context);
+            // If type is not a value type, it is a pointer
             return _resolvedType?.Info.TypeFlags == TypeFlags.ReferenceType;
         }
 
+        public abstract bool IsPrimitive();
+
         public abstract bool IsArray();
+
+        public string GetNamespace() => string.IsNullOrEmpty(Namespace) ? Namespace.Replace(".", "::") : NoNamespace;
+
+        public string GetName() => Name.Replace('`', '_').Replace('<', '$').Replace('>', '$');
+
+        public string GetIncludeLocation()
+        {
+            var fileName = string.Join("-", GetName().Split(Path.GetInvalidFileNameChars()));
+            // Splits multiple namespaces into nested directories
+            var directory = string.Join("-", Path.Combine(GetNamespace().Split(new string[] { "::" }, StringSplitOptions.None)).Split(Path.GetInvalidPathChars()));
+            return directory + "/" + fileName;
+        }
 
         public override string ToString()
         {
-            var s = string.IsNullOrWhiteSpace(Namespace) ? Name : $"{Namespace}::{Name}";
-            if (!IsGeneric)
-                return s;
-
-            s += "<";
-            bool first = true;
-            foreach (var param in Generics)
-            {
-                if (!first) s += ", ";
-                s += param.ToString();
-                first = false;
-            }
-            s += ">";
-            return s;
+            return GetNamespace() + "::" + GetName();
         }
 
         public override bool Equals(object obj)

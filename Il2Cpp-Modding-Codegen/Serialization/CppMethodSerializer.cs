@@ -13,8 +13,8 @@ namespace Il2Cpp_Modding_Codegen.Serialization
         private bool _asHeader;
         private SerializationConfig _config;
 
-        private Dictionary<IMethod, ResolvedType> _resolvedReturns = new Dictionary<IMethod, ResolvedType>();
-        private Dictionary<IMethod, List<(ResolvedType, ParameterFlags)>> _parameterMaps = new Dictionary<IMethod, List<(ResolvedType, ParameterFlags)>>();
+        private Dictionary<IMethod, string> _resolvedReturns = new Dictionary<IMethod, string>();
+        private Dictionary<IMethod, List<(string, ParameterFlags)>> _parameterMaps = new Dictionary<IMethod, List<(string, ParameterFlags)>>();
         private string _declaringFullyQualified;
 
         public CppMethodSerializer(SerializationConfig config, bool asHeader = true)
@@ -32,16 +32,16 @@ namespace Il2Cpp_Modding_Codegen.Serialization
             bool success = true;
             _declaringFullyQualified = context.QualifiedTypeName;
             // We need to forward declare everything used in methods (return types and parameters)
-            var resolvedReturn = context.ResolveType(method.ReturnType);
+            var resolvedReturn = context.GetCppName(method.ReturnType);
             if (resolvedReturn is null)
                 // If we fail to resolve the return type, we will simply add a null item to our dictionary.
                 // However, we should not call Resolved(method)
                 success = false;
             _resolvedReturns.Add(method, resolvedReturn);
-            var parameterMap = new List<(ResolvedType, ParameterFlags)>();
+            var parameterMap = new List<(string, ParameterFlags)>();
             foreach (var p in method.Parameters)
             {
-                var s = context.ResolveType(p.Type);
+                var s = context.GetCppName(p.Type);
                 if (s is null)
                     // If we fail to resolve a parameter, we will simply add a (null, p.Flags) item to our mapping.
                     // However, we should not call Resolved(method)
@@ -50,16 +50,7 @@ namespace Il2Cpp_Modding_Codegen.Serialization
             }
             _parameterMaps.Add(method, parameterMap);
             if (success)
-            {
-                context.AddForwardDeclare(resolvedReturn);
-                foreach (var rt in parameterMap)
-                    if (!(rt.Item1 is null))
-                        context.AddForwardDeclare(rt.Item1);
-                    else
-                        // We have an issue, failed to resolve this parameter
-                        Console.WriteLine($"Unresolved type: {rt.Item1}");
                 Resolved(method);
-            }
         }
 
         private string WriteMethod(bool staticFunc, IMethod method, bool namespaceQualified)
@@ -74,7 +65,7 @@ namespace Il2Cpp_Modding_Codegen.Serialization
                 staticString = "static ";
             // Returns an optional
             // TODO: Should be configurable
-            var retStr = _resolvedReturns[method].GetQualifiedTypeName();
+            var retStr = _resolvedReturns[method];
             if (!method.ReturnType.IsVoid())
             {
                 if (_config.OutputStyle == OutputStyle.Normal)

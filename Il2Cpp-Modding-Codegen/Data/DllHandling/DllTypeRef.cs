@@ -33,7 +33,11 @@ namespace Il2Cpp_Modding_Codegen.Data.DllHandling
             }
         }
 
-        public override bool IsPointer(ITypeContext context) => This.IsPointer;
+        public override bool IsVoid() => This.MetadataType == MetadataType.Void;
+
+        public override bool IsPointer() => This.IsPointer;
+
+        public override bool IsPrimitive() => This.IsPrimitive || IsArray() || This.MetadataType == MetadataType.String;
 
         public override bool IsArray() => This.IsArray;
 
