@@ -65,8 +65,15 @@ namespace Il2Cpp_Modding_Codegen.Serialization
 
         public override void Serialize(CppStreamWriter writer, IParsedData data)
         {
+            int i = 0;
+            int count = _map.Count;
             foreach (var pair in _map)
             {
+                if (_config.PrintSerializationProgress)
+                    if (i % _config.PrintSerializationProgressFrequency == 0)
+                    {
+                        Console.WriteLine($"{i} / {count}");
+                    }
                 // Ensure that we are going to write everything in this context:
                 // Global context should have everything now, all names are also resolved!
                 // Now, we create the folders/files for the particular type we would like to create
@@ -82,6 +89,7 @@ namespace Il2Cpp_Modding_Codegen.Serialization
 
                 new CppHeaderCreator(_config, _contextSerializer, pair.Value.Item1).Serialize(pair.Value.Item1.Context);
                 new CppSourceCreator(_config, _contextSerializer, pair.Value.Item2).Serialize(pair.Value.Item2.Context);
+                i++;
             }
         }
     }

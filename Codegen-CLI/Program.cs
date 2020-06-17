@@ -15,9 +15,8 @@ namespace Codegen_CLI
         {
             Console.WriteLine("Drag and drop your dump.cs file (or a partial of it of the correct format) then press enter...");
             string path;
-            //if (File.Exists(@"C:\Users\Sc2ad\Desktop\Code\Android Modding\BeatSaber\1.8.0\partial.cs"))
-            if (false)
-                path = @"C:\Users\Sc2ad\Desktop\Code\Android Modding\BeatSaber\1.8.0\partial.cs";
+            if (Directory.Exists(@"C:\Users\Sc2ad\Desktop\Code\Android Modding\BeatSaber\1.8.0\DummyDll"))
+                path = @"C:\Users\Sc2ad\Desktop\Code\Android Modding\BeatSaber\1.8.0\DummyDll";
             else
                 path = Console.ReadLine().Replace("\"", string.Empty);
             bool parseDlls = false;
@@ -75,7 +74,9 @@ namespace Codegen_CLI
                     FieldHandling = UnresolvedTypeExceptionHandling.DisplayInFile,
                     MethodHandling = UnresolvedTypeExceptionHandling.DisplayInFile,
                     TypeHandling = UnresolvedTypeExceptionHandling.DisplayInFile
-                }
+                },
+                PrintSerializationProgress = true,
+                PrintSerializationProgressFrequency = 1000
             };
 
             if (Directory.Exists(Path.Combine(config.OutputDirectory, config.OutputHeaderDirectory)))
