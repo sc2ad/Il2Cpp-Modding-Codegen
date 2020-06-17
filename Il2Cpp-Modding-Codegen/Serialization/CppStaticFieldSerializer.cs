@@ -45,10 +45,9 @@ namespace Il2Cpp_Modding_Codegen.Serialization
             var staticStr = string.Empty;
             var ns = string.Empty;
             if (namespaceQualified)
-            {
                 ns = _declaringFullyQualified + "::";
+            if (_asHeader)
                 staticStr = "static ";
-            }
             // Collisions with this name are incredibly unlikely.
             return $"{staticStr + retStr} {ns}_get_{SafeName(field)}()";
         }
@@ -58,11 +57,10 @@ namespace Il2Cpp_Modding_Codegen.Serialization
             var ns = string.Empty;
             var staticStr = string.Empty;
             if (namespaceQualified)
-            {
                 ns = _declaringFullyQualified + "::";
+            if (_asHeader)
                 staticStr = "static ";
-            }
-            return $"{staticStr} void {ns}_set_{SafeName(field)}({fieldType} value)";
+            return $"{staticStr}void {ns}_set_{SafeName(field)}({fieldType} value)";
         }
 
         public override void Serialize(CppStreamWriter writer, IField field)
@@ -74,7 +72,7 @@ namespace Il2Cpp_Modding_Codegen.Serialization
                 fieldCommentString += $"{spec} ";
             fieldCommentString += $"{field.Type} {field.Name}";
             var resolvedName = _resolvedTypes[field];
-            if (_asHeader)
+            if (_asHeader && !field.DeclaringType.IsGenericTemplate)
             {
                 // Create two method declarations:
                 // static FIELDTYPE _get_FIELDNAME();
