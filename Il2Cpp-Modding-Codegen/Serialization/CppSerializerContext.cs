@@ -3,6 +3,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Net;
 using System.Text;
 
 namespace Il2Cpp_Modding_Codegen.Serialization
@@ -101,7 +102,8 @@ namespace Il2Cpp_Modding_Codegen.Serialization
             // If the TypeRef is a primitive, we need to convert it to a C++ name upfront.
             if (data.IsPrimitive())
                 return ConvertPrimitive(data);
-            if (!ResolveAndStore(data, NeedAs.Declaration))
+            var resolved = ResolveAndStore(data, NeedAs.Declaration);
+            if (resolved is null)
                 return null;
             var name = data.GetNamespace() + "::";
             if (data.DeclaringType != null)
@@ -145,12 +147,11 @@ namespace Il2Cpp_Modding_Codegen.Serialization
             // Ensure the name has no bad characters
             name = name.Replace('`', '_').Replace('<', '$').Replace('>', '$');
             // Append pointer as necessary
-            var resolvedType = data.Resolve(_context);
-            if (resolvedType is null)
+            if (resolved is null)
                 return null;
             if (forceAsType == ForceAsType.Literal)
                 return name;
-            if (resolvedType.Info.TypeFlags == TypeFlags.ReferenceType)
+            if (resolved.Info.TypeFlags == TypeFlags.ReferenceType)
                 return name + "*";
             return name;
         }
@@ -162,14 +163,14 @@ namespace Il2Cpp_Modding_Codegen.Serialization
         /// <param name="typeRef"></param>
         /// <param name="needAs"></param>
         /// <returns>A bool representing if the type was resolved successfully</returns>
-        public bool ResolveAndStore(TypeRef typeRef, NeedAs needAs = NeedAs.Declaration)
+        public ITypeData ResolveAndStore(TypeRef typeRef, NeedAs needAs = NeedAs.Declaration)
         {
             if (_genericTypes.Contains(typeRef))
                 // Generic parameters are resolved to nothing and shouldn't even attempted to be resolved.
-                return false;
+                return null;
             var resolved = typeRef.Resolve(_context);
             if (resolved is null)
-                return false;
+                return null;
             switch (needAs)
             {
                 case NeedAs.Declaration:
@@ -192,7 +193,7 @@ namespace Il2Cpp_Modding_Codegen.Serialization
                     // Only need them as declarations, since we don't need the literal pointers.
                     ResolveAndStore(g, NeedAs.Declaration);
             }
-            return true;
+            return resolved;
         }
 
         private string ConvertPrimitive(TypeRef def)
