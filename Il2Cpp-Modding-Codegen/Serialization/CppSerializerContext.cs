@@ -128,9 +128,12 @@ namespace Il2Cpp_Modding_Codegen.Serialization
             // If the TypeRef is a generic parameter, return its name
             if (_genericTypes.Contains(data))
                 return data.Name;
-            // If the TypeRef is a primitive, we need to convert it to a C++ name upfront.
+            if (data.IsVoid())
+                // If the TypeRef is void, easily return void
+                return "void";
             if (data.IsPrimitive())
             {
+                // If the TypeRef is a primitive, we need to convert it to a C++ name upfront.
                 var primitiveName = ConvertPrimitive(data);
                 if (!string.IsNullOrEmpty(primitiveName))
                     return primitiveName;
@@ -154,6 +157,7 @@ namespace Il2Cpp_Modding_Codegen.Serialization
                 name += declString;
             }
             name += data.Name;
+            name = name.Replace('`', '_').Replace('<', '$').Replace('>', '$');
             if (generics && data.Generics.Count > 0)
             {
                 name += "<";
@@ -178,7 +182,6 @@ namespace Il2Cpp_Modding_Codegen.Serialization
                 name += ">";
             }
             // Ensure the name has no bad characters
-            name = name.Replace('`', '_').Replace('<', '$').Replace('>', '$');
             // Append pointer as necessary
             if (resolved is null)
                 return null;
