@@ -43,7 +43,7 @@ namespace Il2Cpp_Modding_Codegen.Serialization
                 // Skip generic methods
                 return;
 
-            bool mayNeedComplete = method.DeclaringType.IsGenericTemplate  || _isInterface[method.DeclaringType];
+            bool mayNeedComplete = method.DeclaringType.IsGenericTemplate  || (_isInterface[method.DeclaringType] && IsOverride(method));
             // We need to forward declare/include all types that are either returned from the method or are parameters
             _resolvedTypeNames.Add(method, context.GetNameFromReference(method.ReturnType, mayNeedComplete: mayNeedComplete));
             // The declaringTypeName needs to be a reference, even if the type itself is a value type.
@@ -64,7 +64,7 @@ namespace Il2Cpp_Modding_Codegen.Serialization
 
         private bool IsOverride(IMethod method)
         {
-            return (method.ImplementedFrom != null) && !method.ImplementedFrom.Equals(method.DeclaringType);
+            return (method.OverriddenFrom != null) && !method.OverriddenFrom.Equals(method.DeclaringType);
         }
 
         private string WriteMethod(bool staticFunc, IMethod method, bool namespaceQualified)
@@ -99,32 +99,14 @@ namespace Il2Cpp_Modding_Codegen.Serialization
                     retStr = "std::optional<" + retStr + ">";
             }
             // Handles i.e. ".ctor"
-            var nameStr = method.Name;
-            if (nameStr.StartsWith(".")) nameStr = nameStr.ReplaceFirst(".", "_");
-            if (nameStr.StartsWith("<")) nameStr = nameStr.ReplaceFirst("<", "$").ReplaceFirst(">", "$");
+            var nameStr = method.Name.Replace('<', '$').Replace('>', '$').Replace('.', '_');
 
-            // If the method is an instance method, first parameter should be a pointer to the declaringType.
             string paramString = method.Parameters.FormatParameters(_parameterMaps[method], FormatParameterMode.Names | FormatParameterMode.Types);
-            string Signature(string methodName) => $"{methodName}({paramString})";
+            var signature = $"{nameStr}({paramString})";
 
-            // Given a method like `void System.Runtime.Serialization.ISerializable.GetObjectData(params);`, transform to
-            // `void GetObjectData(params);` for interface implementing purposes if that does not conflict with another method
-            int idx = nameStr.LastIndexOfAny(new char[] { '<', '>', '.' });
-            if (idx >= 0)
-            {
-                var tmp = nameStr.Substring(idx+1);
-                if (!_signatures.Contains((method.DeclaringType, Signature(tmp))))
-                    nameStr = tmp;
-                else
-                {
-                    nameStr = nameStr.Replace('<', '$').Replace('>', '$').Replace('.', '_');
-                    overrideStr = "";
-                }
-            }
-            var finalSig = Signature(nameStr);
-            if (!_signatures.Add((method.DeclaringType, finalSig)))
-                throw new InvalidDataException($"Multiple methods in {method.DeclaringType} resolved to {finalSig}!");
-            return $"{preRetStr}{retStr} {ns}{finalSig}{overrideStr}{impl}";
+            if (!_signatures.Add((method.DeclaringType, signature)))
+                preRetStr = "// ABORTED: conflicts with another method. " + preRetStr;
+            return $"{preRetStr}{retStr} {ns}{signature}{overrideStr}{impl}";
         }
 
         // Write the method here
@@ -177,7 +159,14 @@ namespace Il2Cpp_Modding_Codegen.Serialization
             {
                 bool isStatic = method.Specifiers.IsStatic();
                 // Write the qualified name if not in the header
-                writer.WriteLine(WriteMethod(isStatic, method, !_asHeader) + " {");
+                var methodStr = WriteMethod(isStatic, method, !_asHeader);
+                if (methodStr.StartsWith("/"))
+                {
+                    writer.WriteLine("");
+                    writer.Flush();
+                    return;
+                }
+                writer.WriteLine(methodStr + " {");
                 writer.Indent++;
                 var s = "";
                 var innard = "";

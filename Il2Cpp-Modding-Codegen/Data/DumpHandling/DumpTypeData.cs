@@ -190,8 +190,8 @@ namespace Il2Cpp_Modding_Codegen.Data.DumpHandling
             // It's important that Foo.IBar.func() goes after func() (if present)
             var methods = new List<IMethod>(Methods);
             Methods.Clear();
-            Methods.AddRange(methods.Where(m => !m.Name.Substring(1).Contains(".")));
-            Methods.AddRange(methods.Where(m => m.Name.Substring(1).Contains(".")));
+            Methods.AddRange(methods.Where(m => m.ImplementedFrom is null));
+            Methods.AddRange(methods.Where(m => m.ImplementedFrom != null));
         }
 
         public DumpTypeData(PeekableStreamReader fs, DumpConfig config)

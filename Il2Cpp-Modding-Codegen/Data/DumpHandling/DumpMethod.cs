@@ -17,6 +17,7 @@ namespace Il2Cpp_Modding_Codegen.Data.DumpHandling
         public TypeRef ReturnType { get; }
         public TypeRef DeclaringType { get; }
         public TypeRef ImplementedFrom { get; }
+        public TypeRef OverriddenFrom { get; } = null;
         public string Name { get; }
         public List<Parameter> Parameters { get; } = new List<Parameter>();
         public bool Generic { get; }

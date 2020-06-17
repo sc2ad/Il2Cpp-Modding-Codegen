@@ -62,8 +62,8 @@ namespace Il2Cpp_Modding_Codegen.Data.DllHandling
             {
                 var methods = def.Methods.Select(m => new DllMethod(m));
                 // It's important that Foo.IBar.func() goes after func() (if present)
-                Methods.AddRange(methods.Where(m => !m.Name.Substring(1).Contains(".")));
-                Methods.AddRange(methods.Where(m => m.Name.Substring(1).Contains(".")));
+                Methods.AddRange(methods.Where(m => m.ImplementedFrom is null));
+                Methods.AddRange(methods.Where(m => m.ImplementedFrom != null));
             }
         }
 
