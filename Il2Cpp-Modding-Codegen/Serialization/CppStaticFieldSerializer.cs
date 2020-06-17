@@ -40,21 +40,29 @@ namespace Il2Cpp_Modding_Codegen.Serialization
         private string GetGetter(string fieldType, IField field, bool namespaceQualified)
         {
             var retStr = fieldType;
-            var ns = "";
             if (_config.OutputStyle == OutputStyle.Normal)
                 retStr = "std::optional<" + retStr + ">";
+            var staticStr = string.Empty;
+            var ns = string.Empty;
             if (namespaceQualified)
+            {
                 ns = _declaringFullyQualified + "::";
+                staticStr = "static ";
+            }
             // Collisions with this name are incredibly unlikely.
-            return $"{retStr} {ns}_get_{SafeName(field)}()";
+            return $"{staticStr + retStr} {ns}_get_{SafeName(field)}()";
         }
 
         private string GetSetter(string fieldType, IField field, bool namespaceQualified)
         {
-            var ns = "";
+            var ns = string.Empty;
+            var staticStr = string.Empty;
             if (namespaceQualified)
+            {
                 ns = _declaringFullyQualified + "::";
-            return $"void {ns}_set_{SafeName(field)}({fieldType} value)";
+                staticStr = "static ";
+            }
+            return $"{staticStr} void {ns}_set_{SafeName(field)}({fieldType} value)";
         }
 
         public override void Serialize(CppStreamWriter writer, IField field)
