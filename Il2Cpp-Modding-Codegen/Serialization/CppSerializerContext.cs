@@ -50,7 +50,7 @@ namespace Il2Cpp_Modding_Codegen.Serialization
             _context = context;
             Header = asHeader;
             LocalType = data;
-            QualifiedTypeName = GetCppName(data.This);
+            QualifiedTypeName = GetCppName(data.This, false, ForceAsType.Literal);
             TypeNamespace = data.This.GetNamespace();
             TypeName = data.This.GetName();
             FileName = data.This.GetIncludeLocation();
@@ -86,19 +86,25 @@ namespace Il2Cpp_Modding_Codegen.Serialization
             // Adding a definition is simple, ensure the type is resolved and add it
             if (resolved is null)
                 resolved = def.Resolve(_context);
+            // Remove anything that is already declared, we only need to define it
+            RequiredDeclarations.Remove(def);
             if (resolved != null)
                 RequiredDefinitions.Add(def);
         }
 
         private void AddDeclaration(TypeRef def, ITypeData resolved)
         {
+            if (RequiredDefinitions.Contains(def))
+                // If we have it in our RequiredDefinitions, no need to declare as well
+                return;
+            if (def.IsVoid())
+                // Do nothing on void
+                return;
             if (resolved is null)
                 resolved = def.Resolve(_context);
-            if (def.IsVoid())
-                return;
             if (Header)
             {
-                if (resolved.This.DeclaringType is null || !Definitions.Contains(resolved.This.DeclaringType))
+                if (resolved.This.DeclaringType != null && !Definitions.Contains(resolved.This.DeclaringType))
                     // If the declaring type is not defined, we need to define it.
                     AddDefinition(def, resolved);
                 else if (resolved.Type == TypeEnum.Enum)
@@ -107,7 +113,8 @@ namespace Il2Cpp_Modding_Codegen.Serialization
                 else if (def.IsPointer() || resolved.Info.TypeFlags == TypeFlags.ReferenceType)
                 {
                     // Otherwise, if it is a pointer or a reference type, we can declare it
-                    if (resolved != null)
+                    // If we already have it in our RequiredDefinitions, we don't need to bother.
+                    if (resolved != null && !RequiredDefinitions.Contains(def))
                         RequiredDeclarations.Add(def);
                 }
                 else
