@@ -28,6 +28,7 @@ namespace Il2Cpp_Modding_Codegen.Serialization
         public HashSet<TypeRef> Definitions { get; } = new HashSet<TypeRef>();
         public HashSet<TypeRef> DefinitionsToGet { get; } = new HashSet<TypeRef>();
         public CppSerializerContext DeclaringContext { get; }
+        public CppSerializerContext HeaderContext { get; }
         public IReadOnlyList<CppSerializerContext> NestedContexts { get; }
         public string FileName { get; }
         public string TypeNamespace { get; }
@@ -57,18 +58,20 @@ namespace Il2Cpp_Modding_Codegen.Serialization
             AddGenericTypes(type.DeclaringType);
         }
 
-        public CppSerializerContext(ITypeCollection context, ITypeData data, bool asHeader = true)
+        public CppSerializerContext(ITypeCollection context, ITypeData data, CppSerializerContext headerContext)
         {
             _context = context;
-            Header = asHeader;
+            HeaderContext = headerContext;
+            Header = headerContext == null;
             LocalType = data;
             // Requiring it as a definition here simply makes it easier to remove (because we are asking for a definition of ourself, which we have)
             QualifiedTypeName = GetCppName(data.This, true, false, NeedAs.Definition, ForceAsType.Literal);
             TypeNamespace = data.This.GetNamespace();
             TypeName = data.This.GetName();
             var root = data;
-            while (root.IsNestedInPlace)
-                root = root.This.DeclaringType.Resolve(context);
+            if (Header)
+                while (root.IsNestedInPlace)
+                    root = root.This.DeclaringType.Resolve(context);
             FileName = root.This.GetIncludeLocation();
             // Check all declaring types (and ourselves) if we have generic arguments/parameters. If we do, add them to _genericTypes.
 
@@ -85,14 +88,14 @@ namespace Il2Cpp_Modding_Codegen.Serialization
                 AddDefinition(data.This.DeclaringType);
             }
             // Declaring types need to declare (or define) ALL of their nested types
-            if (asHeader)
+            if (Header)
             {
                 // This should only happen in the declaring type's header, however.
                 foreach (var nested in data.NestedTypes)
                     AddDeclaration(nested.This, nested.This.Resolve(_context));
             }
             // Add ourselves (and any truly nested types) to our Definitions
-            if (asHeader)
+            if (Header)
                 Definitions.Add(data.This);
             else
                 DefinitionsToGet.Add(data.This);

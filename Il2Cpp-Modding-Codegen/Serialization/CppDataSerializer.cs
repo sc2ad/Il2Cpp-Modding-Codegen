@@ -60,8 +60,8 @@ namespace Il2Cpp_Modding_Codegen.Serialization
                 // (otherwise returning our declaring type's include path)
                 var header = new CppTypeDataSerializer(_config, _contextSerializer, true);
                 var cpp = new CppTypeDataSerializer(_config, _contextSerializer, false);
-                var headerContext = new CppSerializerContext(_collection, t, true);
-                var cppContext = new CppSerializerContext(_collection, t, false);
+                var headerContext = new CppSerializerContext(_collection, t, null);
+                var cppContext = new CppSerializerContext(_collection, t, headerContext);
                 header.PreSerialize(headerContext, t);
                 cpp.PreSerialize(cppContext, t);
                 _map.Add(t, (header, cpp));

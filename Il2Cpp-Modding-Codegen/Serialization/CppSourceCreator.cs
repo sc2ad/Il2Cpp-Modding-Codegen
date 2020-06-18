@@ -24,13 +24,13 @@ namespace Il2Cpp_Modding_Codegen.Serialization
         public void Serialize(CppSerializerContext context)
         {
             var data = context.LocalType;
-            if (data.Type == TypeEnum.Interface || data.Methods.Count == 0 || data.This.IsGeneric)
+            if (data.Type == TypeEnum.Interface || data.Methods.Count == 0 || data.This.IsGeneric || context.Header)
             {
-                // Don't create C++ for types with no methods, or if it is an interface, or if it is generic
+                // Don't create C++ for types with no methods, or if it is an interface, or if it is generic, or if context is a header
                 return;
             }
 
-            var headerLocation = context.FileName + ".hpp";
+            var headerLocation = context.HeaderContext.FileName + ".hpp";
             var sourceLocation = Path.Combine(_config.OutputDirectory, _config.OutputSourceDirectory, context.FileName) + ".cpp";
             Directory.CreateDirectory(Path.GetDirectoryName(sourceLocation));
             using (var ms = new MemoryStream())
