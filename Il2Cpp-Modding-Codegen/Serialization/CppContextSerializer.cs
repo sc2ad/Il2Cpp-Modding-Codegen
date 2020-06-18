@@ -100,12 +100,6 @@ namespace Il2Cpp_Modding_Codegen.Serialization
             // Write includes
             var includesWritten = new HashSet<string>();
             writer.WriteComment("Begin includes");
-            foreach (var item in value.Item1)
-            {
-                writer.WriteComment("Including type: " + item.LocalType.This);
-                writer.WriteInclude(item.FileName + ".hpp");
-                includesWritten.Add(item.FileName + ".hpp");
-            }
             if (context.NeedPrimitives)
             {
                 // Primitives include
@@ -117,6 +111,16 @@ namespace Il2Cpp_Modding_Codegen.Serialization
                 // Optional include
                 writer.WriteLine("#include <optional>");
                 includesWritten.Add("optional");
+            }
+            foreach (var item in value.Item1)
+            {
+                writer.WriteComment("Including type: " + item.LocalType.This);
+                var incl = item.FileName + ".hpp";
+                if (!includesWritten.Contains(incl))
+                {
+                    writer.WriteInclude(incl);
+                    includesWritten.Add(incl);
+                }
             }
             if (context.LocalType.This.Namespace == "System" && context.LocalType.This.Name == "ValueType")
             {
