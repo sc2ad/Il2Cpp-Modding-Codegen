@@ -78,19 +78,24 @@ namespace Il2Cpp_Modding_Codegen.Data
 
     public static class ParameterExtensions
     {
-        public static string PrintParameter(this (string, ParameterFlags) param)
+        public static string PrintParameter(this (string, ParameterFlags) param, bool cpp = false)
         {
             var s = param.Item1;
-            if (param.Item2.HasFlag(ParameterFlags.Out))
-                s = "out " + s;
-            if (param.Item2.HasFlag(ParameterFlags.Ref))
-                s = "ref " + s;
-            if (param.Item2.HasFlag(ParameterFlags.In))
-                s = "in " + s;
+            if (!cpp)
+            {
+                if (param.Item2.HasFlag(ParameterFlags.Out))
+                    s = "out " + s;
+                if (param.Item2.HasFlag(ParameterFlags.Ref))
+                    s = "ref " + s;
+                if (param.Item2.HasFlag(ParameterFlags.In))
+                    s = "in " + s;
+            }
+            else if (param.Item2 != ParameterFlags.None)
+                s += "&";
             return s;
         }
 
-        public static string FormatParameters(this List<Parameter> parameters, List<(string, ParameterFlags)> resolvedNames = null, FormatParameterMode mode = FormatParameterMode.Normal)
+        public static string FormatParameters(this List<Parameter> parameters, List<(string, ParameterFlags)> resolvedNames = null, FormatParameterMode mode = FormatParameterMode.Normal, bool cpp = false)
         {
             var s = "";
             for (int i = 0; i < parameters.Count; i++)
