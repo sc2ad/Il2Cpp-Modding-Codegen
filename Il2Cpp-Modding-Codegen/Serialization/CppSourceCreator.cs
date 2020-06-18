@@ -3,6 +3,7 @@ using Il2Cpp_Modding_Codegen.Data;
 using System;
 using System.CodeDom.Compiler;
 using System.Collections.Generic;
+using System.Diagnostics.Contracts;
 using System.IO;
 using System.Text;
 
@@ -23,8 +24,9 @@ namespace Il2Cpp_Modding_Codegen.Serialization
 
         public void Serialize(CppSerializerContext context)
         {
+            Contract.Requires(!context.Header);
             var data = context.LocalType;
-            if (data.Type == TypeEnum.Interface || data.Methods.Count == 0 || data.This.IsGeneric || context.Header)
+            if (data.Type == TypeEnum.Interface || data.Methods.Count == 0 || data.This.IsGeneric)
             {
                 // Don't create C++ for types with no methods, or if it is an interface, or if it is generic, or if context is a header
                 return;
