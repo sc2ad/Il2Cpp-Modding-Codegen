@@ -90,7 +90,7 @@ namespace Il2Cpp_Modding_Codegen.Serialization
             else
                 writer.WriteComment(comment);
             // Write forward declarations
-            writer.WriteDeclaration($"typedef {typeData.Type.TypeName()} {resolved.GetName()} {resolved.GetName()}");
+            writer.WriteDeclaration(typeData.Type.TypeName() + " " + resolved.GetName());
         }
 
         public void Serialize(CppStreamWriter writer, CppSerializerContext context)
