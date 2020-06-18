@@ -55,7 +55,7 @@ namespace Codegen_CLI
             Console.WriteLine("Type the name of an output style (or don't for Normal) then press enter to serialize:");
             var input = Console.ReadLine();
             // TODO: strip non-alphabetic characters out of input before parsing it
-            OutputStyle style = OutputStyle.Normal;
+            OutputStyle style;
             if (Enum.TryParse(input, true, out style))
             {
                 Console.WriteLine($"Parsed style '{style}'");
@@ -105,7 +105,8 @@ namespace Codegen_CLI
                 serializer.Serialize(null, parsed);
                 watch.Stop();
                 Console.WriteLine($"Serialization Complete, took: {watch.Elapsed}!");
-            } catch (Exception e)
+            }
+            catch (Exception e)
             {
                 Console.WriteLine(e);
             }
