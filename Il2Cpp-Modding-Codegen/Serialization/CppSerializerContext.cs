@@ -92,7 +92,7 @@ namespace Il2Cpp_Modding_Codegen.Serialization
             {
                 // This should only happen in the declaring type's header, however.
                 foreach (var nested in data.NestedTypes)
-                    AddDeclaration(nested.This, nested.This.Resolve(_context));
+                    AddNestedDeclaration(nested.This, nested.This.Resolve(_context));
             }
             // Add ourselves (and any truly nested types) to our Definitions
             if (Header)
@@ -136,6 +136,15 @@ namespace Il2Cpp_Modding_Codegen.Serialization
                 MakeNestHere(resolved);
         }
 
+        private void AddNestedDeclaration(TypeRef def, ITypeData resolved)
+        {
+            Contract.Requires(!def.IsVoid());
+            Contract.Requires(def.DeclaringType != null);
+            Contract.Requires(resolved != null);
+            Contract.Requires(resolved.This.DeclaringType.Equals(LocalType));
+            Declarations.Add(def);
+        }
+
         private void AddDeclaration(TypeRef def, ITypeData resolved)
         {
             Contract.Requires(!def.IsVoid());
@@ -150,10 +159,10 @@ namespace Il2Cpp_Modding_Codegen.Serialization
             if (Header)
             {
                 if (resolved?.This.DeclaringType != null && !Definitions.Contains(resolved?.This.DeclaringType))
-                    // If def's declaring type is not defined, we cannot declare def.
+                    // If def's declaring type is not defined, we cannot declare def. Define it instead
                     AddDefinition(def, resolved);
-                else if (resolved != null && !DefinitionsToGet.Contains(def))
-                    // Failing that, we define it
+                else if (resolved != null)
+                    // Otherwise, we can safely add it to declarations
                     Declarations.Add(def);
             }
             else
