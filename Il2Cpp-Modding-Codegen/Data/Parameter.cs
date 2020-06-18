@@ -78,10 +78,10 @@ namespace Il2Cpp_Modding_Codegen.Data
 
     public static class ParameterExtensions
     {
-        public static string PrintParameter(this (string, ParameterFlags) param, bool cpp = false)
+        public static string PrintParameter(this (string, ParameterFlags) param, bool csharp = false)
         {
             var s = param.Item1;
-            if (!cpp)
+            if (csharp)
             {
                 if (param.Item2.HasFlag(ParameterFlags.Out))
                     s = "out " + s;
@@ -95,7 +95,7 @@ namespace Il2Cpp_Modding_Codegen.Data
             return s;
         }
 
-        public static string FormatParameters(this List<Parameter> parameters, List<(string, ParameterFlags)> resolvedNames = null, FormatParameterMode mode = FormatParameterMode.Normal, bool cpp = false)
+        public static string FormatParameters(this List<Parameter> parameters, List<(string, ParameterFlags)> resolvedNames = null, FormatParameterMode mode = FormatParameterMode.Normal, bool csharp = false)
         {
             var s = "";
             for (int i = 0; i < parameters.Count; i++)
@@ -120,7 +120,7 @@ namespace Il2Cpp_Modding_Codegen.Data
                     // Only types
                     if (resolvedNames != null)
                     {
-                        s += $"{resolvedNames[i].PrintParameter()}";
+                        s += $"{resolvedNames[i].PrintParameter(csharp)}";
                     }
                     else
                     {
@@ -133,7 +133,7 @@ namespace Il2Cpp_Modding_Codegen.Data
                     // Types and names
                     if (resolvedNames != null)
                     {
-                        s += $"{resolvedNames[i].PrintParameter()} {nameStr}";
+                        s += $"{resolvedNames[i].PrintParameter(csharp)} {nameStr}";
                     }
                     else
                     {

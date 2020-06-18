@@ -26,12 +26,12 @@ namespace Il2Cpp_Modding_Codegen.Data
         /// <summary>
         /// Resolves the type from the given type collection
         /// </summary>
-        internal ITypeData Resolve(ITypeCollection context)
+        public ITypeData Resolve(ITypeCollection context)
         {
+#pragma warning disable 612, 618
             if (_resolvedType == null)
-            {
                 _resolvedType = context.Resolve(this);
-            }
+#pragma warning restore 612, 618
             return _resolvedType;
         }
 
@@ -154,7 +154,10 @@ namespace Il2Cpp_Modding_Codegen.Data
             return GetNamespace() + "::" + GetName();
         }
 
+        [ObsoleteAttribute("The argument should be a TypeRef!")]
+#pragma warning disable 809  // "obsolete method extends non-obsolete mehtod object.Equals(object)
         public override bool Equals(object obj)
+#pragma warning restore 809
         {
             return Equals(obj as TypeRef);
         }

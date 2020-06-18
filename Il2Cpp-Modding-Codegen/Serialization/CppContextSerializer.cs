@@ -36,14 +36,13 @@ namespace Il2Cpp_Modding_Codegen.Serialization
         public void Resolve(CppSerializerContext context, Dictionary<ITypeData, CppSerializerContext> map)
         {
             var includes = new HashSet<CppSerializerContext>();
-            foreach (var td in context.RequiredDefinitions)
+            foreach (var td in context.DefinitionsToGet)
             {
                 if (context.Definitions.Contains(td))
                     // If we have the definition already in our context, continue.
                     // This could be because it is literally ourselves, a nested type, or we included something
                     continue;
                 var type = td.Resolve(_collection);
-                // Item1 is the header serializer
                 // Add the resolved context's FileName to includes
                 if (map.TryGetValue(type, out var value))
                 {
@@ -56,8 +55,8 @@ namespace Il2Cpp_Modding_Codegen.Serialization
             }
             var forwardDeclares = new Dictionary<string, HashSet<TypeRef>>();
             // Remove ourselves from our required declarations (faster than checked for each addition)
-            context.RequiredDeclarations.Remove(context.LocalType.This);
-            foreach (var td in context.RequiredDeclarations)
+            context.Declarations.Remove(context.LocalType.This);
+            foreach (var td in context.Declarations)
             {
                 // Stratify by namespace
                 var ns = td.GetNamespace();

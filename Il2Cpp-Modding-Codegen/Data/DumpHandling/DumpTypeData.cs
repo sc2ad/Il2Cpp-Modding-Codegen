@@ -26,6 +26,7 @@ namespace Il2Cpp_Modding_Codegen.Data.DumpHandling
         public List<IField> Fields { get; } = new List<IField>();
         public List<IProperty> Properties { get; } = new List<IProperty>();
         public List<IMethod> Methods { get; } = new List<IMethod>();
+        public bool IsNestedInPlace { get; set; } = false;
 
         private DumpConfig _config;
 

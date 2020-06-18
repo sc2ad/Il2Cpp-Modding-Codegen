@@ -73,7 +73,7 @@ namespace Il2Cpp_Modding_Codegen.Serialization
             }
             // Handles i.e. ".ctor"
             var nameStr = method.Name.Replace('.', '_').Replace('<', '$').Replace('>', '$');
-            return $"{staticString}{retStr} {ns}{nameStr}({paramString + method.Parameters.FormatParameters(_parameterMaps[method], FormatParameterMode.Names | FormatParameterMode.Types, true)})";
+            return $"{staticString}{retStr} {ns}{nameStr}({paramString + method.Parameters.FormatParameters(_parameterMaps[method], FormatParameterMode.Names | FormatParameterMode.Types)})";
         }
 
         // Write the method here
@@ -97,19 +97,19 @@ namespace Il2Cpp_Modding_Codegen.Serialization
 
             if (_asHeader)
             {
-                var methodString = "";
+                var methodComment = "";
                 bool staticFunc = false;
                 foreach (var spec in method.Specifiers)
                 {
-                    methodString += $"{spec} ";
+                    methodComment += $"{spec} ";
                     if (spec.Static)
                     {
                         staticFunc = true;
                     }
                 }
-                methodString += $"{method.ReturnType} {method.Name}({method.Parameters.FormatParameters()})";
-                methodString += $" // Offset: 0x{method.Offset:X}";
-                writer.WriteComment(methodString);
+                methodComment += $"{method.ReturnType} {method.Name}({method.Parameters.FormatParameters(csharp: true)})";
+                methodComment += $" // Offset: 0x{method.Offset:X}";
+                writer.WriteComment(methodComment);
                 if (method.ImplementedFrom != null)
                     writer.WriteComment("Implemented from: " + method.ImplementedFrom);
                 if (!writeContent)

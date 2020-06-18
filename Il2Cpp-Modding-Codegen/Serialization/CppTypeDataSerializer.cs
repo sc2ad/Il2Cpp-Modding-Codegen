@@ -88,7 +88,7 @@ namespace Il2Cpp_Modding_Codegen.Serialization
             // TODO: Add back PreSerialization of nested types instead of our weird header map stuff
             // PreSerialize any nested types
             foreach (var nested in type.NestedTypes)
-                if (nested.IsNestedInPlace())
+                if (nested.IsNestedInPlace)
                     PreSerialize(context, nested);
             Context = context;
         }
@@ -99,10 +99,10 @@ namespace Il2Cpp_Modding_Codegen.Serialization
             var comment = "Nested type: " + type.This.GetQualifiedName();
             var typeStr = type.Type.TypeName();
             // TODO: Actually add nestedInPlace
-            if (!type.IsNestedInPlace())
+            if (!type.IsNestedInPlace)
             {
-                // Only write the template for the declaration if and only if we are not nested in place
-                // Because nested in place will write the template for itself.
+                // Only write the template for the declaration if we are not nested in place
+                // because nested in place will write the template for itself.
                 // First thing we need to do is understand that our declaring type may have generic parameters
                 // If our declaring type has any generic parameters, our nested type declaration should NOT have a template that uses those
                 // (unless we are writing the actualy DEFINITION of the nested type, in which case we need to copy over the templated parameters)

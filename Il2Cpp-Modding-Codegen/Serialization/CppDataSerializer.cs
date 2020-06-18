@@ -94,7 +94,7 @@ namespace Il2Cpp_Modding_Codegen.Serialization
                 _contextSerializer.Resolve(pair.Value.Item2.Context, _headerOnlyMap);
 
                 // If we have a type that is nested in place, we only create the .cpp for it
-                if (!pair.Key.IsNestedInPlace())
+                if (!pair.Key.IsNestedInPlace)
                     new CppHeaderCreator(_config, _contextSerializer, pair.Value.Item1).Serialize(pair.Value.Item1.Context);
                 new CppSourceCreator(_config, _contextSerializer, pair.Value.Item2).Serialize(pair.Value.Item2.Context);
                 i++;

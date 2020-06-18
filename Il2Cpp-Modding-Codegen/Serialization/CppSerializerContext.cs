@@ -1,6 +1,7 @@
 ﻿using Il2Cpp_Modding_Codegen.Data;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.Contracts;
 using System.IO;
 using System.Linq;
 using System.Net;
@@ -22,11 +23,11 @@ namespace Il2Cpp_Modding_Codegen.Serialization
             Literal
         }
 
-        public HashSet<TypeRef> RequiredDeclarations { get; } = new HashSet<TypeRef>();
-        public HashSet<TypeRef> RequiredDefinitions { get; } = new HashSet<TypeRef>();
+        public HashSet<TypeRef> Declarations { get; } = new HashSet<TypeRef>();
+        public HashSet<TypeRef> Definitions { get; } = new HashSet<TypeRef>();
+        public HashSet<TypeRef> DefinitionsToGet { get; } = new HashSet<TypeRef>();
         public CppSerializerContext DeclaringContext { get; }
         public IReadOnlyList<CppSerializerContext> NestedContexts { get; }
-        public HashSet<TypeRef> Definitions { get; } = new HashSet<TypeRef>();
         public string FileName { get; }
         public string TypeNamespace { get; }
         public string TypeName { get; }
@@ -63,10 +64,10 @@ namespace Il2Cpp_Modding_Codegen.Serialization
             QualifiedTypeName = GetCppName(data.This, true, false, ForceAsType.Literal);
             TypeNamespace = data.This.GetNamespace();
             TypeName = data.This.GetName();
-            if (data.IsNestedInPlace())
-                FileName = data.This.DeclaringType.GetIncludeLocation();
-            else
-                FileName = data.This.GetIncludeLocation();
+            var root = data;
+            while (root.IsNestedInPlace)
+                root = root.This.DeclaringType.Resolve(context);
+            FileName = root.This.GetIncludeLocation();
             // Check all declaring types (and ourselves) if we have generic arguments/parameters. If we do, add them to _genericTypes.
 
             AddGenericTypes(data.This);
@@ -81,8 +82,7 @@ namespace Il2Cpp_Modding_Codegen.Serialization
             {
                 AddDefinition(data.This.DeclaringType);
             }
-            // Declaring types need to declare ALL of their nested types
-            // TODO: also add them to _references?
+            // Declaring types need to declare (or define) ALL of their nested types
             if (asHeader)
             {
                 // This should only happen in the declaring type's header, however.
@@ -93,7 +93,26 @@ namespace Il2Cpp_Modding_Codegen.Serialization
             if (asHeader)
                 Definitions.Add(data.This);
             else
-                RequiredDefinitions.Add(data.This);
+                DefinitionsToGet.Add(data.This);
+        }
+
+        // Recursively makes type nested-in-place iff it has a declaring type, then ditto for the declaring type.
+        private void MakeNestHere(ITypeData type)
+        {
+            if (type.This.DeclaringType is null) return;
+            type.IsNestedInPlace = true;
+            // TODO: something with NestedContexts?
+            var declaring = type.This.DeclaringType.Resolve(_context);
+            if (declaring is null)
+                throw new UnresolvedTypeException(type.This, type.This.DeclaringType);
+            MakeNestHere(declaring);
+        }
+
+        private bool CouldNestHere(TypeRef def)
+        {
+            if (def is null) return false;
+            if (LocalType.This.Equals(def)) return true;
+            return CouldNestHere(def.DeclaringType);
         }
 
         private void AddDefinition(TypeRef def, ITypeData resolved = null)
@@ -101,36 +120,37 @@ namespace Il2Cpp_Modding_Codegen.Serialization
             // Adding a definition is simple, ensure the type is resolved and add it
             if (resolved is null)
                 resolved = def.Resolve(_context);
+            if (resolved is null)
+                return;
             // Remove anything that is already declared, we only need to define it
-            RequiredDeclarations.Remove(def);
-            if (resolved != null)
-                RequiredDefinitions.Add(def);
+            Declarations.Remove(def);
+
+            if (!CouldNestHere(def))
+                DefinitionsToGet.Add(def);
+            else if (Definitions.Add(def))
+                MakeNestHere(resolved);
         }
 
         private void AddDeclaration(TypeRef def, ITypeData resolved)
         {
-            if (RequiredDefinitions.Contains(def))
-                // If we have it in our RequiredDefinitions, no need to declare as well
-                return;
-            if (def.IsVoid())
-                // Do nothing on void
+            Contract.Requires(!def.IsVoid());
+
+            if (DefinitionsToGet.Contains(def))
+                // If we have it in our DefinitionsToGet, no need to declare as well
                 return;
             if (resolved is null)
                 resolved = def.Resolve(_context);
             if (Header)
             {
-                if (resolved.This.DeclaringType != null && !Definitions.Contains(resolved.This.DeclaringType))
-                    // If the declaring type is not defined, we need to define it.
-                    AddDefinition(def, resolved);
-                else if (resolved.Type == TypeEnum.Enum)
-                    // If the type is an enum, we need to define it, we can't forward declare it.
+                if (resolved?.This.DeclaringType != null && !Definitions.Contains(resolved?.This.DeclaringType))
+                    // If def's declaring type is not defined, we cannot declare def.
                     AddDefinition(def, resolved);
                 else if (def.IsPointer() || resolved.Info.TypeFlags == TypeFlags.ReferenceType)
                 {
                     // Otherwise, if it is a pointer or a reference type, we can declare it
-                    // If we already have it in our RequiredDefinitions, we don't need to bother.
-                    if (resolved != null && !RequiredDefinitions.Contains(def))
-                        RequiredDeclarations.Add(def);
+                    // If we already have it in our DefinitionsToGet, we don't need to bother.
+                    if (resolved != null && !DefinitionsToGet.Contains(def))
+                        Declarations.Add(def);
                 }
                 else
                     // Failing that, we define it
