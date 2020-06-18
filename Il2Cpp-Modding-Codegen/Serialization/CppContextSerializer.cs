@@ -26,6 +26,16 @@ namespace Il2Cpp_Modding_Codegen.Serialization
             _collection = collection;
         }
 
+        private void AddIncludeDefinitions(CppSerializerContext context, HashSet<TypeRef> defs)
+        {
+            foreach (var def in defs)
+                if (context.Declarations.Contains(def))
+                    // Should not be adding a definition to a class that declares the same type!
+                    throw new InvalidOperationException($"Cannot add definition: {def} to context: {context.LocalType.This} because context has a declaration of the same type!");
+                else
+                    context.Definitions.Add(def);
+        }
+
         /// <summary>
         /// Resolves the context using the provided map.
         /// Populates a mapping of this particular context to forward declares and includes.
@@ -39,8 +49,7 @@ namespace Il2Cpp_Modding_Codegen.Serialization
             if (context.HeaderContext != null)
             {
                 includes.Add(context.HeaderContext);
-                foreach (var def in context.HeaderContext.Definitions)
-                    context.Definitions.Add(def);
+                AddIncludeDefinitions(context, context.HeaderContext.Definitions);
             }
             foreach (var td in context.DefinitionsToGet)
             {
@@ -53,8 +62,7 @@ namespace Il2Cpp_Modding_Codegen.Serialization
                 if (map.TryGetValue(type, out var value))
                 {
                     includes.Add(value);
-                    foreach (var def in value.Definitions)
-                        context.Definitions.Add(def);
+                    AddIncludeDefinitions(context, value.Definitions);
                 }
                 else
                     throw new UnresolvedTypeException(context.LocalType.This, td);
