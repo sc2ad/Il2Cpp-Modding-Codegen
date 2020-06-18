@@ -36,6 +36,12 @@ namespace Il2Cpp_Modding_Codegen.Serialization
         public void Resolve(CppSerializerContext context, Dictionary<ITypeData, CppSerializerContext> map)
         {
             var includes = new HashSet<CppSerializerContext>();
+            if (context.HeaderContext != null)
+            {
+                includes.Add(context.HeaderContext);
+                foreach (var def in context.HeaderContext.Definitions)
+                    context.Definitions.Add(def);
+            }
             foreach (var td in context.DefinitionsToGet)
             {
                 if (context.Definitions.Contains(td))
@@ -121,6 +127,8 @@ namespace Il2Cpp_Modding_Codegen.Serialization
                     writer.WriteInclude(incl);
                     includesWritten.Add(incl);
                 }
+                else
+                    writer.WriteComment("Already included the same include: " + incl);
             }
             if (context.LocalType.This.Namespace == "System" && context.LocalType.This.Name == "ValueType")
             {

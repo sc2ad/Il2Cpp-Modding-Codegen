@@ -32,7 +32,6 @@ namespace Il2Cpp_Modding_Codegen.Serialization
                 return;
             }
 
-            var headerLocation = context.HeaderContext.FileName + ".hpp";
             var sourceLocation = Path.Combine(_config.OutputDirectory, _config.OutputSourceDirectory, context.FileName) + ".cpp";
             Directory.CreateDirectory(Path.GetDirectoryName(sourceLocation));
             using (var ms = new MemoryStream())
@@ -65,6 +64,8 @@ namespace Il2Cpp_Modding_Codegen.Serialization
                         throw new InvalidOperationException($"Cannot elevate {e} to a parent type- there is no parent type!");
                 }
                 writer.Flush();
+                if (File.Exists(sourceLocation))
+                    throw new InvalidOperationException($"Was about to overwrite existing file: {sourceLocation} with context: {context.LocalType.This}");
                 using (var fs = File.OpenWrite(sourceLocation))
                 {
                     rawWriter.BaseStream.Position = 0;

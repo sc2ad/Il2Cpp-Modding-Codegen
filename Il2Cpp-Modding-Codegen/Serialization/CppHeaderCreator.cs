@@ -84,6 +84,8 @@ namespace Il2Cpp_Modding_Codegen.Serialization
 
                 writer.WriteLine("#pragma pack(pop)");
                 writer.Flush();
+                if (File.Exists(headerLocation))
+                    throw new InvalidOperationException($"Was about to overwrite existing file: {headerLocation} with context: {context.LocalType.This}");
                 using (var fs = File.OpenWrite(headerLocation))
                 {
                     rawWriter.BaseStream.Position = 0;
