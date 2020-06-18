@@ -29,22 +29,22 @@ namespace Il2Cpp_Modding_Codegen.Serialization
         // Maps TypeRefs to resolved names
         private Dictionary<TypeRef, (TypeInfo, string)> _references = new Dictionary<TypeRef, (TypeInfo, string)>();
 
-        // Holds generic types (ex: T1, T2, ...) defined by the type
-        private HashSet<TypeRef> _genericTypes = new HashSet<TypeRef>();
+        // Holds generic parameters (ex: T1, T2, ...) defined by the type
+        private HashSet<TypeRef> _genericParameters = new HashSet<TypeRef>();
 
         private ITypeCollection _types;
         private ITypeData _rootType;
         private ITypeData _localType;
         private bool _cpp;
 
-        private void GetGenericTypes(ITypeData data)
+        private void GetGenericParameters(ITypeData data)
         {
-            if (data.This.IsGeneric)
+            if (data.This.IsGenericTemplate)
             {
                 foreach (var g in data.This.Generics)
                 {
                     // Add all of our generic arguments or parameters
-                    _genericTypes.Add(g);
+                    _genericParameters.Add(g);
                 }
             }
             //foreach (var nested in data.NestedTypes)
@@ -65,8 +65,8 @@ namespace Il2Cpp_Modding_Codegen.Serialization
             TypeNamespace = resolvedTd.ConvertTypeToNamespace();
             TypeName = ConvertTypeToName(resolvedTd, false);
             FileName = ConvertTypeToInclude(resolvedTd, original: true);
-            // Check all nested classes (and ourselves) if we have generic arguments/parameters. If we do, add them to _genericTypes.
-            GetGenericTypes(data);
+            // Check all nested classes (and ourselves) if we have generic parameters. If we do, add them to _genericParameters.
+            GetGenericParameters(data);
             // Nested types need to include their declaring type
             if (!cpp && data.This.DeclaringType != null)
                 Includes.Add(ConvertTypeToInclude(_types.ResolvedTypeRef(data.This.DeclaringType)) + ".hpp");
@@ -105,6 +105,10 @@ namespace Il2Cpp_Modding_Codegen.Serialization
         {
             var generics = type.Generics.ToList();
             int origCount = generics.Count;
+            if (type.Name.EndsWith("Enumerator") && type.DeclaringType.Name.EndsWith("ValueCollection"))
+            {
+                Console.WriteLine("Problem generic!");
+            }
 
             if (DeclaringTypeHasGenerics(type))
             {
@@ -220,7 +224,7 @@ namespace Il2Cpp_Modding_Codegen.Serialization
             }
             // For resolving generic type paramters
             // ex: TypeName<T1, T2>, GetNameFromReference(T1)
-            if (_genericTypes.Contains(def))
+            if (_genericParameters.Contains(def, TypeRef.fastComparer))
                 // TODO: Check to ensure ValueType is correct here. Perhaps assuming reference type is better?
                 return ForceName(new TypeInfo() { TypeFlags = TypeFlags.ValueType }, def.Name, force);
 

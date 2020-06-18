@@ -12,6 +12,7 @@ namespace Il2Cpp_Modding_Codegen.Data.DllHandling
 {
     internal class DllMethod : IMethod
     {
+        private MethodDefinition This;
         public List<IAttribute> Attributes { get; } = new List<IAttribute>();
         public List<ISpecifier> Specifiers { get; } = new List<ISpecifier>();
         public int RVA { get; }
@@ -21,6 +22,7 @@ namespace Il2Cpp_Modding_Codegen.Data.DllHandling
         public TypeRef ReturnType { get; }
         public TypeRef DeclaringType { get; }
         public TypeRef ImplementedFrom { get; } = null;
+        public bool IsOverride { get; }
         public TypeRef OverriddenFrom { get; }
         public string Name { get; }
         public List<Parameter> Parameters { get; } = new List<Parameter>();
@@ -45,6 +47,12 @@ namespace Il2Cpp_Modding_Codegen.Data.DllHandling
 
         public DllMethod(MethodDefinition m)
         {
+            This = m;
+            IsOverride = m.IsVirtual && !m.IsNewSlot;
+            var baseMethod = m.GetBaseMethod();
+            if (baseMethod != m)
+                OverriddenFrom = DllTypeRef.From(baseMethod.DeclaringType);
+
             ReturnType = DllTypeRef.From(m.ReturnType);
             DeclaringType = DllTypeRef.From(m.DeclaringType);
             if (m.HasOverrides)
@@ -62,10 +70,6 @@ namespace Il2Cpp_Modding_Codegen.Data.DllHandling
                 ImplementedFrom = DllTypeRef.From(iface);
                 Name = Name.Substring(idxDot + 1);
             }
-
-            var baseMethod = m.GetBaseMethod();
-            if (baseMethod != m)
-                OverriddenFrom = DllTypeRef.From(baseMethod.DeclaringType);
 
             RVA = -1;
             Offset = -1;

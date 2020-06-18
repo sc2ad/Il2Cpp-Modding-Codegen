@@ -1,6 +1,7 @@
 ﻿using Il2Cpp_Modding_Codegen.Config;
 using Il2Cpp_Modding_Codegen.Data;
 using Il2Cpp_Modding_Codegen.Serialization.Interfaces;
+using System;
 using System.CodeDom.Compiler;
 using System.Collections.Generic;
 using System.IO;
@@ -18,6 +19,7 @@ namespace Il2Cpp_Modding_Codegen.Serialization
         private Dictionary<IMethod, List<string>> _parameterMaps = new Dictionary<IMethod, List<string>>();
         private Dictionary<TypeRef, string> _declaringFullyQualified = new Dictionary<TypeRef, string>();
         private Dictionary<TypeRef, bool> _isInterface = new Dictionary<TypeRef, bool>();
+        private Dictionary<TypeRef, bool> _noDefinitions = new Dictionary<TypeRef, bool>();
 
         private HashSet<(TypeRef, string)> _signatures = new HashSet<(TypeRef, string)>();
 
@@ -37,13 +39,18 @@ namespace Il2Cpp_Modding_Codegen.Serialization
             if (!_declaringFullyQualified.ContainsKey(method.DeclaringType))
             {
                 _declaringFullyQualified.Add(method.DeclaringType, context.GetNameFromReference(method.DeclaringType, ForceAsType.Literal));
-                _isInterface.Add(method.DeclaringType, !method.DeclaringType.IsGeneric && context.Types.Resolve(method.DeclaringType)?.Type == TypeEnum.Interface);
+                _isInterface.Add(method.DeclaringType, context.Types.Resolve(method.DeclaringType)?.Type == TypeEnum.Interface);
+                _noDefinitions.Add(method.DeclaringType, _isInterface[method.DeclaringType] && !method.DeclaringType.IsGeneric);
             }
             if (method.Generic)
                 // Skip generic methods
                 return;
 
-            bool mayNeedComplete = method.DeclaringType.IsGenericTemplate  || (_isInterface[method.DeclaringType] && IsOverride(method));
+            if (method.Name == "GetEnumerator" && method.DeclaringType.Name == "IDictionary")
+            {
+                Console.WriteLine("Our method!");
+            }
+            bool mayNeedComplete = method.DeclaringType.IsGenericTemplate || (_isInterface[method.DeclaringType] && method.IsOverride);
             // We need to forward declare/include all types that are either returned from the method or are parameters
             _resolvedTypeNames.Add(method, context.GetNameFromReference(method.ReturnType, mayNeedComplete: mayNeedComplete));
             // The declaringTypeName needs to be a reference, even if the type itself is a value type.
@@ -60,11 +67,6 @@ namespace Il2Cpp_Modding_Codegen.Serialization
                 parameterMap.Add(s);
             }
             _parameterMaps.Add(method, parameterMap);
-        }
-
-        private bool IsOverride(IMethod method)
-        {
-            return (method.OverriddenFrom != null) && !method.OverriddenFrom.Equals(method.DeclaringType);
         }
 
         private string WriteMethod(bool staticFunc, IMethod method, bool namespaceQualified)
@@ -84,7 +86,7 @@ namespace Il2Cpp_Modding_Codegen.Serialization
                 // and if you miss any override the compiler gives you warnings
                 //if (IsOverride(method))
                 //    overrideStr += " override";
-                if (_isInterface[method.DeclaringType])
+                if (_noDefinitions[method.DeclaringType])
                 {
                     preRetStr += "virtual ";
                     impl += " = 0";

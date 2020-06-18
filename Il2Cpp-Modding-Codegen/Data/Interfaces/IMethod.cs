@@ -14,6 +14,7 @@ namespace Il2Cpp_Modding_Codegen.Data
         TypeRef ReturnType { get; }
         TypeRef DeclaringType { get; }
         TypeRef ImplementedFrom { get; }
+        bool IsOverride { get; }
         TypeRef OverriddenFrom { get; }
         string Name { get; }
         List<Parameter> Parameters { get; }
