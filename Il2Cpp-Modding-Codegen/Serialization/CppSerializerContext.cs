@@ -253,7 +253,7 @@ namespace Il2Cpp_Modding_Codegen.Serialization
                     if (declType.DeclaringType is null)
                         // Grab namespace for name here
                         if (qualified)
-                            name = declType.GetNamespace();
+                            name = declType.GetNamespace() + "::";
                     declType = declType.DeclaringType;
                 }
                 name += declString;
