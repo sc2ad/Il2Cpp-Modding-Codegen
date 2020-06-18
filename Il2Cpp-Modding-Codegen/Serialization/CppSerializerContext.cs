@@ -45,6 +45,16 @@ namespace Il2Cpp_Modding_Codegen.Serialization
 
         private ITypeCollection _context;
 
+        private void AddGenericTypes(TypeRef type)
+        {
+            if (type is null)
+                return;
+            if (type.IsGenericTemplate)
+                foreach (var g in type.Generics)
+                    _genericTypes.Add(g);
+            AddGenericTypes(type.DeclaringType);
+        }
+
         public CppSerializerContext(ITypeCollection context, ITypeData data, bool asHeader = true)
         {
             _context = context;
@@ -57,10 +67,9 @@ namespace Il2Cpp_Modding_Codegen.Serialization
                 FileName = data.This.DeclaringType.GetIncludeLocation();
             else
                 FileName = data.This.GetIncludeLocation();
-            // Check all nested classes (and ourselves) if we have generic arguments/parameters. If we do, add them to _genericTypes.
-            if (data.This.IsGenericTemplate)
-                foreach (var g in data.This.Generics)
-                    _genericTypes.Add(g);
+            // Check all declaring types (and ourselves) if we have generic arguments/parameters. If we do, add them to _genericTypes.
+
+            AddGenericTypes(data.This);
             // Types need a definition of their parent type
             if (data.Parent != null)
             {
@@ -81,7 +90,10 @@ namespace Il2Cpp_Modding_Codegen.Serialization
                     AddDeclaration(nested.This, nested.This.Resolve(_context));
             }
             // Add ourselves (and any truly nested types) to our Definitions
-            Definitions.Add(data.This);
+            if (asHeader)
+                Definitions.Add(data.This);
+            else
+                RequiredDefinitions.Add(data.This);
         }
 
         private void AddDefinition(TypeRef def, ITypeData resolved = null)
@@ -153,45 +165,108 @@ namespace Il2Cpp_Modding_Codegen.Serialization
             if (resolved is null)
                 return null;
             var name = string.Empty;
-            if (qualified)
-                name = data.GetNamespace() + "::";
-            if (data.DeclaringType != null)
+            if (resolved.This.DeclaringType != null)
             {
-                // Each declaring type must be defined (confirm this is the case)
+                // Each declaring type must be defined, and must also have its generic parameters specified (confirm this is the case)
+                // If data.IsGenericInstance, then we need to use the provided generic arguments instead of the template types
+                // Create a map of declared generics (including our own) that map to each of data's generic arguments
+                // First, we get a list of all the template parameters and a list of all our generic parameters/arguments from our reference
+                var genericParams = resolved.This.GetDeclaredGenerics(true).ToList();
+                var count = genericParams.Count;
+                var genericArgs = genericParams;
+                if (data.IsGenericInstance)
+                {
+                    genericArgs = data.GetDeclaredGenerics(true).ToList();
+                    if (count != genericArgs.Count)
+                        // In cases where we have non-matching counts, this usually means we need to remove generic parameters from our generic arguments
+                        foreach (var gp in genericParams)
+                            // Remove each remaining generic template parameter
+                            genericArgs.Remove(gp);
+                }
+                // If the two lists are of differing lengths, throw
+                if (count != genericArgs.Count)
+                    throw new InvalidOperationException($"{nameof(genericParams)}.Count != {nameof(genericArgs)}.Count, {count} != {genericArgs.Count}");
+                // Create a mapping from generic parameter to generic argument
+                // If data is not a generic instance, no need to bother
+                Dictionary<TypeRef, TypeRef> argMapping = null;
+                if (data.IsGenericInstance)
+                {
+                    argMapping = new Dictionary<TypeRef, TypeRef>(TypeRef.fastComparer);
+                    for (int i = 0; i < count; i++)
+                        argMapping.Add(genericParams[i], genericArgs[i]);
+                }
+                // Get full generic map of declaring type --> list of generic parameters declared in that type
+                var genericMap = resolved.This.GetGenericMap(true);
                 var declString = string.Empty;
-                var declType = data.DeclaringType;
+                var declType = resolved.This;
+                bool isThisType = true;
                 while (declType != null)
                 {
-                    declString = declType.Name + "::" + declString;
+                    // Recurse upwards starting at ourselves
+                    var declaringGenericParams = string.Empty;
+                    if (genericMap.TryGetValue(declType, out var declaringGenerics))
+                    {
+                        // Write out the generics defined in this type
+                        declaringGenericParams += "<";
+                        bool first = true;
+                        foreach (var g in declaringGenerics)
+                        {
+                            if (!first)
+                                declaringGenericParams += ", ";
+                            else
+                                first = false;
+                            if (data.IsGenericInstance)
+                                declaringGenericParams += GetCppName(argMapping[g], true, true);
+                            else
+                                declaringGenericParams += GetCppName(g, true, true);
+                        }
+                        declaringGenericParams += ">";
+                    }
+
+                    var temp = declType.GetName() + declaringGenericParams;
+                    if (!isThisType)
+                        temp += "::" + declString;
+                    else
+                        isThisType = false;
+                    declString = temp;
                     AddDefinition(declType);
+                    if (declType.DeclaringType is null)
+                        // Grab namespace for name here
+                        if (qualified)
+                            name = declType.GetNamespace();
                     declType = declType.DeclaringType;
                 }
                 name += declString;
             }
-            name += data.Name;
-            name = name.Replace('`', '_').Replace('<', '$').Replace('>', '$');
-            if (generics && data.Generics.Count > 0)
+            else
             {
-                name += "<";
-                bool first = true;
-                foreach (var g in data.Generics)
+                if (qualified)
+                    name = resolved.This.GetNamespace() + "::";
+                name += data.Name;
+                name = name.Replace('`', '_').Replace('<', '$').Replace('>', '$');
+                if (generics && data.Generics.Count > 0)
                 {
-                    if (!first)
-                        name += ", ";
-                    else
-                        first = false;
-                    if (data.IsGenericTemplate)
+                    name += "<";
+                    bool first = true;
+                    foreach (var g in data.Generics)
                     {
-                        // If this is a generic template, use literal names for our generic parameters
-                        name += g.Name;
+                        if (!first)
+                            name += ", ";
+                        else
+                            first = false;
+                        if (data.IsGenericTemplate)
+                        {
+                            // If this is a generic template, use literal names for our generic parameters
+                            name += g.Name;
+                        }
+                        else if (data.IsGenericInstance)
+                        {
+                            // If this is a generic instance, call each of the generic's GetCppName
+                            name += GetCppName(g, qualified, true, ForceAsType.None);
+                        }
                     }
-                    else if (data.IsGenericInstance)
-                    {
-                        // If this is a generic instance, call each of the generic's GetCppName
-                        name += GetCppName(g, qualified, true, ForceAsType.None);
-                    }
+                    name += ">";
                 }
-                name += ">";
             }
             // Ensure the name has no bad characters
             // Append pointer as necessary

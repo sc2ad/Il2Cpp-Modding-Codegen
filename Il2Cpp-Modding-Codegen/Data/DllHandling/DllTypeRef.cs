@@ -75,23 +75,6 @@ namespace Il2Cpp_Modding_Codegen.Data.DllHandling
             if (!This.IsGenericParameter && This.IsNested)
                 refDeclaring = From(This.DeclaringType);
 
-            // If I am a nested type, and I have a generic parameter, and my declaring type has a generic parameter:
-            // I need to make sure their generic parameter name isn't !generic_index
-            // If it is, we need to replace that generic index with our own generic parameter and recurse upwards.
-            // If our own generic parameter is an !index, we can simply wait until our nested type comes around and replaces it for us.
-            if (refDeclaring != null && IsGeneric && Generics.Count > 0 && refDeclaring.IsGeneric && refDeclaring.Generics.Count > 0)
-            {
-                for (int i = 0; i < refDeclaring.Generics.Count; i++)
-                {
-                    if (refDeclaring.Generics[i].Name.StartsWith("!"))
-                    {
-                        var genericIdx = int.Parse(refDeclaring.Generics[i].Name.Substring(1));
-                        // Replace it with a new type from ourselves that matches index
-                        refDeclaring.SetGeneric(i, Generics[genericIdx]);
-                    }
-                }
-            }
-
             //if (refDeclaring != null)
             //    _name = refDeclaring.Name + "/" + _name;
 
@@ -100,16 +83,6 @@ namespace Il2Cpp_Modding_Codegen.Data.DllHandling
             if (!char.IsLetterOrDigit(_name.Last())) Console.WriteLine(reference);
 
             _namespace = (refDeclaring?.Namespace ?? This.Namespace) ?? "";
-        }
-
-        private void SetGeneric(int idx, TypeRef toSet)
-        {
-            _generics[idx] = toSet;
-            if (IsGenericTemplate)
-            {
-                _isGenericTemplate = false;
-                _isGenericInstance = true;
-            }
         }
 
         public static DllTypeRef From(TypeReference type)

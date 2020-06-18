@@ -52,7 +52,12 @@ namespace Il2Cpp_Modding_Codegen.Data
 
         public string GetNamespace() => !string.IsNullOrEmpty(Namespace) ? Namespace.Replace(".", "::") : NoNamespace;
 
-        public string GetName() => Name.Replace('`', '_').Replace('<', '$').Replace('>', '$');
+        public string GetName()
+        {
+            if (Name.StartsWith("!"))
+                throw new InvalidOperationException("Trying to get the name of a copied generic parameter!");
+            return Name.Replace('`', '_').Replace('<', '$').Replace('>', '$');
+        }
 
         public string GetQualifiedName()
         {
@@ -65,6 +70,72 @@ namespace Il2Cpp_Modding_Codegen.Data
             }
             // Namespace obtained from final declaring type
             return dt.GetNamespace() + "::" + name;
+        }
+
+        public IEnumerable<TypeRef> GetDeclaredGenerics(bool includeSelf)
+        {
+            var genericsDefined = new List<TypeRef>();
+            // Populate genericsDefined with all TypeRefs that are used in a declaring type
+            var dt = includeSelf ? this : DeclaringType;
+            var lastGenerics = !includeSelf ? Generics : null;
+            while (dt != null)
+            {
+                if (dt.IsGeneric)
+                {
+                    foreach (var g in dt.Generics.Reverse())
+                    {
+                        if (IsGenericInstance && g.Name.StartsWith("!"))
+                        {
+                            // If we are a generic instance, and we see that the name of our generic parameter starts with a !
+                            var idx = int.Parse(g.Name.Substring(1));
+                            genericsDefined.Insert(0, lastGenerics[idx]);
+                            // Replace g with our lastGenerics[i]
+                        }
+                        else
+                            // We want the highest level declaring type's first generic parameter (template or argument) to be first in our genericsDefined list
+                            genericsDefined.Insert(0, g);
+                    }
+                    lastGenerics = dt.Generics;
+                }
+                dt = dt.DeclaringType;
+            }
+            // Return only the first occurance of each of the generic parameters (template or argument)
+            // Do not compare the generic types' declaring types (use the fastCompararer)
+            return genericsDefined.Distinct(fastComparer);
+        }
+
+        /// <summary>
+        /// Returns a mapping of <see cref="TypeRef"/> to generics explicitly defined by that <see cref="TypeRef"/>
+        /// </summary>
+        /// <param name="includeSelf"></param>
+        /// <returns></returns>
+        public Dictionary<TypeRef, List<TypeRef>> GetGenericMap(bool includeSelf)
+        {
+            // Use fastComparers here to avoid checking DeclaringType (and to be fast)
+            var genericMap = new Dictionary<TypeRef, List<TypeRef>>(fastComparer);
+            var genericParamToDeclaring = new Dictionary<TypeRef, TypeRef>(fastComparer);
+            var dt = includeSelf ? this : DeclaringType;
+            while (dt != null)
+            {
+                if (dt.IsGeneric)
+                {
+                    foreach (var g in dt.Generics)
+                    {
+                        // Overwrite existing declaring type and add it to genericParamToDeclaring
+                        genericParamToDeclaring[g] = dt;
+                    }
+                }
+                dt = dt.DeclaringType;
+            }
+            // Iterate over each generic param to declaring type and convert it to a mapping of declaring type to generic parameters
+            foreach (var pair in genericParamToDeclaring)
+            {
+                if (genericMap.TryGetValue(pair.Value, out var lst))
+                    lst.Add(pair.Key);
+                else
+                    genericMap.Add(pair.Value, new List<TypeRef> { pair.Key });
+            }
+            return genericMap;
         }
 
         internal string GetIncludeLocation()

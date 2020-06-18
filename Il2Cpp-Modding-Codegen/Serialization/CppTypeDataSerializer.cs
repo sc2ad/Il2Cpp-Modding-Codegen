@@ -103,21 +103,29 @@ namespace Il2Cpp_Modding_Codegen.Serialization
             {
                 // Only write the template for the declaration if and only if we are not nested in place
                 // Because nested in place will write the template for itself.
+                // First thing we need to do is understand that our declaring type may have generic parameters
+                // If our declaring type has any generic parameters, our nested type declaration should NOT have a template that uses those
+                // (unless we are writing the actualy DEFINITION of the nested type, in which case we need to copy over the templated parameters)
+                var genericsDefined = type.This.GetDeclaredGenerics(false);
                 if (type.This.IsGenericTemplate)
                 {
-                    // If the type being resolved is generic, we must template it.
-                    var generics = "template<";
+                    // If the type being resolved is generic, we must template it, iff we have generic parameters that aren't in genericsDefined
+                    var generics = string.Empty;
                     bool first = true;
                     foreach (var g in type.This.Generics)
                     {
+                        if (genericsDefined.Contains(g))
+                            continue;
                         if (!first)
                             generics += ", ";
                         else
                             first = false;
                         generics += "typename " + g.GetName();
                     }
+                    // Write the comment regardless
                     writer.WriteComment(comment + "<" + string.Join(", ", type.This.Generics.Select(tr => tr.Name)) + ">");
-                    writer.WriteLine(generics + ">");
+                    if (!string.IsNullOrEmpty(generics))
+                        writer.WriteLine("template<" + generics + ">");
                 }
                 else
                     writer.WriteComment(comment);
@@ -163,11 +171,13 @@ namespace Il2Cpp_Modding_Codegen.Serialization
                 if (state.parentName != null)
                     s = $" : public {state.parentName}";
                 // TODO: add implementing interfaces to s
-                if (type.This.IsGenericTemplate)
+                // Even if we are a template, we need to write out our inherited declaring types
+                var declaredGenerics = type.This.GetDeclaredGenerics(true).ToList();
+                if (declaredGenerics.Count > 0)
                 {
                     var templateStr = "template<";
                     bool first = true;
-                    foreach (var genParam in type.This.Generics)
+                    foreach (var genParam in declaredGenerics)
                     {
                         if (!first)
                             templateStr += ", ";
@@ -179,6 +189,7 @@ namespace Il2Cpp_Modding_Codegen.Serialization
                 }
 
                 // TODO: print enums as actual C++ smart enums? backing type is type of _value and A = #, should work for the lines inside the enum
+                // TODO: We need to specify generic declaring types with their generic parameters
                 typeHeader = type.Type.TypeName() + " " + state.type;
                 writer.WriteDefinition(typeHeader + s);
                 if (type.Fields.Count > 0 || type.Methods.Count > 0 || type.NestedTypes.Count > 0)
