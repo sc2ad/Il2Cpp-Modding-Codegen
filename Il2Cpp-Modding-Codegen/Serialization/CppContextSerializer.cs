@@ -46,7 +46,7 @@ namespace Il2Cpp_Modding_Codegen.Serialization
         public void Resolve(CppSerializerContext context, Dictionary<ITypeData, CppSerializerContext> map)
         {
             var includes = new HashSet<CppSerializerContext>();
-            if (context.HeaderContext != null)
+            if (!context.Header)
             {
                 includes.Add(context.HeaderContext);
                 AddIncludeDefinitions(context, context.HeaderContext.Definitions);
