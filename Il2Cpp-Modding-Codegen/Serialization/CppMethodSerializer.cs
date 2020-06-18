@@ -47,7 +47,7 @@ namespace Il2Cpp_Modding_Codegen.Serialization
             _declaringFullyQualified = context.QualifiedTypeName;
             // We need to forward declare everything used in methods (return types and parameters)
             // If we are writing the definition, we MUST define it
-            var resolvedReturn = context.GetCppName(method.ReturnType, true, needAs: NeedDefinition(method) ? CppSerializerContext.NeedAs.Definition : CppSerializerContext.NeedAs.BestMatch);
+            var resolvedReturn = context.GetCppName(method.ReturnType, true, needAs: NeedDefinition(method) ? CppSerializerContext.NeedAs.Definition : CppSerializerContext.NeedAs.Declaration);
             if (resolvedReturn is null)
                 // If we fail to resolve the return type, we will simply add a null item to our dictionary.
                 // However, we should not call Resolved(method)
@@ -57,7 +57,7 @@ namespace Il2Cpp_Modding_Codegen.Serialization
             foreach (var p in method.Parameters)
             {
                 // If this is not a header, we MUST define it
-                var s = context.GetCppName(p.Type, true, needAs: NeedDefinition(method) ? CppSerializerContext.NeedAs.Definition : CppSerializerContext.NeedAs.BestMatch);
+                var s = context.GetCppName(p.Type, true, needAs: NeedDefinition(method) ? CppSerializerContext.NeedAs.Definition : CppSerializerContext.NeedAs.Declaration);
                 if (s is null)
                     // If we fail to resolve a parameter, we will simply add a (null, p.Flags) item to our mapping.
                     // However, we should not call Resolved(method)
