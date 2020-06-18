@@ -10,17 +10,31 @@ namespace Il2Cpp_Modding_Codegen.Serialization
     public class CppMethodSerializer : Serializer<IMethod>
     {
         private static readonly HashSet<string> IgnoredMethods = new HashSet<string>() { "op_Implicit", "op_Explicit" };
-        private bool _asHeader;
+        private bool _isHeader;
         private SerializationConfig _config;
 
         private Dictionary<IMethod, string> _resolvedReturns = new Dictionary<IMethod, string>();
         private Dictionary<IMethod, List<(string, ParameterFlags)>> _parameterMaps = new Dictionary<IMethod, List<(string, ParameterFlags)>>();
         private string _declaringFullyQualified;
 
-        public CppMethodSerializer(SerializationConfig config, bool asHeader = true)
+        public CppMethodSerializer(SerializationConfig config, bool isHeader = true)
         {
             _config = config;
-            _asHeader = asHeader;
+            _isHeader = isHeader;
+        }
+
+        /// <summary>
+        /// Returns whether the given method should be written as a definition or a declaration
+        /// </summary>
+        /// <param name="method"></param>
+        /// <returns></returns>
+        private bool NeedDefinition(IMethod method)
+        {
+            if (!_isHeader)
+                // Always write the method definition in a .cpp file
+                return true;
+            // Only write definitions if the declaring type is generic
+            return method.DeclaringType?.IsGeneric ?? false;
         }
 
         public override void PreSerialize(CppSerializerContext context, IMethod method)
@@ -32,7 +46,8 @@ namespace Il2Cpp_Modding_Codegen.Serialization
             bool success = true;
             _declaringFullyQualified = context.QualifiedTypeName;
             // We need to forward declare everything used in methods (return types and parameters)
-            var resolvedReturn = context.GetCppName(method.ReturnType, true);
+            // If we are writing the definition, we MUST define it
+            var resolvedReturn = context.GetCppName(method.ReturnType, true, needAs: NeedDefinition(method) ? CppSerializerContext.NeedAs.Definition : CppSerializerContext.NeedAs.BestMatch);
             if (resolvedReturn is null)
                 // If we fail to resolve the return type, we will simply add a null item to our dictionary.
                 // However, we should not call Resolved(method)
@@ -41,7 +56,8 @@ namespace Il2Cpp_Modding_Codegen.Serialization
             var parameterMap = new List<(string, ParameterFlags)>();
             foreach (var p in method.Parameters)
             {
-                var s = context.GetCppName(p.Type, true);
+                // If this is not a header, we MUST define it
+                var s = context.GetCppName(p.Type, true, needAs: NeedDefinition(method) ? CppSerializerContext.NeedAs.Definition : CppSerializerContext.NeedAs.BestMatch);
                 if (s is null)
                     // If we fail to resolve a parameter, we will simply add a (null, p.Flags) item to our mapping.
                     // However, we should not call Resolved(method)
@@ -90,12 +106,12 @@ namespace Il2Cpp_Modding_Codegen.Serialization
             if (IgnoredMethods.Contains(method.Name) || _config.BlacklistMethods.Contains(method.Name))
                 return;
 
-            if (method.DeclaringType.IsGeneric && !_asHeader)
+            if (method.DeclaringType.IsGeneric && !_isHeader)
                 // Need to create the method ENTIRELY in the header, instead of split between the C++ and the header
                 return;
-            bool writeContent = !_asHeader || method.DeclaringType.IsGeneric;
+            bool writeContent = NeedDefinition(method);
 
-            if (_asHeader)
+            if (_isHeader)
             {
                 var methodComment = "";
                 bool staticFunc = false;
@@ -103,9 +119,7 @@ namespace Il2Cpp_Modding_Codegen.Serialization
                 {
                     methodComment += $"{spec} ";
                     if (spec.Static)
-                    {
                         staticFunc = true;
-                    }
                 }
                 methodComment += $"{method.ReturnType} {method.Name}({method.Parameters.FormatParameters(csharp: true)})";
                 methodComment += $" // Offset: 0x{method.Offset:X}";
@@ -123,7 +137,7 @@ namespace Il2Cpp_Modding_Codegen.Serialization
             {
                 bool isStatic = method.Specifiers.IsStatic();
                 // Write the qualified name if not in the header
-                writer.WriteDefinition(WriteMethod(isStatic, method, !_asHeader));
+                writer.WriteDefinition(WriteMethod(isStatic, method, !_isHeader));
                 var s = "";
                 var innard = "";
                 var macro = "RET_V_UNLESS(";

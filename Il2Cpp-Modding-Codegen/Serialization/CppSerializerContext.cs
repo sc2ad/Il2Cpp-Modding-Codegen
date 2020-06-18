@@ -13,8 +13,9 @@ namespace Il2Cpp_Modding_Codegen.Serialization
     {
         public enum NeedAs
         {
+            Definition,
             Declaration,
-            Definition
+            BestMatch
         }
 
         public enum ForceAsType
@@ -61,7 +62,8 @@ namespace Il2Cpp_Modding_Codegen.Serialization
             _context = context;
             Header = asHeader;
             LocalType = data;
-            QualifiedTypeName = GetCppName(data.This, true, false, ForceAsType.Literal);
+            // Requiring it as a definition here simply makes it easier to remove (because we are asking for a definition of ourself, which we have)
+            QualifiedTypeName = GetCppName(data.This, true, false, NeedAs.Definition, ForceAsType.Literal);
             TypeNamespace = data.This.GetNamespace();
             TypeName = data.This.GetName();
             var root = data;
@@ -140,21 +142,16 @@ namespace Il2Cpp_Modding_Codegen.Serialization
                 return;
             if (resolved is null)
                 resolved = def.Resolve(_context);
+
+            // TODO: Header flag may not be needed anymore, with the introduction of NeedAs.BestMatch
             if (Header)
             {
                 if (resolved?.This.DeclaringType != null && !Definitions.Contains(resolved?.This.DeclaringType))
                     // If def's declaring type is not defined, we cannot declare def.
                     AddDefinition(def, resolved);
-                else if (def.IsPointer() || resolved.Info.TypeFlags == TypeFlags.ReferenceType)
-                {
-                    // Otherwise, if it is a pointer or a reference type, we can declare it
-                    // If we already have it in our DefinitionsToGet, we don't need to bother.
-                    if (resolved != null && !DefinitionsToGet.Contains(def))
-                        Declarations.Add(def);
-                }
-                else
+                else if (resolved != null && !DefinitionsToGet.Contains(def))
                     // Failing that, we define it
-                    AddDefinition(def, resolved);
+                    Declarations.Add(def);
             }
             else
                 // If we are a C++ file, we must have a definition since we need this type resolved
@@ -165,7 +162,7 @@ namespace Il2Cpp_Modding_Codegen.Serialization
         /// Gets the C++ fully qualified name for the TypeRef.
         /// </summary>
         /// <returns>Null if the type has not been resolved (and is not a generic parameter or primitive)</returns>
-        public string GetCppName(TypeRef data, bool qualified, bool generics = true, ForceAsType forceAsType = ForceAsType.None)
+        public string GetCppName(TypeRef data, bool qualified, bool generics = true, NeedAs needAs = NeedAs.BestMatch, ForceAsType forceAsType = ForceAsType.None)
         {
             // If the TypeRef is a generic parameter, return its name
             if (_genericTypes.Contains(data))
@@ -181,7 +178,7 @@ namespace Il2Cpp_Modding_Codegen.Serialization
                     return primitiveName;
                 // Failsafe return non-primitive converted name for special types like System.IntPtr
             }
-            var resolved = ResolveAndStore(data, NeedAs.Declaration);
+            var resolved = ResolveAndStore(data, forceAsType, needAs);
             if (resolved is null)
                 return null;
             var name = string.Empty;
@@ -282,7 +279,7 @@ namespace Il2Cpp_Modding_Codegen.Serialization
                         else if (data.IsGenericInstance)
                         {
                             // If this is a generic instance, call each of the generic's GetCppName
-                            name += GetCppName(g, qualified, true, ForceAsType.None);
+                            name += GetCppName(g, qualified, true, needAs, ForceAsType.None);
                         }
                     }
                     name += ">";
@@ -306,7 +303,7 @@ namespace Il2Cpp_Modding_Codegen.Serialization
         /// <param name="typeRef"></param>
         /// <param name="needAs"></param>
         /// <returns>A bool representing if the type was resolved successfully</returns>
-        public ITypeData ResolveAndStore(TypeRef typeRef, NeedAs needAs = NeedAs.Declaration)
+        public ITypeData ResolveAndStore(TypeRef typeRef, ForceAsType forceAs, NeedAs needAs = NeedAs.BestMatch)
         {
             if (_genericTypes.Contains(typeRef))
                 // Generic parameters are resolved to nothing and shouldn't even attempted to be resolved.
@@ -320,9 +317,17 @@ namespace Il2Cpp_Modding_Codegen.Serialization
                     AddDeclaration(typeRef, resolved);
                     break;
 
+                case NeedAs.BestMatch:
+                    if (forceAs != ForceAsType.Literal && (typeRef.IsPointer() || resolved.Info.TypeFlags == TypeFlags.ReferenceType))
+                        AddDeclaration(typeRef, resolved);
+                    else
+                        AddDefinition(typeRef, resolved);
+                    break;
+
                 case NeedAs.Definition:
                 default:
-                    AddDefinition(typeRef);
+                    // If I need it as a definition, add it as one
+                    AddDefinition(typeRef, resolved);
                     break;
             }
             if (typeRef.IsGenericTemplate && typeRef.Generics != null)
@@ -330,7 +335,7 @@ namespace Il2Cpp_Modding_Codegen.Serialization
                 // Resolve and store each generic argument
                 foreach (var g in typeRef.Generics)
                     // Only need them as declarations, since we don't need the literal pointers.
-                    ResolveAndStore(g, NeedAs.Declaration);
+                    ResolveAndStore(g, forceAs, NeedAs.Declaration);
             }
             return resolved;
         }

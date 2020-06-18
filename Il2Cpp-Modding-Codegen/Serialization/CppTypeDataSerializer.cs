@@ -41,7 +41,8 @@ namespace Il2Cpp_Modding_Codegen.Serialization
         {
             if (_asHeader)
             {
-                var resolved = context.GetCppName(type.This, false, false, CppSerializerContext.ForceAsType.Literal);
+                // Asking for ourselves as a definition will simply make things easier when resolving ourselves.
+                var resolved = context.GetCppName(type.This, false, false, CppSerializerContext.NeedAs.Definition, CppSerializerContext.ForceAsType.Literal);
                 if (resolved is null)
                     throw new InvalidOperationException($"Could not resolve provided type: {type.This}!");
                 var s = new State
@@ -54,7 +55,8 @@ namespace Il2Cpp_Modding_Codegen.Serialization
                     if (_asHeader && type.This.Namespace == "System" && type.This.Name == "ValueType")
                         s.parentName = "Object";
                     else
-                        s.parentName = context.GetCppName(type.Parent, true, false, CppSerializerContext.ForceAsType.Literal);
+                        // Ask for a definition of our parent, cannot be allowed to be a declaration.
+                        s.parentName = context.GetCppName(type.Parent, true, false, CppSerializerContext.NeedAs.Definition, CppSerializerContext.ForceAsType.Literal);
                 }
                 map.Add(type.This, s);
 
