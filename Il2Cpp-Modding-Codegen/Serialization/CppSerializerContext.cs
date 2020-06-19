@@ -113,7 +113,12 @@ namespace Il2Cpp_Modding_Codegen.Serialization
             MakeNestHere(declaring);
         }
 
-        private bool CouldNestHere(TypeRef def)
+        /// <summary>
+        /// Returns whether a given <see cref="TypeRef"/> is nested under the context type
+        /// </summary>
+        /// <param name="def"></param>
+        /// <returns></returns>
+        public bool CouldNestHere(TypeRef def)
         {
             if (def is null) return false;
             if (LocalType.This.Equals(def)) return true;

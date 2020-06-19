@@ -29,11 +29,20 @@ namespace Il2Cpp_Modding_Codegen.Serialization
         private void AddIncludeDefinitions(CppSerializerContext context, HashSet<TypeRef> defs)
         {
             foreach (var def in defs)
+            {
                 if (context.Declarations.Contains(def))
-                    // Should not be adding a definition to a class that declares the same type!
-                    throw new InvalidOperationException($"Cannot add definition: {def} to context: {context.LocalType.This} because context has a declaration of the same type!");
-                else
-                    context.Definitions.Add(def);
+                    // We pop from our declarations if we are adding a definition that is not a nested type of ourselves
+                    if (context.CouldNestHere(def))
+                        // Panic time!
+                        // Should not be adding a definition to a class that declares the same type!
+                        throw new InvalidOperationException($"Cannot add definition: {def} to context: {context.LocalType.This} because context has a declaration of the same (nested) type!");
+                    else
+                        // Remove from our declarations if we have now defined this type
+                        // Ideally, we would also state that we have satisfied this declaration, but that's annoying
+                        context.Declarations.Remove(def);
+                // Always add the definition (if we don't throw)
+                context.Definitions.Add(def);
+            }
         }
 
         /// <summary>
