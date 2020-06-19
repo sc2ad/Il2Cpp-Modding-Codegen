@@ -114,7 +114,7 @@ namespace Il2Cpp_Modding_Codegen.Serialization
         }
 
         /// <summary>
-        /// Returns whether a given <see cref="TypeRef"/> is nested under the context type
+        /// Returns whether a given <see cref="TypeRef"/> is nested under the context type or if the type provided is ourselves
         /// </summary>
         /// <param name="def"></param>
         /// <returns></returns>
