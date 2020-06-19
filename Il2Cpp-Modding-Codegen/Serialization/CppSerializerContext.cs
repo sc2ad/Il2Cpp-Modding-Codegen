@@ -62,7 +62,7 @@ namespace Il2Cpp_Modding_Codegen.Serialization
         {
             _context = context;
             HeaderContext = headerContext;
-            Header = headerContext == null;
+            Header = headerContext is null;
             LocalType = data;
             // Requiring it as a definition here simply makes it easier to remove (because we are asking for a definition of ourself, which we have)
             QualifiedTypeName = GetCppName(data.This, true, false, NeedAs.Definition, ForceAsType.Literal);
@@ -73,8 +73,8 @@ namespace Il2Cpp_Modding_Codegen.Serialization
                 while (root.IsNestedInPlace)
                     root = root.This.DeclaringType.Resolve(context);
             FileName = root.This.GetIncludeLocation();
-            // Check all declaring types (and ourselves) if we have generic arguments/parameters. If we do, add them to _genericTypes.
 
+            // Check all declaring types (and ourselves) if we have generic arguments/parameters. If we do, add them to _genericTypes.
             AddGenericTypes(data.This);
             // Types need a definition of their parent type
             if (data.Parent != null)
@@ -158,19 +158,12 @@ namespace Il2Cpp_Modding_Codegen.Serialization
             if (resolved is null)
                 resolved = def.Resolve(_context);
 
-            // TODO: Header flag may not be needed anymore, with the introduction of NeedAs.BestMatch
-            if (Header)
-            {
-                if (resolved?.This.DeclaringType != null && !Definitions.Contains(resolved?.This.DeclaringType))
-                    // If def's declaring type is not defined, we cannot declare def. Define it instead
-                    AddDefinition(def, resolved);
-                else if (resolved != null)
-                    // Otherwise, we can safely add it to declarations
-                    Declarations.Add(def);
-            }
-            else
-                // If we are a C++ file, we must have a definition since we need this type resolved
+            if (resolved?.This.DeclaringType != null && !Definitions.Contains(resolved?.This.DeclaringType))
+                // If def's declaring type is not defined, we cannot declare def. Define it instead
                 AddDefinition(def, resolved);
+            else if (resolved != null)
+                // Otherwise, we can safely add it to declarations
+                Declarations.Add(def);
         }
 
         /// <summary>
