@@ -140,10 +140,9 @@ namespace Il2Cpp_Modding_Codegen.Data
 
         internal string GetIncludeLocation()
         {
-            var name = GetName();
+            var fileName = string.Join("-", GetName().Split(Path.GetInvalidFileNameChars()));
             if (DeclaringType != null)
-                name = DeclaringType.GetName() + "::" + name;
-            var fileName = string.Join("-", name.Split(Path.GetInvalidFileNameChars()));
+                return DeclaringType.GetIncludeLocation() + "_" + fileName;
             // Splits multiple namespaces into nested directories
             var directory = string.Join("-", string.Join("/", GetNamespace().Split(new string[] { "::" }, StringSplitOptions.None)).Split(Path.GetInvalidPathChars()));
             return directory + "/" + fileName;

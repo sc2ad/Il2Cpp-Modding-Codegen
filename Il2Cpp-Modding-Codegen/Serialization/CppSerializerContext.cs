@@ -70,8 +70,10 @@ namespace Il2Cpp_Modding_Codegen.Serialization
             TypeName = data.This.GetName();
             var root = data;
             if (Header)
+            {
                 while (root.IsNestedInPlace)
                     root = root.This.DeclaringType.Resolve(context);
+            }
             FileName = root.This.GetIncludeLocation();
 
             // Check all declaring types (and ourselves) if we have generic arguments/parameters. If we do, add them to _genericTypes.
@@ -103,12 +105,15 @@ namespace Il2Cpp_Modding_Codegen.Serialization
         private void MakeNestHere(ITypeData type)
         {
             if (type.This.DeclaringType is null) return;
-            type.IsNestedInPlace = true;
-            // TODO: something with NestedContexts?
-            var declaring = type.This.DeclaringType.Resolve(_context);
-            if (declaring is null)
-                throw new UnresolvedTypeException(type.This, type.This.DeclaringType);
-            MakeNestHere(declaring);
+            if (Definitions.Add(type.This))
+            {
+                type.IsNestedInPlace = true;
+                // TODO: something with NestedContexts?
+                var declaring = type.This.DeclaringType.Resolve(_context);
+                if (declaring is null)
+                    throw new UnresolvedTypeException(type.This, type.This.DeclaringType);
+                MakeNestHere(declaring);
+            }
         }
 
         /// <summary>
@@ -135,8 +140,7 @@ namespace Il2Cpp_Modding_Codegen.Serialization
 
             if (!CouldNestHere(def))
                 DefinitionsToGet.Add(def);
-            else if (Definitions.Add(def))
-                MakeNestHere(resolved);
+            else MakeNestHere(resolved);
         }
 
         private void AddNestedDeclaration(TypeRef def, ITypeData resolved)
