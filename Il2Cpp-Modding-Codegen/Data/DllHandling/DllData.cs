@@ -71,6 +71,8 @@ namespace Il2Cpp_Modding_Codegen.Data.DllHandling
                 if (!_types.ContainsKey(dllRef))
                 {
                     var type = new DllTypeData(t, _config);
+                    if (dllRef.DeclaringType != null)
+                        _types[dllRef.DeclaringType].NestedTypes.Add(type);
                     foreach (var nested in t.NestedTypes)
                         frontier.Enqueue(nested);
                     _types.Add(dllRef, type);

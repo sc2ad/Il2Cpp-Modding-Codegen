@@ -45,11 +45,6 @@ namespace Il2Cpp_Modding_Codegen.Data.DllHandling
             if (def.BaseType != null)
                 Parent = DllTypeRef.From(def.BaseType);
 
-            foreach (var nestedType in def.NestedTypes)
-            {
-                NestedTypes.Add(new DllTypeData(nestedType, config));
-            }
-
             // TODO: Parse this eventually
             TypeDefIndex = -1;
 
