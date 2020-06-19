@@ -88,10 +88,17 @@ namespace Il2Cpp_Modding_Codegen.Serialization
             // TODO: Add a specific interface method serializer here, or provide more state to the original method serializer to support it
 
             // TODO: Add back PreSerialization of nested types instead of our weird header map stuff
-            // PreSerialize any nested types
-            foreach (var nested in type.NestedTypes)
-                if (nested.IsNestedInPlace)
+            // PreSerialize any in-place nested types
+            // Until NestedInPlace no longer gains new children, copy all its elements and PreSerialize the new ones
+            var prevInPlace = new HashSet<ITypeData>();
+            var newInPlace = new HashSet<ITypeData>(type.NestedTypes.Where(nt => nt.IsNestedInPlace));
+            do
+            {
+                foreach (var nested in newInPlace)
                     PreSerialize(context, nested);
+                prevInPlace.UnionWith(newInPlace);
+                newInPlace = new HashSet<ITypeData>(type.NestedTypes.Where(nt => nt.IsNestedInPlace).Except(prevInPlace));
+            } while (newInPlace.Count > 0);
             Context = context;
         }
 

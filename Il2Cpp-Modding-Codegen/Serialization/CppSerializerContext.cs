@@ -362,12 +362,13 @@ namespace Il2Cpp_Modding_Codegen.Serialization
             {
                 // Technically, we only need to add a declaration for the array (if it isn't needed as a definition)
                 // however, we will add it as a definition, because it's annoying to create a new generic ITypeData for it.
-                var eName = GetCppName(def.ElementType, true, true);
+                // We should ensure we aren't attemping to force it to something it shouldn't be, so it should still be ForceAsType.None
+                var eName = GetCppName(def.ElementType, true, true, needAs);
                 s = $"Array<{eName}>";
             }
             else if (def.IsPointer())
             {
-                s = GetCppName(def.ElementType, true, true) + "*";
+                s = GetCppName(def.ElementType, true, true, needAs) + "*";
             }
             else if (name == "object")
                 s = "Il2CppObject";
