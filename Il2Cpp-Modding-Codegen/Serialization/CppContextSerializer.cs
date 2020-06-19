@@ -35,9 +35,8 @@ namespace Il2Cpp_Modding_Codegen.Serialization
                         // Cannot include something that includes us!
                         throw new InvalidOperationException($"Cannot add definition: {def} to context: {context.LocalType.This} because it is the same type!\nDefinitions to get: ({string.Join(", ", context.DefinitionsToGet.Select(d => d.GetQualifiedName()))})");
                     else if (context.CouldNestHere(def))
-                        // Panic time!
                         // Cannot include something that claims to define our nested type!
-                        throw new InvalidOperationException($"Cannot add definition: {def} to context: {context.LocalType.This} because context has a declaration of the same (nested) type!\nDefinitions to get: ({string.Join(", ", context.DefinitionsToGet.Select(d => d.GetQualifiedName()))})");
+                        throw new InvalidOperationException($"Cannot add definition: {def} to context: {context.LocalType.This} because it is a nested type of the context!\nDefinitions to get: ({string.Join(", ", context.DefinitionsToGet.Select(d => d.GetQualifiedName()))})");
                 }
 
                 // Always add the definition (if we don't throw)
