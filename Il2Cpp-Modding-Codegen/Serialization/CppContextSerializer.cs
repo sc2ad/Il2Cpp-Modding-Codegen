@@ -33,7 +33,7 @@ namespace Il2Cpp_Modding_Codegen.Serialization
                 if (context.Header) {
                     if (def.Equals(context.LocalType.This))
                         // Cannot include something that includes us!
-                        throw new InvalidOperationException($"Cannot add definition: {def} to context: {context.LocalType.This} because it is the same type!");
+                        throw new InvalidOperationException($"Cannot add definition: {def} to context: {context.LocalType.This} because it is the same type!\nDefinitions to get: ({string.Join(", ", context.DefinitionsToGet.Select(d => d.GetQualifiedName()))})");
                     else if (context.Declarations.Contains(def) && context.CouldNestHere(def))
                         // Panic time!
                         // Should not be adding a definition to a class that declares the same type!
