@@ -97,8 +97,6 @@ namespace Il2Cpp_Modding_Codegen.Serialization
             // Add ourselves (and any truly nested types) to our Definitions
             if (Header)
                 Definitions.Add(data.This);
-            else
-                DefinitionsToGet.Add(data.This);
         }
 
         // Recursively makes type nested-in-place iff it has a declaring type, then ditto for the declaring type.
