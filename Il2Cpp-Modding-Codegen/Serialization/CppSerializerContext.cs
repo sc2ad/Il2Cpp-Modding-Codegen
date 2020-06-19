@@ -183,7 +183,7 @@ namespace Il2Cpp_Modding_Codegen.Serialization
             if (data.IsPrimitive())
             {
                 // If the TypeRef is a primitive, we need to convert it to a C++ name upfront.
-                var primitiveName = ConvertPrimitive(data);
+                var primitiveName = ConvertPrimitive(data, forceAsType, needAs);
                 if (!string.IsNullOrEmpty(primitiveName))
                     return primitiveName;
                 // Failsafe return non-primitive converted name for special types like System.IntPtr
@@ -350,7 +350,7 @@ namespace Il2Cpp_Modding_Codegen.Serialization
             return resolved;
         }
 
-        private string ConvertPrimitive(TypeRef def)
+        private string ConvertPrimitive(TypeRef def, ForceAsType forceAs, NeedAs needAs)
         {
             var name = def.Name.ToLower();
             if (name == "void*" || (def.Name == "Void" && def.IsPointer()))
@@ -405,7 +405,10 @@ namespace Il2Cpp_Modding_Codegen.Serialization
                 if (s != "Il2CppChar")
                     defaultPtr = true;
                 // For Il2CppTypes, should refer to type as :: to avoid ambiguity
-                s = "::" + s + (defaultPtr ? "*" : "");
+                if (forceAs == ForceAsType.Literal)
+                    s = "::" + s;
+                else
+                    s = "::" + s + (defaultPtr ? "*" : "");
                 NeedPrimitives = true;
             }
             return s;
