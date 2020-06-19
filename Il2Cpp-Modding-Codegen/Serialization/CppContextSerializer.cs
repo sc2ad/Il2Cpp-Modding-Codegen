@@ -36,10 +36,6 @@ namespace Il2Cpp_Modding_Codegen.Serialization
                         // Panic time!
                         // Should not be adding a definition to a class that declares the same type!
                         throw new InvalidOperationException($"Cannot add definition: {def} to context: {context.LocalType.This} because context has a declaration of the same (nested) type!");
-                    else
-                        // Remove from our declarations if we have now defined this type
-                        // Ideally, we would also state that we have satisfied this declaration, but that's annoying
-                        context.Declarations.Remove(def);
                 // Always add the definition (if we don't throw)
                 context.Definitions.Add(def);
             }
@@ -181,6 +177,12 @@ namespace Il2Cpp_Modding_Codegen.Serialization
                     if (typeData is null)
                         throw new UnresolvedTypeException(context.LocalType.This, t);
                     var resolved = typeData.This;
+                    if (context.Definitions.Contains(t))
+                    {
+                        // Write a comment saying "we have already included this"
+                        writer.WriteComment("Skipping declaration: " + resolved.Name + " because it is already included!");
+                        continue;
+                    }
                     if (completedFds.Contains(resolved))
                         // If we have completed this reference already, continue.
                         continue;
