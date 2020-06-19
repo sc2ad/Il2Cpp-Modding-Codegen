@@ -70,10 +70,8 @@ namespace Il2Cpp_Modding_Codegen.Serialization
             TypeName = data.This.GetName();
             var root = data;
             if (Header)
-            {
                 while (root.IsNestedInPlace)
                     root = root.This.DeclaringType.Resolve(context);
-            }
             FileName = root.This.GetIncludeLocation();
 
             // Check all declaring types (and ourselves) if we have generic arguments/parameters. If we do, add them to _genericTypes.

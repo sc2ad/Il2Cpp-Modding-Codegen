@@ -34,9 +34,9 @@ namespace Il2Cpp_Modding_Codegen.Serialization
                     if (def.Equals(context.LocalType.This))
                         // Cannot include something that includes us!
                         throw new InvalidOperationException($"Cannot add definition: {def} to context: {context.LocalType.This} because it is the same type!\nDefinitions to get: ({string.Join(", ", context.DefinitionsToGet.Select(d => d.GetQualifiedName()))})");
-                    else if (context.Declarations.Contains(def) && context.CouldNestHere(def))
+                    else if (context.CouldNestHere(def))
                         // Panic time!
-                        // Should not be adding a definition to a class that declares the same type!
+                        // Cannot include something that claims to define our nested type!
                         throw new InvalidOperationException($"Cannot add definition: {def} to context: {context.LocalType.This} because context has a declaration of the same (nested) type!\nDefinitions to get: ({string.Join(", ", context.DefinitionsToGet.Select(d => d.GetQualifiedName()))})");
                 }
 
@@ -118,7 +118,7 @@ namespace Il2Cpp_Modding_Codegen.Serialization
 
         public void Serialize(CppStreamWriter writer, CppSerializerContext context)
         {
-            if (!_contextMap.TryGetValue(context, out var value))
+            if (!_contextMap.TryGetValue(context, out var defsAndDeclares))
                 throw new InvalidOperationException("Must resolve context before attempting to serialize it! context: " + context);
             // Write includes
             var includesWritten = new HashSet<string>();
@@ -135,10 +135,10 @@ namespace Il2Cpp_Modding_Codegen.Serialization
                 writer.WriteLine("#include <optional>");
                 includesWritten.Add("optional");
             }
-            foreach (var item in value.Item1)
+            foreach (var include in defsAndDeclares.Item1)
             {
-                writer.WriteComment("Including type: " + item.LocalType.This);
-                var incl = item.FileName + ".hpp";
+                writer.WriteComment("Including type: " + include.LocalType.This);
+                var incl = include.FileName + ".hpp";
                 if (!includesWritten.Contains(incl))
                 {
                     writer.WriteInclude(incl);
@@ -171,16 +171,18 @@ namespace Il2Cpp_Modding_Codegen.Serialization
             // Write forward declarations
             writer.WriteComment("Begin forward declares");
             var completedFds = new HashSet<TypeRef>();
-            foreach (var pair in value.Item2)
+            foreach (var fd in defsAndDeclares.Item2)
             {
-                writer.WriteComment("Forward declaring namespace: " + pair.Key);
-                writer.WriteDefinition("namespace " + pair.Key);
-                foreach (var t in pair.Value)
+                writer.WriteComment("Forward declaring namespace: " + fd.Key);
+                writer.WriteDefinition("namespace " + fd.Key);
+                foreach (var t in fd.Value)
                 {
                     var typeData = t.Resolve(_collection);
                     if (typeData is null)
                         throw new UnresolvedTypeException(context.LocalType.This, t);
                     var resolved = typeData.This;
+                    if (context.CouldNestHere(resolved))
+                        continue;
                     if (context.Definitions.Contains(resolved))
                     {
                         // Write a comment saying "we have already included this"
