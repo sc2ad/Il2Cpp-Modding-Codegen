@@ -30,13 +30,15 @@ namespace Il2Cpp_Modding_Codegen.Serialization
         {
             foreach (var def in defs)
             {
-                if (context.Header && def.Equals(context.LocalType.This))
-                    // Cannot include something that includes us!
-                    throw new InvalidOperationException($"Cannot add definition: {def} to context: {context.LocalType.This} because it is the same type!");
-                else if (context.Declarations.Contains(def) && context.CouldNestHere(def))
-                    // Panic time!
-                    // Should not be adding a definition to a class that declares the same type!
-                    throw new InvalidOperationException($"Cannot add definition: {def} to context: {context.LocalType.This} because context has a declaration of the same (nested) type!\nDefinitions to get: ({string.Join(", ", context.DefinitionsToGet.Select(d => d.GetQualifiedName()))})");
+                if (context.Header) {
+                    if (def.Equals(context.LocalType.This))
+                        // Cannot include something that includes us!
+                        throw new InvalidOperationException($"Cannot add definition: {def} to context: {context.LocalType.This} because it is the same type!");
+                    else if (context.Declarations.Contains(def) && context.CouldNestHere(def))
+                        // Panic time!
+                        // Should not be adding a definition to a class that declares the same type!
+                        throw new InvalidOperationException($"Cannot add definition: {def} to context: {context.LocalType.This} because context has a declaration of the same (nested) type!\nDefinitions to get: ({string.Join(", ", context.DefinitionsToGet.Select(d => d.GetQualifiedName()))})");
+                }
 
                 // Always add the definition (if we don't throw)
                 context.Definitions.Add(def);
