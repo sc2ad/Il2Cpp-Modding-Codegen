@@ -43,6 +43,10 @@ namespace Il2Cpp_Modding_Codegen.Serialization
             var _contextMap = asHeader ? _headerContextMap : _sourceContextMap;
             if (_contextMap.ContainsKey(context)) return;
 
+            // Recursively Resolve our nested types. However, we may go out of order. We may need to double check to ensure correct resolution, among other things.
+            foreach (var nested in context.NestedContexts)
+                Resolve(nested, map, asHeader);
+
             CppTypeDataSerializer typeSerializer;
             if (!_typeSerializers.TryGetValue(context, out typeSerializer))
             {
@@ -51,14 +55,6 @@ namespace Il2Cpp_Modding_Codegen.Serialization
                 typeSerializer.Resolve(context, context.LocalType);
                 _typeSerializers.Add(context, typeSerializer);
             }
-
-            // After we have resolved all of our field and method types, we need to ensure our InPlace nested types get a type created for them as well.
-            // Recursively Resolve our nested types. However, we may go out of order. We may need to double check to ensure correct resolution, among other things.
-            foreach (var nested in context.NestedContexts)
-                Resolve(nested, map, asHeader);
-
-            if (context.LocalType.This.Name == "Object" && context.LocalType.This.Namespace == "UnityEngine")
-                Console.WriteLine("Target resolve spotted.");
 
             var defs = context.Definitions;
             var defsToGet = context.DefinitionsToGet;
