@@ -28,7 +28,7 @@ namespace Il2Cpp_Modding_Codegen.Serialization
         public HashSet<TypeRef> Definitions { get; } = new HashSet<TypeRef>();
         public HashSet<TypeRef> DefinitionsToGet { get; } = new HashSet<TypeRef>();
         public CppSerializerContext DeclaringContext { get; private set; }
-        public bool InPlace { get; private set; }
+        public bool InPlace { get; private set; } = false;
         public CppSerializerContext HeaderContext { get; }
         public IReadOnlyList<CppSerializerContext> NestedContexts { get => _nestedContexts; }
 
@@ -142,7 +142,7 @@ namespace Il2Cpp_Modding_Codegen.Serialization
             if (resolved is null)
                 resolved = def.Resolve(_context);
             if (resolved is null)
-                return;
+                throw new UnresolvedTypeException(LocalType.This, def);
             // Remove anything that is already declared, we only need to define it
             Declarations.Remove(def);
 
@@ -238,6 +238,8 @@ namespace Il2Cpp_Modding_Codegen.Serialization
                 return;
             if (resolved is null)
                 resolved = def.Resolve(_context);
+            if (resolved is null)
+                throw new UnresolvedTypeException(LocalType.This, def);
 
             if (resolved?.This.DeclaringType != null && !Definitions.Contains(resolved?.This.DeclaringType))
                 // If def's declaring type is not defined, we cannot declare def. Define it instead
