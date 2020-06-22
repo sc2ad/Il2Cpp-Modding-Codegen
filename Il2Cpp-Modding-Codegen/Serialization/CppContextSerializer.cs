@@ -43,11 +43,10 @@ namespace Il2Cpp_Modding_Codegen.Serialization
             var _contextMap = asHeader ? _headerContextMap : _sourceContextMap;
             if (_contextMap.ContainsKey(context)) return;
 
-            CppTypeDataSerializer typeSerializer;
-            if (!_typeSerializers.TryGetValue(context, out typeSerializer))
+            if (!_typeSerializers.ContainsKey(context))
             {
                 // TODO: Also add our type resolution here. We need to resolve all of our fields and method types for serialization of the type later
-                typeSerializer = new CppTypeDataSerializer(_config);
+                var typeSerializer = new CppTypeDataSerializer(_config);
                 typeSerializer.Resolve(context, context.LocalType);
                 _typeSerializers.Add(context, typeSerializer);
             }
@@ -165,7 +164,7 @@ namespace Il2Cpp_Modding_Codegen.Serialization
             foreach (var include in defs)
             {
                 writer.WriteComment("Including type: " + include.LocalType.This);
-                // Using the FileName property of the include here will automatically use the lowest non-InPlace type
+                // Using the HeaderFileName property of the include here will automatically use the lowest non-InPlace type
                 var incl = include.HeaderFileName;
                 if (!includesWritten.Contains(incl))
                 {
@@ -270,29 +269,20 @@ namespace Il2Cpp_Modding_Codegen.Serialization
             writer.WriteDeclaration(typeStr + " " + nested.LocalType.This.GetName());
         }
 
-        private void WriteIncludesAndDeclares(CppStreamWriter writer, CppTypeContext context, bool asHeader,
-            Dictionary<CppTypeContext, (HashSet<CppTypeContext>, Dictionary<string, HashSet<TypeRef>>)> contextMap)
+        public void Serialize(CppStreamWriter writer, CppTypeContext context, bool asHeader)
         {
+            var contextMap = asHeader ? _headerContextMap : _sourceContextMap;
             if (!contextMap.TryGetValue(context, out var defsAndDeclares))
                 throw new InvalidOperationException("Must resolve context before attempting to serialize it! context: " + context);
 
-            // Only write includes, declares if the type is InPlace = false, or has no declaring type
+            // Only write includes, declares for non-headers or if the type is InPlace = false, or has no declaring type
             if (!asHeader || !context.InPlace || context.DeclaringContext is null)
             {
                 WriteIncludes(writer, context, defsAndDeclares.Item1, asHeader);
-                WriteDeclarations(writer, context, defsAndDeclares.Item2);
+                if (asHeader) WriteDeclarations(writer, context, defsAndDeclares.Item2);
             }
             else if (context.InPlace)
                 writer.WriteComment("Is in-place?");
-        }
-
-        public void Serialize(CppStreamWriter writer, CppTypeContext context, bool asHeader)
-        {
-
-            if (asHeader)
-                WriteIncludesAndDeclares(writer, context, asHeader, _headerContextMap);
-            else
-                WriteIncludesAndDeclares(writer, context, asHeader, _sourceContextMap);
 
             // We need to start by actually WRITING our type here. This include the first portion of our writing, including the header.
             // Then, we write our nested types (declared/defined as needed)
@@ -315,7 +305,7 @@ namespace Il2Cpp_Modding_Codegen.Serialization
                 // Alternatively, we don't even NEED to NOT nest in place, we could always just nest in place anyways.
                 foreach (var nested in context.NestedContexts)
                 {
-                    // Regardless of if the nested context is InPlace or not, we need to declare it within ourselves
+                    // Regardless of if the nested context is InPlace or not, we can declare it within ourselves
                     AddNestedDeclare(writer, nested);
                 }
                 // After all nested contexts are completely declared, we write our nested contexts that have InPlace = true, in the correct ordering.
