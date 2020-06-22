@@ -40,6 +40,9 @@ namespace Il2Cpp_Modding_Codegen.Serialization
         /// <param name="map"></param>
         public void Resolve(CppTypeContext context, Dictionary<ITypeData, CppTypeContext> map, bool asHeader)
         {
+            var _contextMap = asHeader ? _headerContextMap : _sourceContextMap;
+            if (_contextMap.ContainsKey(context)) return;
+
             CppTypeDataSerializer typeSerializer;
             if (!_typeSerializers.TryGetValue(context, out typeSerializer))
             {
@@ -95,9 +98,8 @@ namespace Il2Cpp_Modding_Codegen.Serialization
                     else
                         forwardDeclares.Add(ns, new HashSet<TypeRef> { td });
                 }
-                _headerContextMap.Add(context, (includes, forwardDeclares));
             }
-            else _sourceContextMap.Add(context, (includes, forwardDeclares));
+            _contextMap.Add(context, (includes, forwardDeclares));
         }
 
         private void AddIncludeDefinitions(CppTypeContext context, HashSet<TypeRef> defs, bool asHeader)
@@ -108,9 +110,8 @@ namespace Il2Cpp_Modding_Codegen.Serialization
                 {
                     if (def.Equals(context.LocalType.This))
                         // Cannot include something that includes us!
-                        throw new InvalidOperationException($"Cannot add definition: {def} to context: {context.LocalType.This} because it is the same type!\nDefinitions to get: ({string.Join(", ", context.DefinitionsToGet.Select(d => d.GetQualifiedName()))})");
-                    // TODO: Add an exception for attempting to include something that claims to define us
-                    // TODO: Add an exception for attempting to include anything that isn't us that claims to define us
+                        Console.Error.WriteLine($"Cannot add definition: {def} to context: {context.LocalType.This} because it is the same type!\nDefinitions to get: ({string.Join(", ", context.DefinitionsToGet.Select(d => d.GetQualifiedName()))})");
+                    // TODO: Add a warning for including something that defines/includes our own nested type (i.e. a type that has us in its DeclaringContext chain)
                 }
 
                 // Always add the definition (if we don't throw)
