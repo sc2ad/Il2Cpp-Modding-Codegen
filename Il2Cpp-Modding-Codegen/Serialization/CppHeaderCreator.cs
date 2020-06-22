@@ -13,13 +13,11 @@ namespace Il2Cpp_Modding_Codegen.Serialization
     {
         private SerializationConfig _config;
         private CppContextSerializer _serializer;
-        private CppTypeDataSerializer _typeSerializer;
 
-        public CppHeaderCreator(SerializationConfig config, CppContextSerializer serializer, CppTypeDataSerializer typeSerializer)
+        public CppHeaderCreator(SerializationConfig config, CppContextSerializer serializer)
         {
             _config = config;
             _serializer = serializer;
-            _typeSerializer = typeSerializer;
         }
 
         public void Serialize(CppSerializerContext context)
@@ -38,15 +36,10 @@ namespace Il2Cpp_Modding_Codegen.Serialization
                 writer.WriteLine("#pragma once");
                 // TODO: determine when/if we need this
                 writer.WriteLine("#pragma pack(push, 8)");
-                // Write SerializerContext
-                _serializer.Serialize(writer, context);
-                // Write namespace
-                writer.WriteComment("Type namespace: " + data.This.Namespace);
-                writer.WriteDefinition("namespace " + context.TypeNamespace);
-                // Write actual type
+                // Write SerializerContext and actual type
                 try
                 {
-                    _typeSerializer.Serialize(writer, data);
+                    _serializer.Serialize(writer, context);
                 }
                 catch (UnresolvedTypeException e)
                 {

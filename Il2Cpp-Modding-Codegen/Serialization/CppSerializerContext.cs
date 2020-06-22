@@ -27,10 +27,27 @@ namespace Il2Cpp_Modding_Codegen.Serialization
         public HashSet<TypeRef> Declarations { get; } = new HashSet<TypeRef>();
         public HashSet<TypeRef> Definitions { get; } = new HashSet<TypeRef>();
         public HashSet<TypeRef> DefinitionsToGet { get; } = new HashSet<TypeRef>();
-        public CppSerializerContext DeclaringContext { get; }
+        public CppSerializerContext DeclaringContext { get; private set; }
+        public bool InPlace { get; private set; }
         public CppSerializerContext HeaderContext { get; }
-        public IReadOnlyList<CppSerializerContext> NestedContexts { get; }
-        public string FileName { get; }
+        public IReadOnlyList<CppSerializerContext> NestedContexts { get => _nestedContexts; }
+
+        public string FileName
+        {
+            get
+            {
+                // If we are InPlace, we need to return our highest DeclaringContext that is NOT in place, or the top
+                if (InPlace)
+                {
+                    var dc = this;
+                    while (dc.DeclaringContext != null && dc.DeclaringContext.InPlace)
+                        dc = dc.DeclaringContext;
+                    return dc.FileName;
+                }
+                return LocalType.This.GetIncludeLocation();
+            }
+        }
+
         public string TypeNamespace { get; }
         public string TypeName { get; }
         public string QualifiedTypeName { get; }
@@ -45,6 +62,8 @@ namespace Il2Cpp_Modding_Codegen.Serialization
 
         // Holds generic types (ex: T1, T2, ...) defined by the type
         private HashSet<TypeRef> _genericTypes = new HashSet<TypeRef>();
+
+        private List<CppSerializerContext> _nestedContexts = new List<CppSerializerContext>();
 
         private ITypeCollection _context;
 
@@ -68,11 +87,6 @@ namespace Il2Cpp_Modding_Codegen.Serialization
             QualifiedTypeName = GetCppName(data.This, true, false, NeedAs.Definition, ForceAsType.Literal);
             TypeNamespace = data.This.GetNamespace();
             TypeName = data.This.GetName();
-            var root = data;
-            if (Header)
-                while (root.IsNestedInPlace)
-                    root = root.This.DeclaringType.Resolve(context);
-            FileName = root.This.GetIncludeLocation();
 
             // Check all declaring types (and ourselves) if we have generic arguments/parameters. If we do, add them to _genericTypes.
             AddGenericTypes(data.This);
@@ -99,31 +113,27 @@ namespace Il2Cpp_Modding_Codegen.Serialization
                 Definitions.Add(data.This);
         }
 
-        // Recursively makes type nested-in-place iff it has a declaring type, then ditto for the declaring type.
-        private void MakeNestHere(ITypeData type)
+        public void AddNestedContext(ITypeData type, CppSerializerContext context)
         {
-            if (type.This.DeclaringType is null) return;
-            if (Definitions.Add(type.This))
-            {
-                type.IsNestedInPlace = true;
-                // TODO: something with NestedContexts?
-                var declaring = type.This.DeclaringType.Resolve(_context);
-                if (declaring is null)
-                    throw new UnresolvedTypeException(type.This, type.This.DeclaringType);
-                MakeNestHere(declaring);
-            }
+            Contract.Requires(type != null);
+            Contract.Requires(type.This.DeclaringType.Equals(LocalType.This));
+            Contract.Requires(context != null);
+            // Add the type, context pair to our immediately nested contexts
+            // TODO: Add a mapping from type --> context so we can search our immediate nesteds faster
+            // atm, just add it because we can be lazy
+            _nestedContexts.Add(context);
         }
 
-        /// <summary>
-        /// Returns whether a given <see cref="TypeRef"/> is nested under the context type or if the type provided is ourselves
-        /// </summary>
-        /// <param name="def"></param>
-        /// <returns></returns>
-        public bool CouldNestHere(TypeRef def)
+        public void SetDeclaringContext(CppSerializerContext context)
         {
-            if (def is null) return false;
-            if (LocalType.This.Equals(def)) return true;
-            return CouldNestHere(def.DeclaringType);
+            Contract.Requires(DeclaringContext is null);
+            Contract.Requires(context != null);
+            // Set our declaring context to be the one provided. Our original declaring context should always be null before
+            // There shouldn't be too much sorcery here, instead, when we add definitions, we ensure we check our inheritance tree.
+            // If we find that the type we are looking for is nested under a declaring type that we share, we need to ensure that type (and all of its declaring types)
+            // are set to InPlace
+            DeclaringContext = context;
+            Contract.Ensures(DeclaringContext != null);
         }
 
         private void AddDefinition(TypeRef def, ITypeData resolved = null)
@@ -136,9 +146,78 @@ namespace Il2Cpp_Modding_Codegen.Serialization
             // Remove anything that is already declared, we only need to define it
             Declarations.Remove(def);
 
-            if (!CouldNestHere(def))
-                DefinitionsToGet.Add(def);
-            else MakeNestHere(resolved);
+            // When we add a definition, we add it to our DefinitionsToGet
+            // However, if the type we are looking for is a nested type with a declaring type that we share:
+            // We need to set the InPlace property for all declaring types of that desired type to true
+            // (up until the DeclaringType is shared between them)
+            DefinitionsToGet.Add(def);
+
+            // Only if we are InPlace do we need to check to ensure that definitions we use are also in place (there may still be deadlock here)
+            // TODO: This can be majorly reworked with a TypeRef --> CppSerializerContext map
+            if (InPlace)
+            {
+                var dt = resolved.This.DeclaringType;
+                var defDeclaringTypes = new List<TypeRef>();
+                while (dt != null)
+                {
+                    // Add it to our search order
+                    defDeclaringTypes.Add(dt);
+                    dt = dt.DeclaringType;
+                }
+                dt = LocalType.This.DeclaringType;
+                int idx = -1;
+                int ourIdx = 0;
+                while (dt != null)
+                {
+                    // For each of our declaring types, check to see if it exists in the definition's declaring types.
+                    idx = defDeclaringTypes.FindIndex(t => t.Equals(dt));
+                    if (idx != -1)
+                        break;
+                    dt = dt.DeclaringType;
+                    ourIdx++;
+                }
+                if (idx != -1)
+                {
+                    // If it does, use the index of it as a start point for when we go down and set the InPlace properties
+                    // We find how many times we went up, find how many times we need to go down again, and do so.
+                    var context = DeclaringContext;
+                    for (int i = 0; i < ourIdx; i++)
+                        if (context is null)
+                            throw new InvalidOperationException($"DeclaringContext at step: {i} is null, but we have a declaring type at step: {ourIdx}!");
+                        else
+                            context = context.DeclaringContext;
+                    // context should now be equal to the shared declaring type.
+                    // Go down till we hit the type we need (and set InPlace to true for all except the shared context)
+                    // Travel down to the bottom, through all of the nested types
+                    for (int i = idx + 1; i < defDeclaringTypes.Count; i++)
+                    {
+                        // Count the remaining declaring types that we need to travel down to
+                        var tempContext = context.NestedContexts.FirstOrDefault(c => c.LocalType.This.Equals(defDeclaringTypes[i]));
+                        if (tempContext is null)
+                            throw new InvalidOperationException($"Could not find nested type: {defDeclaringTypes[i]} under context: {context}!");
+                        // Set each context's InPlace to true
+                        tempContext.InPlace = true;
+                        context = tempContext;
+                    }
+                    // Find the actual definition that we want, ensure that is in place
+                    // If this cannot be found, we should throw anyways
+                    var found = context.NestedContexts.FirstOrDefault(c => c.LocalType.This.Equals(resolved.This));
+                    if (found is null)
+                        throw new InvalidOperationException($"Could not find final nested type: {resolved.This} under context: {context}");
+                    found.InPlace = true;
+                    // Then, we SHOULD ALSO add the nested in place that we have just made to all of the proper definitions (declaring types included)
+                    // And because we have that nested type in DefinitionsToGet, when we resolve it, we first grab all of our Definitions from our DeclaringType
+                    // (if we are InPlace) so we should have all of our definitions to get defined by our declaring type
+                    // NOTE: We do not do this at the moment because even if we did, we would still be left with definitions being resolved later
+                    // In fact, doing it this way introduces possibility for error, since if we add ourselves to a declaring type, then a def gets added to us
+                    // We would have to forward that up, which is time consuming/challenging.
+                    // For now, simply handle all the definition additions outside of this type (sans ourselves)
+                }
+                else
+                {
+                    // If we don't have any shared DeclaringTypes, we just chill. We already added it as a definition, so we are good to go.
+                }
+            }
         }
 
         private void AddNestedDeclaration(TypeRef def, ITypeData resolved)

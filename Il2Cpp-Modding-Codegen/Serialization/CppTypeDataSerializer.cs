@@ -9,10 +9,8 @@ using System.Text;
 
 namespace Il2Cpp_Modding_Codegen.Serialization
 {
-    public class CppTypeDataSerializer : Serializer<ITypeData>
+    public class CppTypeDataSerializer
     {
-        private bool _asHeader;
-
         private struct State
         {
             internal string type;
@@ -26,20 +24,17 @@ namespace Il2Cpp_Modding_Codegen.Serialization
         private CppStaticFieldSerializer staticFieldSerializer;
         private CppMethodSerializer methodSerializer;
         private SerializationConfig _config;
-        public readonly CppContextSerializer serializer;
 
         public CppSerializerContext Context { get; private set; }
 
-        public CppTypeDataSerializer(SerializationConfig config, CppContextSerializer serializer, bool asHeader = true)
+        public CppTypeDataSerializer(SerializationConfig config)
         {
             _config = config;
-            _asHeader = asHeader;
-            this.serializer = serializer;
         }
 
-        public override void PreSerialize(CppSerializerContext context, ITypeData type)
+        public void Resolve(CppSerializerContext context, ITypeData type)
         {
-            if (_asHeader)
+            if (context.Header)
             {
                 // Asking for ourselves as a definition will simply make things easier when resolving ourselves.
                 var resolved = context.GetCppName(type.This, false, false, CppSerializerContext.NeedAs.Definition, CppSerializerContext.ForceAsType.Literal);
@@ -52,7 +47,7 @@ namespace Il2Cpp_Modding_Codegen.Serialization
                 if (type.Parent != null)
                 {
                     // System::ValueType should be the 1 type where we want to extend System::Object without the Il2CppObject fields
-                    if (_asHeader && type.This.Namespace == "System" && type.This.Name == "ValueType")
+                    if (context.Header && type.This.Namespace == "System" && type.This.Name == "ValueType")
                         s.parentName = "Object";
                     else
                         // Ask for a definition of our parent, cannot be allowed to be a declaration.
@@ -66,7 +61,7 @@ namespace Il2Cpp_Modding_Codegen.Serialization
             if (type.Type != TypeEnum.Interface)
             {
                 if (methodSerializer is null)
-                    methodSerializer = new CppMethodSerializer(_config, _asHeader);
+                    methodSerializer = new CppMethodSerializer(_config, context.Header);
                 foreach (var m in type.Methods)
                     methodSerializer?.PreSerialize(context, m);
                 foreach (var f in type.Fields)
@@ -76,202 +71,132 @@ namespace Il2Cpp_Modding_Codegen.Serialization
                     if (f.Specifiers.IsStatic())
                     {
                         if (staticFieldSerializer is null)
-                            staticFieldSerializer = new CppStaticFieldSerializer(_asHeader, _config);
+                            staticFieldSerializer = new CppStaticFieldSerializer(context.Header, _config);
                         staticFieldSerializer.PreSerialize(context, f);
                     }
                     // Otherwise, if we are a header, preserialize the field
-                    else if (_asHeader)
+                    else if (context.Header)
                         fieldSerializer.PreSerialize(context, f);
                 }
             }
-            Resolved(type);
             // TODO: Add a specific interface method serializer here, or provide more state to the original method serializer to support it
-
-            // TODO: Add back PreSerialization of nested types instead of our weird header map stuff
-            // PreSerialize any in-place nested types
-            // Until NestedInPlace no longer gains new children, copy all its elements and PreSerialize the new ones
-            var prevInPlace = new HashSet<ITypeData>();
-            var newInPlace = new HashSet<ITypeData>(type.NestedTypes.Where(nt => nt.IsNestedInPlace));
-            do
-            {
-                foreach (var nested in newInPlace)
-                    PreSerialize(context, nested);
-                prevInPlace.UnionWith(newInPlace);
-                newInPlace = new HashSet<ITypeData>(type.NestedTypes.Where(nt => nt.IsNestedInPlace).Except(prevInPlace));
-            } while (newInPlace.Count > 0);
-            Context = context;
-        }
-
-        private void WriteNestedType(CppStreamWriter writer, ITypeData type)
-        {
-            // TODO: Have some more comparison for true nested in place here
-            var comment = "Nested type: " + type.This.GetQualifiedName();
-            var typeStr = type.Type.TypeName();
-            // TODO: Actually add nestedInPlace
-            if (!type.IsNestedInPlace)
-            {
-                // Only write the template for the declaration if we are not nested in place
-                // because nested in place will write the template for itself.
-                // First thing we need to do is understand that our declaring type may have generic parameters
-                // If our declaring type has any generic parameters, our nested type declaration should NOT have a template that uses those
-                // (unless we are writing the actualy DEFINITION of the nested type, in which case we need to copy over the templated parameters)
-                var genericsDefined = type.This.GetDeclaredGenerics(false);
-                if (type.This.IsGenericTemplate)
-                {
-                    // If the type being resolved is generic, we must template it, iff we have generic parameters that aren't in genericsDefined
-                    var generics = string.Empty;
-                    bool first = true;
-                    foreach (var g in type.This.Generics)
-                    {
-                        if (genericsDefined.Contains(g))
-                            continue;
-                        if (!first)
-                            generics += ", ";
-                        else
-                            first = false;
-                        generics += "typename " + g.GetName();
-                    }
-                    // Write the comment regardless
-                    writer.WriteComment(comment + "<" + string.Join(", ", type.This.Generics.Select(tr => tr.Name)) + ">");
-                    if (!string.IsNullOrEmpty(generics))
-                        writer.WriteLine("template<" + generics + ">");
-                }
-                else
-                    writer.WriteComment(comment);
-                writer.WriteDeclaration(typeStr + " " + type.This.GetName());
-            }
-            else
-            {
-                writer.WriteComment(comment);
-                writer.Flush();
-                Serialize(writer, type);
-            }
-            writer.Flush();
         }
 
         // Should be provided a file, with all references resolved:
         // That means that everything is already either forward declared or included (with included files "to be built")
         // That is the responsibility of our parent serializer, who is responsible for converting the context into that
-        public override void Serialize(CppStreamWriter writer, ITypeData type)
+        /// <summary>
+        /// Writes the declaration for the <see cref="ITypeData"/> type.
+        /// Should only be called in contexts where the writer is operating on a header.
+        /// </summary>
+        /// <param name="writer"></param>
+        /// <param name="type"></param>
+        public void WriteInitialTypeDefinition(CppStreamWriter writer, ITypeData type)
         {
-            // Populated only for headers; contains the e.g. `struct X` or `class Y` for type
-            string typeHeader = "";
-            if (_asHeader)
+            if (!map.TryGetValue(type.This, out var state))
+                throw new UnresolvedTypeException(type.This.DeclaringType, type.This);
+            // Write the actual type definition start
+            var specifiers = "";
+            foreach (var spec in type.Specifiers)
+                specifiers += spec + " ";
+            writer.WriteComment("Autogenerated type: " + specifiers + type.This);
+            if (type.ImplementingInterfaces.Count > 0)
             {
-                if (!map.TryGetValue(type.This, out var state))
-                    throw new UnresolvedTypeException(type.This.DeclaringType, type.This);
-                // Write the actual type definition start
-                var specifiers = "";
-                foreach (var spec in type.Specifiers)
-                    specifiers += spec + " ";
-                writer.WriteComment("Autogenerated type: " + specifiers + type.This);
-                if (type.ImplementingInterfaces.Count > 0)
+                writer.Write($"// Implementing Interfaces: ");
+                for (int i = 0; i < type.ImplementingInterfaces.Count; i++)
                 {
-                    writer.Write($"// Implementing Interfaces: ");
-                    for (int i = 0; i < type.ImplementingInterfaces.Count; i++)
-                    {
-                        writer.Write(type.ImplementingInterfaces[i]);
-                        if (i != type.ImplementingInterfaces.Count - 1)
-                            writer.Write(", ");
-                    }
-                    writer.WriteLine();
+                    writer.Write(type.ImplementingInterfaces[i]);
+                    if (i != type.ImplementingInterfaces.Count - 1)
+                        writer.Write(", ");
                 }
-                string s = "";
-                if (state.parentName != null)
-                    s = $" : public {state.parentName}";
-                // TODO: add implementing interfaces to s
-                // Even if we are a template, we need to write out our inherited declaring types
-                var declaredGenerics = type.This.GetDeclaredGenerics(true).ToList();
-                if (declaredGenerics.Count > 0)
+                writer.WriteLine();
+            }
+            string s = "";
+            if (state.parentName != null)
+                s = $" : public {state.parentName}";
+            // TODO: add implementing interfaces to s
+            // Even if we are a template, we need to write out our inherited declaring types
+            var declaredGenerics = type.This.GetDeclaredGenerics(true).ToList();
+            if (declaredGenerics.Count > 0)
+            {
+                var templateStr = "template<";
+                bool first = true;
+                foreach (var genParam in declaredGenerics)
                 {
-                    var templateStr = "template<";
-                    bool first = true;
-                    foreach (var genParam in declaredGenerics)
-                    {
-                        if (!first)
-                            templateStr += ", ";
-                        else
-                            first = false;
-                        templateStr += "typename " + genParam.Name;
-                    }
-                    writer.WriteLine(templateStr + ">");
+                    if (!first)
+                        templateStr += ", ";
+                    else
+                        first = false;
+                    templateStr += "typename " + genParam.Name;
                 }
-
-                // TODO: print enums as actual C++ smart enums? backing type is type of _value and A = #, should work for the lines inside the enum
-                // TODO: We need to specify generic declaring types with their generic parameters
-                typeHeader = type.Type.TypeName() + " " + state.type;
-                writer.WriteDefinition(typeHeader + s);
-                if (type.Fields.Count > 0 || type.Methods.Count > 0 || type.NestedTypes.Count > 0)
-                    writer.WriteLine("public:");
-                writer.Flush();
-
-                // write any class forward declares
-                // We use the context serializer here, once more.
-                if (_asHeader && type.NestedTypes.Count > 0)
-                {
-                    // Write a type declaration for each of these nested types, unless we want to write them as literals.
-                    // We can even use this.Serialize for in-place-nested.
-                    foreach (var nt in type.NestedTypes)
-                        WriteNestedType(writer, nt);
-                }
-                writer.Flush();
+                writer.WriteLine(templateStr + ">");
             }
 
-            if (type.Type != TypeEnum.Interface)
-            {
-                // Write fields if not an interface
-                foreach (var f in type.Fields)
-                {
-                    try
-                    {
-                        if (f.Specifiers.IsStatic())
-                            staticFieldSerializer.Serialize(writer, f);
-                        else if (_asHeader)
-                            // Only write standard fields if this is a header
-                            fieldSerializer.Serialize(writer, f);
-                    }
-                    catch (UnresolvedTypeException e)
-                    {
-                        if (_config.UnresolvedTypeExceptionHandling.FieldHandling == UnresolvedTypeExceptionHandling.DisplayInFile)
-                        {
-                            writer.WriteLine("/*");
-                            writer.WriteLine(e);
-                            writer.WriteLine("*/");
-                            writer.Flush();
-                        }
-                        else if (_config.UnresolvedTypeExceptionHandling.FieldHandling == UnresolvedTypeExceptionHandling.Elevate)
-                            throw;
-                    }
-                }
-
-                // Finally, we write the methods
-                foreach (var m in type.Methods)
-                {
-                    try
-                    {
-                        methodSerializer?.Serialize(writer, m);
-                    }
-                    catch (UnresolvedTypeException e)
-                    {
-                        if (_config.UnresolvedTypeExceptionHandling.MethodHandling == UnresolvedTypeExceptionHandling.DisplayInFile)
-                        {
-                            writer.WriteLine("/*");
-                            writer.WriteLine(e);
-                            writer.WriteLine("*/");
-                            writer.Flush();
-                        }
-                        else if (_config.UnresolvedTypeExceptionHandling.MethodHandling == UnresolvedTypeExceptionHandling.Elevate)
-                            throw;
-                    }
-                }
-            }
-            // Write type closing "};"
-            if (_asHeader)
-            {
-                writer.CloseDefinition($"; // {typeHeader}");
-            }
+            // TODO: print enums as actual C++ smart enums? backing type is type of _value and A = #, should work for the lines inside the enum
+            // TODO: We need to specify generic declaring types with their generic parameters
+            writer.WriteDefinition(type.Type.TypeName() + " " + state.type + s);
+            if (type.Fields.Count > 0 || type.Methods.Count > 0 || type.NestedTypes.Count > 0)
+                writer.WriteLine("public:");
             writer.Flush();
-            Serialized(type);
+        }
+
+        public void WriteFields(CppStreamWriter writer, ITypeData type, bool header)
+        {
+            if (type.Type == TypeEnum.Interface)
+                // Don't write fields for interfaces
+                return;
+            // Write fields if not an interface
+            foreach (var f in type.Fields)
+            {
+                try
+                {
+                    if (f.Specifiers.IsStatic())
+                        staticFieldSerializer.Serialize(writer, f);
+                    else if (header)
+                        // Only write standard fields if this is a header
+                        fieldSerializer.Serialize(writer, f);
+                }
+                catch (UnresolvedTypeException e)
+                {
+                    if (_config.UnresolvedTypeExceptionHandling.FieldHandling == UnresolvedTypeExceptionHandling.DisplayInFile)
+                    {
+                        writer.WriteLine("/*");
+                        writer.WriteLine(e);
+                        writer.WriteLine("*/");
+                        writer.Flush();
+                    }
+                    else if (_config.UnresolvedTypeExceptionHandling.FieldHandling == UnresolvedTypeExceptionHandling.Elevate)
+                        throw;
+                }
+            }
+        }
+
+        public void WriteMethods(CppStreamWriter writer, ITypeData type, bool header)
+        {
+            // Finally, we write the methods
+            foreach (var m in type.Methods)
+            {
+                try
+                {
+                    methodSerializer?.Serialize(writer, m);
+                }
+                catch (UnresolvedTypeException e)
+                {
+                    if (_config.UnresolvedTypeExceptionHandling.MethodHandling == UnresolvedTypeExceptionHandling.DisplayInFile)
+                    {
+                        writer.WriteLine("/*");
+                        writer.WriteLine(e);
+                        writer.WriteLine("*/");
+                        writer.Flush();
+                    }
+                    else if (_config.UnresolvedTypeExceptionHandling.MethodHandling == UnresolvedTypeExceptionHandling.Elevate)
+                        throw;
+                }
+            }
+        }
+        public void CloseDefinition(CppStreamWriter writer, ITypeData type)
+        {
+            writer.CloseDefinition($"; // {type.This}");
         }
     }
 }

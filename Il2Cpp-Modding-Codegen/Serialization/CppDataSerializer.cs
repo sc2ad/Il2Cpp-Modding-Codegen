@@ -19,8 +19,8 @@ namespace Il2Cpp_Modding_Codegen.Serialization
         private SerializationConfig _config;
 
         private CppContextSerializer _contextSerializer;
-        private Dictionary<ITypeData, (CppTypeDataSerializer, CppTypeDataSerializer)> _map = new Dictionary<ITypeData, (CppTypeDataSerializer, CppTypeDataSerializer)>();
         private Dictionary<ITypeData, CppSerializerContext> _headerOnlyMap = new Dictionary<ITypeData, CppSerializerContext>();
+        private Dictionary<ITypeData, (CppSerializerContext, CppSerializerContext)> _map = new Dictionary<ITypeData, (CppSerializerContext, CppSerializerContext)>();
 
         /// <summary>
         /// Creates a C++ Serializer with the given type context, which is a wrapper for a list of all types to serialize
@@ -30,6 +30,25 @@ namespace Il2Cpp_Modding_Codegen.Serialization
         {
             _collection = context;
             _config = config;
+        }
+
+        private (CppSerializerContext, CppSerializerContext) CreateContexts(ITypeData t)
+        {
+            var headerContext = new CppSerializerContext(_collection, t, null);
+            // TODO: Remove the difference in cpp, it is just the headerContext but with all declarations defined.
+            var cppContext = new CppSerializerContext(_collection, t, headerContext);
+            _headerOnlyMap.Add(t, headerContext);
+            foreach (var nt in t.NestedTypes)
+            {
+                // For each nested type, we create a context for it, and we add it to our current context.
+                var nestedContexts = CreateContexts(nt);
+                headerContext.AddNestedContext(nt, nestedContexts.Item1);
+                // In addition, we set the nested context's declaring context to headerContext
+                nestedContexts.Item1.SetDeclaringContext(headerContext);
+            }
+            // Each type is always added to _map (with a non-null header and cpp context)
+            _map.Add(t, (headerContext, cppContext));
+            return (headerContext, cppContext);
         }
 
         public override void PreSerialize(CppSerializerContext _unused_, IParsedData data)
@@ -51,6 +70,11 @@ namespace Il2Cpp_Modding_Codegen.Serialization
                 if (t.This.IsGeneric && _config.GenericHandling == GenericHandling.Skip)
                     // Skip the generic type, ensure it doesn't get serialized.
                     continue;
+
+                // Alright, so. We create only top level types, all nested types are recursively created.
+                if (t.This.DeclaringType is null)
+                    CreateContexts(t);
+
                 // So, nested types are currently double counted.
                 // That is, we hit them once (or more) in the declaring type when it preserializes the nested types
                 // And we hit them again while we iterate over them.
@@ -58,14 +82,6 @@ namespace Il2Cpp_Modding_Codegen.Serialization
                 // If you need a definition of a truly nested type, you have to include the declaring type.
                 // Therefore, when we resolve include locations, we must ensure we are not a nested type before returning our include path
                 // (otherwise returning our declaring type's include path)
-                var header = new CppTypeDataSerializer(_config, _contextSerializer, true);
-                var cpp = new CppTypeDataSerializer(_config, _contextSerializer, false);
-                var headerContext = new CppSerializerContext(_collection, t, null);
-                var cppContext = new CppSerializerContext(_collection, t, headerContext);
-                header.PreSerialize(headerContext, t);
-                cpp.PreSerialize(cppContext, t);
-                _map.Add(t, (header, cpp));
-                _headerOnlyMap.Add(t, headerContext);
             }
         }
 
@@ -75,6 +91,11 @@ namespace Il2Cpp_Modding_Codegen.Serialization
             int count = _map.Count;
             foreach (var pair in _map)
             {
+                // We iterate over every type.
+                // Then, we check InPlace for each context object, and if it is InPlace, we don't write a header for it
+                // (we attempt to write a .cpp for it, if it is a template, this won't do anything)
+                // Also, types that have no declaring context are always written (otherwise we would have 0 types!)
+
                 if (_config.PrintSerializationProgress)
                     if (i % _config.PrintSerializationProgressFrequency == 0)
                     {
@@ -90,13 +111,12 @@ namespace Il2Cpp_Modding_Codegen.Serialization
                 // Now we serialize
                 // We need to ensure that all of our definitions and declarations are resolved for our given type in both contexts.
                 // We do this by calling CppContextSerializer.Resolve(pair.Key, _map)
-                _contextSerializer.Resolve(pair.Value.Item1.Context, _headerOnlyMap);
-                _contextSerializer.Resolve(pair.Value.Item2.Context, _headerOnlyMap);
+                _contextSerializer.Resolve(pair.Value.Item1, _headerOnlyMap);
+                _contextSerializer.Resolve(pair.Value.Item2, _headerOnlyMap);
 
-                // If we have a type that is nested in place, we only create the .cpp for it
-                if (!pair.Key.IsNestedInPlace)
-                    new CppHeaderCreator(_config, _contextSerializer, pair.Value.Item1).Serialize(pair.Value.Item1.Context);
-                new CppSourceCreator(_config, _contextSerializer, pair.Value.Item2).Serialize(pair.Value.Item2.Context);
+                if (!pair.Value.Item1.InPlace || pair.Value.Item1.DeclaringContext == null)
+                    new CppHeaderCreator(_config, _contextSerializer).Serialize(pair.Value.Item1);
+                new CppSourceCreator(_config, _contextSerializer).Serialize(pair.Value.Item2);
                 i++;
             }
         }
