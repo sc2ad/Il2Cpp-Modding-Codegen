@@ -306,6 +306,9 @@ namespace Il2Cpp_Modding_Codegen.Serialization
             // Method declarations are written in the header, definitions written when the body is needed.
             typeSerializer.WriteMethods(writer, context.LocalType, context.Header);
             writer.Flush();
+
+            if (context.Header)
+                typeSerializer.CloseDefinition(writer, context.LocalType);
         }
     }
 }
