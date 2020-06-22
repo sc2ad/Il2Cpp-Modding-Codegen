@@ -9,7 +9,7 @@ using System.Text;
 
 namespace Il2Cpp_Modding_Codegen.Serialization
 {
-    public class CppSerializerContext
+    public class CppTypeContext
     {
         public enum NeedAs
         {
@@ -27,12 +27,11 @@ namespace Il2Cpp_Modding_Codegen.Serialization
         public HashSet<TypeRef> Declarations { get; } = new HashSet<TypeRef>();
         public HashSet<TypeRef> Definitions { get; } = new HashSet<TypeRef>();
         public HashSet<TypeRef> DefinitionsToGet { get; } = new HashSet<TypeRef>();
-        public CppSerializerContext DeclaringContext { get; private set; }
+        public CppTypeContext DeclaringContext { get; private set; }
         public bool InPlace { get; private set; } = false;
-        public CppSerializerContext HeaderContext { get; }
-        public IReadOnlyList<CppSerializerContext> NestedContexts { get => _nestedContexts; }
+        public IReadOnlyList<CppTypeContext> NestedContexts { get => _nestedContexts; }
 
-        public string FileName
+        public string HeaderFileName
         {
             get
             {
@@ -42,11 +41,13 @@ namespace Il2Cpp_Modding_Codegen.Serialization
                     var dc = this;
                     while (dc.DeclaringContext != null && dc.DeclaringContext.InPlace)
                         dc = dc.DeclaringContext;
-                    return dc.FileName;
+                    return dc.HeaderFileName;
                 }
-                return LocalType.This.GetIncludeLocation();
+                return LocalType.This.GetIncludeLocation() + ".hpp";
             }
         }
+
+        public string CppFileName { get => LocalType.This.GetIncludeLocation() + ".cpp"; }
 
         public string TypeNamespace { get; }
         public string TypeName { get; }
@@ -58,12 +59,10 @@ namespace Il2Cpp_Modding_Codegen.Serialization
         /// </summary>
         public bool NeedPrimitives { get; private set; }
 
-        public bool Header { get; }
-
         // Holds generic types (ex: T1, T2, ...) defined by the type
         private HashSet<TypeRef> _genericTypes = new HashSet<TypeRef>();
 
-        private List<CppSerializerContext> _nestedContexts = new List<CppSerializerContext>();
+        private List<CppTypeContext> _nestedContexts = new List<CppTypeContext>();
 
         private ITypeCollection _context;
 
@@ -77,11 +76,9 @@ namespace Il2Cpp_Modding_Codegen.Serialization
             AddGenericTypes(type.DeclaringType);
         }
 
-        public CppSerializerContext(ITypeCollection context, ITypeData data, CppSerializerContext headerContext)
+        public CppTypeContext(ITypeCollection context, ITypeData data)
         {
             _context = context;
-            HeaderContext = headerContext;
-            Header = headerContext is null;
             LocalType = data;
             // Requiring it as a definition here simply makes it easier to remove (because we are asking for a definition of ourself, which we have)
             QualifiedTypeName = GetCppName(data.This, true, false, NeedAs.Definition, ForceAsType.Literal);
@@ -102,18 +99,14 @@ namespace Il2Cpp_Modding_Codegen.Serialization
                 AddDefinition(data.This.DeclaringType);
             }
             // Declaring types need to declare (or define) ALL of their nested types
-            if (Header)
-            {
-                // This should only happen in the declaring type's header, however.
-                foreach (var nested in data.NestedTypes)
-                    AddNestedDeclaration(nested.This, nested.This.Resolve(_context));
-            }
+            // This should only happen in the declaring type's header, however.
+            foreach (var nested in data.NestedTypes)
+                AddNestedDeclaration(nested.This, nested.This.Resolve(_context));
             // Add ourselves (and any truly nested types) to our Definitions
-            if (Header)
-                Definitions.Add(data.This);
+            Definitions.Add(data.This);
         }
 
-        public void AddNestedContext(ITypeData type, CppSerializerContext context)
+        public void AddNestedContext(ITypeData type, CppTypeContext context)
         {
             Contract.Requires(type != null);
             Contract.Requires(type.This.DeclaringType.Equals(LocalType.This));
@@ -124,7 +117,7 @@ namespace Il2Cpp_Modding_Codegen.Serialization
             _nestedContexts.Add(context);
         }
 
-        public void SetDeclaringContext(CppSerializerContext context)
+        public void SetDeclaringContext(CppTypeContext context)
         {
             Contract.Requires(DeclaringContext is null);
             Contract.Requires(context != null);

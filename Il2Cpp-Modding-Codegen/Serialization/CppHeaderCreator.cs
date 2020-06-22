@@ -20,10 +20,10 @@ namespace Il2Cpp_Modding_Codegen.Serialization
             _serializer = serializer;
         }
 
-        public void Serialize(CppSerializerContext context)
+        public void Serialize(CppTypeContext context)
         {
             var data = context.LocalType;
-            var headerLocation = Path.Combine(_config.OutputDirectory, _config.OutputHeaderDirectory, context.FileName) + ".hpp";
+            var headerLocation = Path.Combine(_config.OutputDirectory, _config.OutputHeaderDirectory, context.HeaderFileName);
             Directory.CreateDirectory(Path.GetDirectoryName(headerLocation));
             using (var ms = new MemoryStream())
             {
@@ -39,7 +39,7 @@ namespace Il2Cpp_Modding_Codegen.Serialization
                 // Write SerializerContext and actual type
                 try
                 {
-                    _serializer.Serialize(writer, context);
+                    _serializer.Serialize(writer, context, true);
                 }
                 catch (UnresolvedTypeException e)
                 {

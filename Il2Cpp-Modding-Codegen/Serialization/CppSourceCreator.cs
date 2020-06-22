@@ -20,9 +20,8 @@ namespace Il2Cpp_Modding_Codegen.Serialization
             _serializer = serializer;
         }
 
-        public void Serialize(CppSerializerContext context)
+        public void Serialize(CppTypeContext context)
         {
-            Contract.Requires(!context.Header);
             var data = context.LocalType;
             if (data.Type == TypeEnum.Interface || data.Methods.Count == 0 || data.This.IsGeneric)
             {
@@ -30,7 +29,7 @@ namespace Il2Cpp_Modding_Codegen.Serialization
                 return;
             }
 
-            var sourceLocation = Path.Combine(_config.OutputDirectory, _config.OutputSourceDirectory, context.FileName) + ".cpp";
+            var sourceLocation = Path.Combine(_config.OutputDirectory, _config.OutputSourceDirectory, context.CppFileName);
             Directory.CreateDirectory(Path.GetDirectoryName(sourceLocation));
             using (var ms = new MemoryStream())
             {
@@ -43,7 +42,7 @@ namespace Il2Cpp_Modding_Codegen.Serialization
                 try
                 {
                     // Write SerializerContext and actual type
-                    _serializer.Serialize(writer, context);
+                    _serializer.Serialize(writer, context, false);
                 }
                 catch (UnresolvedTypeException e)
                 {

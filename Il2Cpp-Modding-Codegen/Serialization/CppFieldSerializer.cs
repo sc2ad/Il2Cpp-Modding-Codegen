@@ -14,12 +14,10 @@ namespace Il2Cpp_Modding_Codegen.Serialization
 
         private Dictionary<IField, string> _resolvedTypeNames = new Dictionary<IField, string>();
 
-        public CppFieldSerializer()
-        {
-        }
+        public CppFieldSerializer() { }
 
         // Resolve the field into context here
-        public override void PreSerialize(CppSerializerContext context, IField field)
+        public override void PreSerialize(CppTypeContext context, IField field)
         {
             // In this situation, if the type is a pointer, we can simply forward declare.
             // Otherwise, we need to include the corresponding file. This must be resolved via context
@@ -36,7 +34,7 @@ namespace Il2Cpp_Modding_Codegen.Serialization
         }
 
         // Write the field here
-        public override void Serialize(CppStreamWriter writer, IField field)
+        public override void Serialize(CppStreamWriter writer, IField field, bool asHeader)
         {
             // If we could not resolve the type name, don't serialize the field (this should cause a critical failure in the type)
             if (_resolvedTypeNames[field] == null)

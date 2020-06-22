@@ -25,43 +25,41 @@ namespace Il2Cpp_Modding_Codegen.Serialization
         private CppMethodSerializer methodSerializer;
         private SerializationConfig _config;
 
-        public CppSerializerContext Context { get; private set; }
+        public CppTypeContext Context { get; private set; }
 
         public CppTypeDataSerializer(SerializationConfig config)
         {
             _config = config;
         }
 
-        public void Resolve(CppSerializerContext context, ITypeData type)
+        public void Resolve(CppTypeContext context, ITypeData type)
         {
-            if (context.Header)
+            // Asking for ourselves as a definition will simply make things easier when resolving ourselves.
+            var resolved = context.GetCppName(type.This, false, false, CppTypeContext.NeedAs.Definition, CppTypeContext.ForceAsType.Literal);
+            if (resolved is null)
+                throw new InvalidOperationException($"Could not resolve provided type: {type.This}!");
+            var s = new State
             {
-                // Asking for ourselves as a definition will simply make things easier when resolving ourselves.
-                var resolved = context.GetCppName(type.This, false, false, CppSerializerContext.NeedAs.Definition, CppSerializerContext.ForceAsType.Literal);
-                if (resolved is null)
-                    throw new InvalidOperationException($"Could not resolve provided type: {type.This}!");
-                var s = new State
-                {
-                    type = resolved,
-                };
-                if (type.Parent != null)
-                {
-                    // System::ValueType should be the 1 type where we want to extend System::Object without the Il2CppObject fields
-                    if (context.Header && type.This.Namespace == "System" && type.This.Name == "ValueType")
-                        s.parentName = "Object";
-                    else
-                        // Ask for a definition of our parent, cannot be allowed to be a declaration.
-                        s.parentName = context.GetCppName(type.Parent, true, false, CppSerializerContext.NeedAs.Definition, CppSerializerContext.ForceAsType.Literal);
-                }
-                map.Add(type.This, s);
-
-                if (fieldSerializer is null)
-                    fieldSerializer = new CppFieldSerializer();
+                type = resolved,
+            };
+            if (type.Parent != null)
+            {
+                // System::ValueType should be the 1 type where we want to extend System::Object without the Il2CppObject fields
+                if (type.This.Namespace == "System" && type.This.Name == "ValueType")
+                    s.parentName = "Object";
+                else
+                    // Ask for a definition of our parent, cannot be allowed to be a declaration.
+                    s.parentName = context.GetCppName(type.Parent, true, false, CppTypeContext.NeedAs.Definition, CppTypeContext.ForceAsType.Literal);
             }
+            map.Add(type.This, s);
+
+            if (fieldSerializer is null)
+                fieldSerializer = new CppFieldSerializer();
+
             if (type.Type != TypeEnum.Interface)
             {
                 if (methodSerializer is null)
-                    methodSerializer = new CppMethodSerializer(_config, context.Header);
+                    methodSerializer = new CppMethodSerializer(_config);
                 foreach (var m in type.Methods)
                     methodSerializer?.PreSerialize(context, m);
                 foreach (var f in type.Fields)
@@ -71,12 +69,11 @@ namespace Il2Cpp_Modding_Codegen.Serialization
                     if (f.Specifiers.IsStatic())
                     {
                         if (staticFieldSerializer is null)
-                            staticFieldSerializer = new CppStaticFieldSerializer(context.Header, _config);
+                            staticFieldSerializer = new CppStaticFieldSerializer(_config);
                         staticFieldSerializer.PreSerialize(context, f);
                     }
                     // Otherwise, if we are a header, preserialize the field
-                    else if (context.Header)
-                        fieldSerializer.PreSerialize(context, f);
+                    else fieldSerializer.PreSerialize(context, f);
                 }
             }
             // TODO: Add a specific interface method serializer here, or provide more state to the original method serializer to support it
@@ -140,7 +137,7 @@ namespace Il2Cpp_Modding_Codegen.Serialization
             writer.Flush();
         }
 
-        public void WriteFields(CppStreamWriter writer, ITypeData type, bool header)
+        public void WriteFields(CppStreamWriter writer, ITypeData type, bool asHeader)
         {
             if (type.Type == TypeEnum.Interface)
                 // Don't write fields for interfaces
@@ -151,10 +148,10 @@ namespace Il2Cpp_Modding_Codegen.Serialization
                 try
                 {
                     if (f.Specifiers.IsStatic())
-                        staticFieldSerializer.Serialize(writer, f);
-                    else if (header)
+                        staticFieldSerializer.Serialize(writer, f, asHeader);
+                    else if (asHeader)
                         // Only write standard fields if this is a header
-                        fieldSerializer.Serialize(writer, f);
+                        fieldSerializer.Serialize(writer, f, asHeader);
                 }
                 catch (UnresolvedTypeException e)
                 {
@@ -171,14 +168,14 @@ namespace Il2Cpp_Modding_Codegen.Serialization
             }
         }
 
-        public void WriteMethods(CppStreamWriter writer, ITypeData type, bool header)
+        public void WriteMethods(CppStreamWriter writer, ITypeData type, bool asHeader)
         {
             // Finally, we write the methods
             foreach (var m in type.Methods)
             {
                 try
                 {
-                    methodSerializer?.Serialize(writer, m);
+                    methodSerializer?.Serialize(writer, m, asHeader);
                 }
                 catch (UnresolvedTypeException e)
                 {

@@ -10,19 +10,20 @@ using System.Text;
 namespace Il2Cpp_Modding_Codegen.Serialization
 {
     /// <summary>
-    /// Serializes <see cref="CppSerializerContext"/> objects
+    /// Serializes <see cref="CppTypeContext"/> objects
     /// This does so by including all definitions necessary, forward declaring all declarations necessary, and combining contexts.
     /// Configurable to avoid combining contexts (except for nested cases).
     /// </summary>
     public class CppContextSerializer
     {
         private ITypeCollection _collection;
-        private Dictionary<CppSerializerContext, (HashSet<CppSerializerContext>, Dictionary<string, HashSet<TypeRef>>)> _contextMap = new Dictionary<CppSerializerContext, (HashSet<CppSerializerContext>, Dictionary<string, HashSet<TypeRef>>)>();
+        private Dictionary<CppTypeContext, (HashSet<CppTypeContext>, Dictionary<string, HashSet<TypeRef>>)> _headerContextMap = new Dictionary<CppTypeContext, (HashSet<CppTypeContext>, Dictionary<string, HashSet<TypeRef>>)>();
+        private Dictionary<CppTypeContext, (HashSet<CppTypeContext>, Dictionary<string, HashSet<TypeRef>>)> _sourceContextMap = new Dictionary<CppTypeContext, (HashSet<CppTypeContext>, Dictionary<string, HashSet<TypeRef>>)>();
         private SerializationConfig _config;
         // Hold a type serializer to use for type serialization
         // We want to split up the type serialization into steps, managing nested types ourselves, instead of letting it do it.
         // Map contexts to CppTypeDataSerializers, one to one.
-        private Dictionary<CppSerializerContext, CppTypeDataSerializer> _typeSerializers = new Dictionary<CppSerializerContext, CppTypeDataSerializer>();
+        private Dictionary<CppTypeContext, CppTypeDataSerializer> _typeSerializers = new Dictionary<CppTypeContext, CppTypeDataSerializer>();
 
         public CppContextSerializer(SerializationConfig config, ITypeCollection collection)
         {
@@ -37,22 +38,34 @@ namespace Il2Cpp_Modding_Codegen.Serialization
         /// <param name="data"></param>
         /// <param name="context"></param>
         /// <param name="map"></param>
-        public void Resolve(CppSerializerContext context, Dictionary<ITypeData, CppSerializerContext> map)
+        public void Resolve(CppTypeContext context, Dictionary<ITypeData, CppTypeContext> map, bool asHeader)
         {
-            if (_typeSerializers.ContainsKey(context))
-                // Alternatively, we can simply return early.
-                //throw new InvalidOperationException($"Should not have multiple type serializers with the exact same context! Matching value: {_typeSerializers[context]}");
-                return;
-            if (_contextMap.ContainsKey(context))
-                //throw new InvalidOperationException($"Should not have multiple includes, forward declares with the exact same context! Matching value: {_contextMap[context]}");
-                return;
-            var includes = new HashSet<CppSerializerContext>();
-            if (!context.Header)
+            CppTypeDataSerializer typeSerializer;
+            if (!_typeSerializers.TryGetValue(context, out typeSerializer))
             {
-                includes.Add(context.HeaderContext);
-                AddIncludeDefinitions(context, context.HeaderContext.Definitions);
+                // TODO: Also add our type resolution here. We need to resolve all of our fields and method types for serialization of the type later
+                typeSerializer = new CppTypeDataSerializer(_config);
+                typeSerializer.Resolve(context, context.LocalType);
+                _typeSerializers.Add(context, typeSerializer);
             }
-            foreach (var td in context.DefinitionsToGet)
+
+            // After we have resolved all of our field and method types, we need to ensure our InPlace nested types get a type created for them as well.
+            // Recursively Resolve our nested types. However, we may go out of order. We may need to double check to ensure correct resolution, among other things.
+            foreach (var nested in context.NestedContexts)
+                Resolve(nested, map, asHeader);
+
+            if (context.LocalType.This.Name == "Object" && context.LocalType.This.Namespace == "UnityEngine")
+                Console.WriteLine("Target resolve spotted.");
+
+            var defsToGet = context.DefinitionsToGet;
+            if (!asHeader)
+            {
+                context.Definitions.Remove(context.LocalType.This);
+                defsToGet = new HashSet<TypeRef> { context.LocalType.This };
+                defsToGet.UnionWith(context.Declarations);
+            }
+            var includes = new HashSet<CppTypeContext>();
+            foreach (var td in defsToGet)
             {
                 if (context.Definitions.Contains(td))
                     // If we have the definition already in our context, continue.
@@ -63,39 +76,35 @@ namespace Il2Cpp_Modding_Codegen.Serialization
                 if (map.TryGetValue(type, out var value))
                 {
                     includes.Add(value);
-                    AddIncludeDefinitions(context, value.Definitions);
+                    AddIncludeDefinitions(context, value.Definitions, asHeader);
                 }
                 else
                     throw new UnresolvedTypeException(context.LocalType.This, td);
             }
             var forwardDeclares = new Dictionary<string, HashSet<TypeRef>>();
-            // Remove ourselves from our required declarations (faster than checked for each addition)
-            context.Declarations.Remove(context.LocalType.This);
-            foreach (var td in context.Declarations)
+            if (asHeader)
             {
-                // Stratify by namespace
-                var ns = td.GetNamespace();
-                if (forwardDeclares.TryGetValue(ns, out var set))
-                    set.Add(td);
-                else
-                    forwardDeclares.Add(ns, new HashSet<TypeRef> { td });
+                // Remove ourselves from our required declarations (faster than checked for each addition)
+                context.Declarations.Remove(context.LocalType.This);
+                foreach (var td in context.Declarations)
+                {
+                    // Stratify by namespace
+                    var ns = td.GetNamespace();
+                    if (forwardDeclares.TryGetValue(ns, out var set))
+                        set.Add(td);
+                    else
+                        forwardDeclares.Add(ns, new HashSet<TypeRef> { td });
+                }
+                _headerContextMap.Add(context, (includes, forwardDeclares));
             }
-            // TODO: Also add our type resolution here. We need to resolve all of our fields and method types for serialization of the type later
-            var typeSerializer = new CppTypeDataSerializer(_config);
-            typeSerializer.Resolve(context, context.LocalType);
-            // After we have resolved all of our field and method types, we need to ensure our InPlace nested types get a type created for them as well.
-            // Recursively Resolve our nested types. However, we may go out of order. We may need to double check to ensure correct resolution, among other things.
-            foreach (var nested in context.NestedContexts)
-                Resolve(nested, map);
-            _typeSerializers.Add(context, typeSerializer);
-            _contextMap.Add(context, (includes, forwardDeclares));
+            else _sourceContextMap.Add(context, (includes, forwardDeclares));
         }
 
-        private void AddIncludeDefinitions(CppSerializerContext context, HashSet<TypeRef> defs)
+        private void AddIncludeDefinitions(CppTypeContext context, HashSet<TypeRef> defs, bool asHeader)
         {
             foreach (var def in defs)
             {
-                if (context.Header)
+                if (asHeader)
                 {
                     if (def.Equals(context.LocalType.This))
                         // Cannot include something that includes us!
@@ -134,7 +143,7 @@ namespace Il2Cpp_Modding_Codegen.Serialization
             writer.WriteDeclaration(typeData.Type.TypeName() + " " + resolved.GetName());
         }
 
-        private void WriteIncludes(CppStreamWriter writer, CppSerializerContext context, HashSet<CppSerializerContext> defs)
+        private void WriteIncludes(CppStreamWriter writer, CppTypeContext context, HashSet<CppTypeContext> defs, bool asHeader)
         {
             // Write includes
             var includesWritten = new HashSet<string>();
@@ -155,7 +164,7 @@ namespace Il2Cpp_Modding_Codegen.Serialization
             {
                 writer.WriteComment("Including type: " + include.LocalType.This);
                 // Using the FileName property of the include here will automatically use the lowest non-InPlace type
-                var incl = include.FileName + ".hpp";
+                var incl = include.HeaderFileName;
                 if (!includesWritten.Contains(incl))
                 {
                     writer.WriteInclude(incl);
@@ -174,7 +183,7 @@ namespace Il2Cpp_Modding_Codegen.Serialization
                 }
             }
             // Overall il2cpp-utils include
-            if (context.Header)
+            if (asHeader)
             {
                 writer.WriteInclude("utils/il2cpp-utils.hpp");
                 includesWritten.Add("utils/il2cpp-utils.hpp");
@@ -187,16 +196,16 @@ namespace Il2Cpp_Modding_Codegen.Serialization
             writer.WriteComment("Completed includes");
         }
 
-        private void WriteDeclarations(CppStreamWriter writer, CppSerializerContext context, Dictionary<string, HashSet<TypeRef>> declares)
+        private void WriteDeclarations(CppStreamWriter writer, CppTypeContext context, Dictionary<string, HashSet<TypeRef>> declares)
         {
             // Write forward declarations
             writer.WriteComment("Begin forward declares");
             var completedFds = new HashSet<TypeRef>();
-            foreach (var fd in declares)
+            foreach (var byNamespace in declares)
             {
-                writer.WriteComment("Forward declaring namespace: " + fd.Key);
-                writer.WriteDefinition("namespace " + fd.Key);
-                foreach (var t in fd.Value)
+                writer.WriteComment("Forward declaring namespace: " + byNamespace.Key);
+                writer.WriteDefinition("namespace " + byNamespace.Key);
+                foreach (var t in byNamespace.Value)
                 {
                     var typeData = t.Resolve(_collection);
                     if (typeData is null)
@@ -225,11 +234,11 @@ namespace Il2Cpp_Modding_Codegen.Serialization
         }
 
         /// <summary>
-        /// Write a declaration for the given <see cref="CppSerializerContext"/> nested type
+        /// Write a declaration for the given <see cref="CppTypeContext"/> nested type
         /// </summary>
         /// <param name="writer"></param>
         /// <param name="nested"></param>
-        private void AddNestedDeclare(CppStreamWriter writer, CppSerializerContext nested)
+        private void AddNestedDeclare(CppStreamWriter writer, CppTypeContext nested)
         {
             var comment = "Nested type: " + nested.LocalType.This.GetQualifiedName();
             var typeStr = nested.LocalType.Type.TypeName();
@@ -259,16 +268,30 @@ namespace Il2Cpp_Modding_Codegen.Serialization
             writer.WriteDeclaration(typeStr + " " + nested.LocalType.This.GetName());
         }
 
-        public void Serialize(CppStreamWriter writer, CppSerializerContext context)
+        private void WriteIncludesAndDeclares(CppStreamWriter writer, CppTypeContext context, bool asHeader,
+            Dictionary<CppTypeContext, (HashSet<CppTypeContext>, Dictionary<string, HashSet<TypeRef>>)> contextMap)
         {
-            if (!_contextMap.TryGetValue(context, out var defsAndDeclares))
+            if (!contextMap.TryGetValue(context, out var defsAndDeclares))
                 throw new InvalidOperationException("Must resolve context before attempting to serialize it! context: " + context);
+
             // Only write includes, declares if the type is InPlace = false, or has no declaring type
-            if (!context.InPlace)
+            if (!asHeader || !context.InPlace || context.DeclaringContext is null)
             {
-                WriteIncludes(writer, context, defsAndDeclares.Item1);
+                WriteIncludes(writer, context, defsAndDeclares.Item1, asHeader);
                 WriteDeclarations(writer, context, defsAndDeclares.Item2);
             }
+            else if (context.InPlace)
+                writer.WriteComment("Is in-place?");
+        }
+
+        public void Serialize(CppStreamWriter writer, CppTypeContext context, bool asHeader)
+        {
+
+            if (asHeader)
+                WriteIncludesAndDeclares(writer, context, asHeader, _headerContextMap);
+            else
+                WriteIncludesAndDeclares(writer, context, asHeader, _sourceContextMap);
+
             // We need to start by actually WRITING our type here. This include the first portion of our writing, including the header.
             // Then, we write our nested types (declared/defined as needed)
             // Then, we write our fields (static fields first)
@@ -277,7 +300,7 @@ namespace Il2Cpp_Modding_Codegen.Serialization
                 throw new InvalidOperationException($"Must have a valid {nameof(CppTypeDataSerializer)} for context type: {context.LocalType.This}!");
 
             // Only write the initial type and nested declares/definitions if we are a header
-            if (context.Header)
+            if (asHeader)
             {
                 // Write namespace
                 writer.WriteComment("Type namespace: " + context.LocalType.This.Namespace);
@@ -297,17 +320,16 @@ namespace Il2Cpp_Modding_Codegen.Serialization
                 foreach (var inPlace in context.NestedContexts.Where(nc => nc.InPlace))
                 {
                     // Indent, create nested type definition
-                    Serialize(writer, inPlace);
+                    Serialize(writer, inPlace, true);
                 }
-
             }
             // Fields may be converted to methods, so we handle writing these in non-header contexts just in case we need definitions of the methods
-            typeSerializer.WriteFields(writer, context.LocalType, context.Header);
+            typeSerializer.WriteFields(writer, context.LocalType, asHeader);
             // Method declarations are written in the header, definitions written when the body is needed.
-            typeSerializer.WriteMethods(writer, context.LocalType, context.Header);
+            typeSerializer.WriteMethods(writer, context.LocalType, asHeader);
             writer.Flush();
 
-            if (context.Header)
+            if (asHeader)
                 typeSerializer.CloseDefinition(writer, context.LocalType);
         }
     }

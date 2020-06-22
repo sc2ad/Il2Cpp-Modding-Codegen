@@ -19,8 +19,8 @@ namespace Il2Cpp_Modding_Codegen.Serialization
         private SerializationConfig _config;
 
         private CppContextSerializer _contextSerializer;
-        private Dictionary<ITypeData, CppSerializerContext> _headerOnlyMap = new Dictionary<ITypeData, CppSerializerContext>();
-        private Dictionary<ITypeData, (CppSerializerContext, CppSerializerContext)> _map = new Dictionary<ITypeData, (CppSerializerContext, CppSerializerContext)>();
+        private Dictionary<ITypeData, CppTypeContext> _headerOnlyMap = new Dictionary<ITypeData, CppTypeContext>();
+        private Dictionary<ITypeData, CppTypeContext> _map = new Dictionary<ITypeData, CppTypeContext>();
 
         /// <summary>
         /// Creates a C++ Serializer with the given type context, which is a wrapper for a list of all types to serialize
@@ -32,26 +32,24 @@ namespace Il2Cpp_Modding_Codegen.Serialization
             _config = config;
         }
 
-        private (CppSerializerContext, CppSerializerContext) CreateContexts(ITypeData t)
+        private CppTypeContext CreateContexts(ITypeData t)
         {
-            var headerContext = new CppSerializerContext(_collection, t, null);
-            // TODO: Remove the difference in cpp, it is just the headerContext but with all declarations defined.
-            var cppContext = new CppSerializerContext(_collection, t, headerContext);
-            _headerOnlyMap.Add(t, headerContext);
+            var typeContext = new CppTypeContext(_collection, t);
+            _headerOnlyMap.Add(t, typeContext);
             foreach (var nt in t.NestedTypes)
             {
                 // For each nested type, we create a context for it, and we add it to our current context.
                 var nestedContexts = CreateContexts(nt);
-                headerContext.AddNestedContext(nt, nestedContexts.Item1);
+                typeContext.AddNestedContext(nt, nestedContexts);
                 // In addition, we set the nested context's declaring context to headerContext
-                nestedContexts.Item1.SetDeclaringContext(headerContext);
+                nestedContexts.SetDeclaringContext(typeContext);
             }
             // Each type is always added to _map (with a non-null header and cpp context)
-            _map.Add(t, (headerContext, cppContext));
-            return (headerContext, cppContext);
+            _map.Add(t, typeContext);
+            return typeContext;
         }
 
-        public override void PreSerialize(CppSerializerContext _unused_, IParsedData data)
+        public override void PreSerialize(CppTypeContext _unused_, IParsedData data)
         {
             // We create a CppContextSerializer for both headers and .cpp files
             // We create a mapping (either here or in the serializer) of ITypeData --> CppSerializerContext
@@ -85,7 +83,7 @@ namespace Il2Cpp_Modding_Codegen.Serialization
             }
         }
 
-        public override void Serialize(CppStreamWriter writer, IParsedData data)
+        public override void Serialize(CppStreamWriter writer, IParsedData data, bool _unused_)
         {
             int i = 0;
             int count = _map.Count;
@@ -111,12 +109,12 @@ namespace Il2Cpp_Modding_Codegen.Serialization
                 // Now we serialize
                 // We need to ensure that all of our definitions and declarations are resolved for our given type in both contexts.
                 // We do this by calling CppContextSerializer.Resolve(pair.Key, _map)
-                _contextSerializer.Resolve(pair.Value.Item1, _headerOnlyMap);
-                _contextSerializer.Resolve(pair.Value.Item2, _headerOnlyMap);
+                _contextSerializer.Resolve(pair.Value, _headerOnlyMap, true);
+                _contextSerializer.Resolve(pair.Value, _headerOnlyMap, false);
 
-                if (!pair.Value.Item1.InPlace || pair.Value.Item1.DeclaringContext == null)
-                    new CppHeaderCreator(_config, _contextSerializer).Serialize(pair.Value.Item1);
-                new CppSourceCreator(_config, _contextSerializer).Serialize(pair.Value.Item2);
+                if (!pair.Value.InPlace || pair.Value.DeclaringContext == null)
+                    new CppHeaderCreator(_config, _contextSerializer).Serialize(pair.Value);
+                new CppSourceCreator(_config, _contextSerializer).Serialize(pair.Value);
                 i++;
             }
         }

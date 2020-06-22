@@ -9,9 +9,9 @@ namespace Il2Cpp_Modding_Codegen.Serialization
 
         public event Action<T> OnSerialized;
 
-        public abstract void PreSerialize(CppSerializerContext context, T obj);
+        public abstract void PreSerialize(CppTypeContext context, T obj);
 
-        public abstract void Serialize(CppStreamWriter writer, T obj);
+        public abstract void Serialize(CppStreamWriter writer, T obj, bool asHeader);
 
         protected virtual void Resolved(T obj)
         {

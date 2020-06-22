@@ -102,7 +102,7 @@ namespace Codegen_CLI
             try
             {
                 watch.Restart();
-                serializer.Serialize(null, parsed);
+                serializer.Serialize(null, parsed, true);
                 watch.Stop();
                 Console.WriteLine($"Serialization Complete, took: {watch.Elapsed}!");
             }

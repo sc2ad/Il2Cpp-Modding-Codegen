@@ -14,13 +14,12 @@ namespace Il2Cpp_Modding_Codegen.Serialization
         private bool _asHeader;
         private SerializationConfig _config;
 
-        public CppStaticFieldSerializer(bool asHeader, SerializationConfig config)
+        public CppStaticFieldSerializer(SerializationConfig config)
         {
-            _asHeader = asHeader;
             _config = config;
         }
 
-        public override void PreSerialize(CppSerializerContext context, IField field)
+        public override void PreSerialize(CppTypeContext context, IField field)
         {
             _declaringFullyQualified = context.QualifiedTypeName;
             var resolved = context.GetCppName(field.Type, true);
@@ -63,8 +62,9 @@ namespace Il2Cpp_Modding_Codegen.Serialization
             return $"{staticStr}void {ns}_set_{SafeName(field)}({fieldType} value)";
         }
 
-        public override void Serialize(CppStreamWriter writer, IField field)
+        public override void Serialize(CppStreamWriter writer, IField field, bool asHeader)
         {
+            _asHeader = asHeader;
             if (_resolvedTypes[field] == null)
                 throw new UnresolvedTypeException(field.DeclaringType, field.Type);
             var fieldCommentString = "";
