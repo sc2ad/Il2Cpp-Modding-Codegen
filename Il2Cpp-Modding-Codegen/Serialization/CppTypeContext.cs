@@ -99,7 +99,6 @@ namespace Il2Cpp_Modding_Codegen.Serialization
                 AddDefinition(data.This.DeclaringType);
             }
             // Declaring types need to declare (or define) ALL of their nested types
-            // This should only happen in the declaring type's header, however.
             foreach (var nested in data.NestedTypes)
                 AddNestedDeclaration(nested.This, nested.This.Resolve(_context));
             // Add ourselves to our Definitions

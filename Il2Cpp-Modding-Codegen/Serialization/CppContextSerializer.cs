@@ -56,16 +56,18 @@ namespace Il2Cpp_Modding_Codegen.Serialization
             foreach (var nested in context.NestedContexts)
                 Resolve(nested, map, asHeader);
 
+            var includes = new HashSet<CppTypeContext>();
+
             var defs = context.Definitions;
             var defsToGet = context.DefinitionsToGet;
             if (!asHeader)
             {
                 // Handle definitions in new sets so we don't lie to our future includers
-                defs = new HashSet<TypeRef>();
-                defsToGet = new HashSet<TypeRef> { context.LocalType.This };
-                defsToGet.UnionWith(context.Declarations);
+                includes.Add(context);
+                defs = new HashSet<TypeRef>(context.Definitions);
+                defsToGet = new HashSet<TypeRef>(context.Declarations);
             }
-            var includes = new HashSet<CppTypeContext>();
+
             foreach (var td in defsToGet)
             {
                 if (context.Definitions.Contains(td))
