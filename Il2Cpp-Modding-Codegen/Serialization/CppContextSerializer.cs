@@ -43,10 +43,6 @@ namespace Il2Cpp_Modding_Codegen.Serialization
             var _contextMap = asHeader ? _headerContextMap : _sourceContextMap;
             if (_contextMap.ContainsKey(context)) return;
 
-            // Recursively Resolve our nested types. However, we may go out of order. We may need to double check to ensure correct resolution, among other things.
-            foreach (var nested in context.NestedContexts)
-                Resolve(nested, map, asHeader);
-
             CppTypeDataSerializer typeSerializer;
             if (!_typeSerializers.TryGetValue(context, out typeSerializer))
             {
@@ -56,11 +52,15 @@ namespace Il2Cpp_Modding_Codegen.Serialization
                 _typeSerializers.Add(context, typeSerializer);
             }
 
+            // Recursively Resolve our nested types. However, we may go out of order. We may need to double check to ensure correct resolution, among other things.
+            foreach (var nested in context.NestedContexts)
+                Resolve(nested, map, asHeader);
+
             var defs = context.Definitions;
             var defsToGet = context.DefinitionsToGet;
             if (!asHeader)
             {
-                // Handle definitions in new sets so we don't lie to our includers
+                // Handle definitions in new sets so we don't lie to our future includers
                 defs = new HashSet<TypeRef>();
                 defsToGet = new HashSet<TypeRef> { context.LocalType.This };
                 defsToGet.UnionWith(context.Declarations);

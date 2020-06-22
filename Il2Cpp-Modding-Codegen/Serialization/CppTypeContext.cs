@@ -146,7 +146,7 @@ namespace Il2Cpp_Modding_Codegen.Serialization
             DefinitionsToGet.Add(def);
 
             // Only if we are InPlace do we need to check to ensure that definitions we use are also in place (there may still be deadlock here)
-            // TODO: This can be majorly reworked with a TypeRef --> CppSerializerContext map
+            // TODO: This can be majorly reworked with CppDataSerializer's _map
             if (InPlace)
             {
                 var dt = resolved.This.DeclaringType;
