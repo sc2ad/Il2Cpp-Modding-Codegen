@@ -102,7 +102,7 @@ namespace Il2Cpp_Modding_Codegen.Serialization
             // This should only happen in the declaring type's header, however.
             foreach (var nested in data.NestedTypes)
                 AddNestedDeclaration(nested.This, nested.This.Resolve(_context));
-            // Add ourselves (and any truly nested types) to our Definitions
+            // Add ourselves to our Definitions
             Definitions.Add(data.This);
         }
 

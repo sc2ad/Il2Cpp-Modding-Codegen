@@ -60,10 +60,12 @@ namespace Il2Cpp_Modding_Codegen.Serialization
             if (context.LocalType.This.Name == "Object" && context.LocalType.This.Namespace == "UnityEngine")
                 Console.WriteLine("Target resolve spotted.");
 
+            var defs = context.Definitions;
             var defsToGet = context.DefinitionsToGet;
             if (!asHeader)
             {
-                context.Definitions.Remove(context.LocalType.This);
+                // Handle definitions in new sets so we don't lie to our includers
+                defs = new HashSet<TypeRef>();
                 defsToGet = new HashSet<TypeRef> { context.LocalType.This };
                 defsToGet.UnionWith(context.Declarations);
             }
@@ -75,15 +77,16 @@ namespace Il2Cpp_Modding_Codegen.Serialization
                     // This could be because it is literally ourselves, a nested type, or we included something
                     continue;
                 var type = td.Resolve(_collection);
-                // Add the resolved context's FileName to includes
+                // Add the resolved context's HeaderFileName to includes
                 if (map.TryGetValue(type, out var value))
                 {
                     includes.Add(value);
-                    AddIncludeDefinitions(context, value.Definitions, asHeader);
+                    AddIncludeDefinitions(context, defs, value.Definitions, asHeader);
                 }
                 else
                     throw new UnresolvedTypeException(context.LocalType.This, td);
             }
+
             var forwardDeclares = new Dictionary<string, HashSet<TypeRef>>();
             if (asHeader)
             {
@@ -102,20 +105,20 @@ namespace Il2Cpp_Modding_Codegen.Serialization
             _contextMap.Add(context, (includes, forwardDeclares));
         }
 
-        private void AddIncludeDefinitions(CppTypeContext context, HashSet<TypeRef> defs, bool asHeader)
+        private void AddIncludeDefinitions(CppTypeContext context, HashSet<TypeRef> defs, HashSet<TypeRef> newDefs, bool asHeader)
         {
-            foreach (var def in defs)
+            foreach (var newDef in newDefs)
             {
                 if (asHeader)
                 {
-                    if (def.Equals(context.LocalType.This))
+                    if (newDef.Equals(context.LocalType.This))
                         // Cannot include something that includes us!
-                        Console.Error.WriteLine($"Cannot add definition: {def} to context: {context.LocalType.This} because it is the same type!\nDefinitions to get: ({string.Join(", ", context.DefinitionsToGet.Select(d => d.GetQualifiedName()))})");
+                        Console.Error.WriteLine($"Cannot add definition: {newDef} to context: {context.LocalType.This} because it is the same type!\nDefinitions to get: ({string.Join(", ", context.DefinitionsToGet.Select(d => d.GetQualifiedName()))})");
                     // TODO: Add a warning for including something that defines/includes our own nested type (i.e. a type that has us in its DeclaringContext chain)
                 }
 
                 // Always add the definition (if we don't throw)
-                context.Definitions.Add(def);
+                defs.Add(newDef);
             }
         }
 
