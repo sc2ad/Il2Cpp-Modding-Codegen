@@ -55,7 +55,7 @@ namespace Il2Cpp_Modding_Codegen.Data
         public string GetName()
         {
             if (Name.StartsWith("!"))
-                throw new InvalidOperationException("Trying to get the name of a copied generic parameter!");
+                throw new InvalidOperationException("Tried to get the name of a copied generic parameter!");
             return Name.Replace('`', '_').Replace('<', '$').Replace('>', '$');
         }
 
@@ -140,11 +140,11 @@ namespace Il2Cpp_Modding_Codegen.Data
 
         internal string GetIncludeLocation()
         {
-            var fileName = string.Join("-", GetName().Split(Path.GetInvalidFileNameChars()));
+            var fileName = string.Join("-", GetName().Split(Path.GetInvalidFileNameChars())).Replace('$', '-');
             if (DeclaringType != null)
                 return DeclaringType.GetIncludeLocation() + "_" + fileName;
             // Splits multiple namespaces into nested directories
-            var directory = string.Join("-", string.Join("/", GetNamespace().Split(new string[] { "::" }, StringSplitOptions.None)).Split(Path.GetInvalidPathChars()));
+            var directory = string.Join("-", string.Join("/", GetNamespace().Split(new string[] { "::" }, StringSplitOptions.RemoveEmptyEntries)).Split(Path.GetInvalidPathChars()));
             return directory + "/" + fileName;
         }
 
