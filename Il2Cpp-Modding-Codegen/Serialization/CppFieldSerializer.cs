@@ -26,10 +26,6 @@ namespace Il2Cpp_Modding_Codegen.Serialization
             // If it does, because it is a field, we can FD it if it is a pointer
             // If it is not a pointer, then we need to include it
             // If it is a nested class, we need to deal with some stuff (maybe)
-            if (field.Name == "m_value" && field.DeclaringType.Name == "IntPtr")
-            {
-                Console.WriteLine("Hello world!");
-            }
             var resolvedType = context.GetCppName(field.Type, true);
             if (!string.IsNullOrEmpty(resolvedType))
                 Resolved(field);
