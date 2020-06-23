@@ -236,6 +236,7 @@ namespace Il2Cpp_Modding_Codegen.Serialization
             if (resolved is null)
                 return null;
             var name = string.Empty;
+            // TODO: iff !ForceAs.Literal and there are generics in any of the declaring types, prepend "typename "
             if (resolved.This.DeclaringType != null)
             {
                 // Each declaring type must be defined, and must also have its generic parameters specified (confirm this is the case)

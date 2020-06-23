@@ -26,11 +26,11 @@ namespace Il2Cpp_Modding_Codegen.Data
         /// <summary>
         /// Resolves the type from the given type collection
         /// </summary>
-        public ITypeData Resolve(ITypeCollection context)
+        public ITypeData Resolve(ITypeCollection types)
         {
 #pragma warning disable 612, 618
             if (_resolvedType == null)
-                _resolvedType = context.Resolve(this);
+                _resolvedType = types.Resolve(this);
 #pragma warning restore 612, 618
             return _resolvedType;
         }

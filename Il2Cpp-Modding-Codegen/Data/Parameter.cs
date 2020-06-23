@@ -1,10 +1,7 @@
 ﻿using Il2Cpp_Modding_Codegen.Data.DllHandling;
 using Il2Cpp_Modding_Codegen.Data.DumpHandling;
-using Il2Cpp_Modding_Codegen.Serialization;
 using Mono.Cecil;
-using System;
 using System.Collections.Generic;
-using System.Text;
 
 namespace Il2Cpp_Modding_Codegen.Data
 {

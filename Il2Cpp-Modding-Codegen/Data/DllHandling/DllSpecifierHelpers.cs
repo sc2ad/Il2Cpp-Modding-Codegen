@@ -69,7 +69,7 @@ namespace Il2Cpp_Modding_Codegen.Data.DllHandling
             }
             else if (def.IsPrivate) list.Add(new DumpSpecifier("private"));
 
-            if (def.GetBaseMethod() != null) list.Add(new DumpSpecifier("override"));
+            if (def.GetBaseMethod() != def) list.Add(new DumpSpecifier("override"));
             return list;
         }
 

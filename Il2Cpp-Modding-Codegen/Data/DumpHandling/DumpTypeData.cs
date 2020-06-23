@@ -3,6 +3,7 @@ using Il2Cpp_Modding_Codegen.Parsers;
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Text;
 
 namespace Il2Cpp_Modding_Codegen.Data.DumpHandling
@@ -26,7 +27,6 @@ namespace Il2Cpp_Modding_Codegen.Data.DumpHandling
         public List<IField> Fields { get; } = new List<IField>();
         public List<IProperty> Properties { get; } = new List<IProperty>();
         public List<IMethod> Methods { get; } = new List<IMethod>();
-        public bool IsNestedInPlace { get; set; } = false;
 
         private DumpConfig _config;
 
@@ -184,6 +184,12 @@ namespace Il2Cpp_Modding_Codegen.Data.DumpHandling
                     fs.ReadLine();
                 line = fs.PeekLine().Trim();
             }
+
+            // It's important that Foo.IBar.func() goes after func() (if present)
+            var methods = new List<IMethod>(Methods);
+            Methods.Clear();
+            Methods.AddRange(methods.Where(m => m.ImplementedFrom is null));
+            Methods.AddRange(methods.Where(m => m.ImplementedFrom != null));
         }
 
         public DumpTypeData(PeekableStreamReader fs, DumpConfig config)

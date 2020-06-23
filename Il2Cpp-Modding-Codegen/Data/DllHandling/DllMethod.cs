@@ -1,15 +1,15 @@
-﻿using Il2Cpp_Modding_Codegen.Parsers;
-using Mono.Cecil;
+﻿using Mono.Cecil;
 using Mono.Cecil.Rocks;
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Text;
+using System.Text.RegularExpressions;
 
 namespace Il2Cpp_Modding_Codegen.Data.DllHandling
 {
     internal class DllMethod : IMethod
     {
+        private MethodDefinition This;  // just to aid with debugging
         public List<IAttribute> Attributes { get; } = new List<IAttribute>();
         public List<ISpecifier> Specifiers { get; } = new List<ISpecifier>();
         public int RVA { get; }
@@ -18,19 +18,62 @@ namespace Il2Cpp_Modding_Codegen.Data.DllHandling
         public int Slot { get; }
         public TypeRef ReturnType { get; }
         public TypeRef DeclaringType { get; }
-        public TypeRef ImplementedFrom { get; }
+        public TypeRef ImplementedFrom { get; } = null;
+        public bool HidesBase { get; }
+        public TypeRef OverriddenFrom { get; }
         public string Name { get; }
         public List<Parameter> Parameters { get; } = new List<Parameter>();
         public bool Generic { get; }
 
+        TypeReference FindInterface(TypeReference type, string find)
+        {
+            if (type is null) return null;
+            var typeStr = Regex.Replace(type.ToString(), @"`\d+", "").Replace('/', '.');
+            if (typeStr == find)
+                return type;
+
+            var def = type.Resolve();
+            if (def is null) return null;
+            foreach (var iface in def.Interfaces)
+            {
+                var ret = FindInterface(iface.InterfaceType, find);
+                if (ret != null) return ret;
+            }
+            return FindInterface(def.BaseType, find);
+        }
+
         public DllMethod(MethodDefinition m)
         {
+            This = m;
+            var baseMethods = m.GetBaseMethods();
+            if (baseMethods.Count > 0)
+                HidesBase = true;
+
+            MethodDefinition baseMethod = m.GetBaseMethod();
+            if ((baseMethod == m) && baseMethods.Count == 1)
+                baseMethod = baseMethods.Single();
+            if (baseMethod != m)
+                OverriddenFrom = DllTypeRef.From(baseMethod.DeclaringType);
+
             ReturnType = DllTypeRef.From(m.ReturnType);
             DeclaringType = DllTypeRef.From(m.DeclaringType);
-            var baseMethod = m.GetBaseMethod();
-            if (baseMethod != null)
-                ImplementedFrom = DllTypeRef.From(baseMethod.DeclaringType);
+            // This is a very rare condition that we need to handle if it ever happens, but for now just log it
+            if (m.HasOverrides)
+                Console.WriteLine($"{m}, Overrides: {String.Join(", ", m.Overrides)}");
+
             Name = m.Name;
+            int idxDot = Name.LastIndexOf(".");
+            if (idxDot >= 2)  // ".ctor" doesn't count
+            {
+                var typeStr = Name.Substring(0, idxDot);
+                var iface = FindInterface(m.DeclaringType, typeStr);
+                if (iface is null)
+                    throw new Exception($"For method {m}: failed to get TypeReference for ImplementedFrom {typeStr}");
+
+                ImplementedFrom = DllTypeRef.From(iface);
+                Name = Name.Substring(idxDot + 1);
+            }
+
             RVA = -1;
             Offset = -1;
             VA = -1;
@@ -67,7 +110,7 @@ namespace Il2Cpp_Modding_Codegen.Data.DllHandling
             }
             Parameters.AddRange(m.Parameters.Select(p => new Parameter(p)));
             Specifiers.AddRange(DllSpecifierHelpers.From(m));
-            // This is not necessary: !m.GenericParameters.All(param => m.DeclaringType.GenericParameters.Contains(param));
+            // This is not necessary: m.GenericParameters.Any(param => !m.DeclaringType.GenericParameters.Contains(param));
             Generic = m.HasGenericParameters;
         }
 

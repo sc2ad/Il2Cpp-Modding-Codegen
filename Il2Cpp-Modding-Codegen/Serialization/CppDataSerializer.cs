@@ -25,10 +25,10 @@ namespace Il2Cpp_Modding_Codegen.Serialization
         /// <summary>
         /// Creates a C++ Serializer with the given type context, which is a wrapper for a list of all types to serialize
         /// </summary>
-        /// <param name="context"></param>
-        public CppDataSerializer(SerializationConfig config, ITypeCollection context)
+        /// <param name="types"></param>
+        public CppDataSerializer(SerializationConfig config, ITypeCollection types)
         {
-            _collection = context;
+            _collection = types;
             _config = config;
         }
 

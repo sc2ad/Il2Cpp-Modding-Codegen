@@ -41,7 +41,7 @@ namespace Il2Cpp_Modding_Codegen.Data.DllHandling
         public override bool IsPointer() => This.IsPointer;
 
         // TODO: plz god no, just handle pointer, array, string specially
-        public override bool IsPrimitive() => This.IsPrimitive || IsPointer() || IsArray() || This.MetadataType == MetadataType.String;
+        public override bool IsPrimitive() => This.IsPrimitive || IsVoid() || IsPointer() || IsArray() || This.MetadataType == MetadataType.String;
 
         public override bool IsArray() => This.IsArray;
 

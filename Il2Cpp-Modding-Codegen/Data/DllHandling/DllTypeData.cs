@@ -23,7 +23,6 @@ namespace Il2Cpp_Modding_Codegen.Data.DllHandling
         public List<IField> Fields { get; } = new List<IField>();
         public List<IProperty> Properties { get; } = new List<IProperty>();
         public List<IMethod> Methods { get; } = new List<IMethod>();
-        public bool IsNestedInPlace { get; set; } = false;
 
         private DllConfig _config;
 
@@ -55,7 +54,12 @@ namespace Il2Cpp_Modding_Codegen.Data.DllHandling
             if (_config.ParseTypeProperties)
                 Properties.AddRange(def.Properties.Select(p => new DllProperty(p)));
             if (_config.ParseTypeMethods)
-                Methods.AddRange(def.Methods.Select(m => new DllMethod(m)));
+            {
+                var methods = def.Methods.Select(m => new DllMethod(m));
+                // It's important that Foo.IBar.func() goes after func() (if present)
+                Methods.AddRange(methods.Where(m => m.ImplementedFrom is null));
+                Methods.AddRange(methods.Where(m => m.ImplementedFrom != null));
+            }
         }
 
         public override string ToString()
