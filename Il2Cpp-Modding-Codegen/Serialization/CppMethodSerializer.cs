@@ -18,7 +18,7 @@ namespace Il2Cpp_Modding_Codegen.Serialization
         private Dictionary<IMethod, List<(string, ParameterFlags)>> _parameterMaps = new Dictionary<IMethod, List<(string, ParameterFlags)>>();
         private string _declaringFullyQualified;
         private bool _isInterface;
-        private bool _noDefinitions;
+        private bool _pureVirtual;
 
         private HashSet<(TypeRef, string)> _signatures = new HashSet<(TypeRef, string)>();
 
@@ -27,14 +27,19 @@ namespace Il2Cpp_Modding_Codegen.Serialization
             _config = config;
         }
 
+        private bool NeedDefinitionInHeader(IMethod method)
+        {
+            return method.DeclaringType.IsGenericTemplate;
+        }
+
         /// <summary>
         /// Returns whether the given method should be written as a definition or a declaration
         /// </summary>
         /// <param name="method"></param>
         /// <returns></returns>
-        private CppTypeContext.NeedAs NeedAs(IMethod method)
+        private CppTypeContext.NeedAs NeedTypesAs(IMethod method)
         {
-            if (method.DeclaringType.IsGenericTemplate) return CppTypeContext.NeedAs.BestMatch;
+            if (NeedDefinitionInHeader(method)) return CppTypeContext.NeedAs.BestMatch;
             if (_isInterface && method.IsOverride) return CppTypeContext.NeedAs.Definition;
             return CppTypeContext.NeedAs.Declaration;
         }
@@ -50,8 +55,8 @@ namespace Il2Cpp_Modding_Codegen.Serialization
             _declaringFullyQualified = context.QualifiedTypeName;
             var resolved = context.ResolveAndStore(method.DeclaringType, CppTypeContext.ForceAsType.Literal, CppTypeContext.NeedAs.Definition);
             _isInterface = resolved?.Type == TypeEnum.Interface;
-            _noDefinitions = _isInterface && !method.DeclaringType.IsGeneric;
-            var needAs = NeedAs(method);
+            _pureVirtual = _isInterface && !method.DeclaringType.IsGeneric;
+            var needAs = NeedTypesAs(method);
             // We need to forward declare everything used in methods (return types and parameters)
             // If we are writing the definition, we MUST define it
             var resolvedReturn = context.GetCppName(method.ReturnType, true, needAs: needAs);
@@ -93,7 +98,7 @@ namespace Il2Cpp_Modding_Codegen.Serialization
                 // and if you miss any override the compiler gives you warnings
                 //if (IsOverride(method))
                 //    overrideStr += " override";
-                if (_noDefinitions)
+                if (_pureVirtual)
                 {
                     preRetStr += "virtual ";
                     impl += " = 0";
@@ -132,12 +137,11 @@ namespace Il2Cpp_Modding_Codegen.Serialization
                 throw new UnresolvedTypeException(method.DeclaringType, method.Parameters[val].Type);
             if (IgnoredMethods.Contains(method.Name) || _config.BlacklistMethods.Contains(method.Name))
                 return;
-
             if (method.DeclaringType.IsGeneric && !_asHeader)
                 // Need to create the method ENTIRELY in the header, instead of split between the C++ and the header
                 return;
-            bool writeContent = !_noDefinitions;
 
+            bool writeContent = !_asHeader || NeedDefinitionInHeader(method);
             if (_asHeader)
             {
                 var methodComment = "";
