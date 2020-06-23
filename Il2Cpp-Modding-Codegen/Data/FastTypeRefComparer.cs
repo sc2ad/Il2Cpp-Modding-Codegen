@@ -16,11 +16,18 @@ namespace Il2Cpp_Modding_Codegen.Data
         {
             if (x is null != y is null)
                 return false;
-            return x.Namespace == y.Namespace &&
-                x.Name == y.Name &&
-                x.IsGenericInstance == y.IsGenericInstance &&
-                x.IsGenericTemplate == y.IsGenericTemplate &&
-                (x.Generics is null ? y.Generics is null : x.Generics.SequenceEqual(y.Generics, this));
+            if (x.Namespace != y.Namespace || x.Name != y.Name)
+                return false;
+            if (x.IsGeneric && y.IsGeneric)
+            {
+                // If both x and y are generic
+                if (x.IsGenericInstance == y.IsGenericInstance || x.IsGenericTemplate || y.IsGenericTemplate)
+                    // If they are both an instance or both a template, return sequence equal
+                    return x.Generics is null ? y.Generics is null : x.Generics.SequenceEqual(y.Generics, this);
+                // Otherwise, if one is a template and the other is an instance, if their counts match, consider it good enough.
+                return x.Generics is null ? y.Generics is null : x.Generics.Count == y.Generics.Count;
+            }
+            return true;
         }
 
         public int GetHashCode(TypeRef obj)
@@ -31,22 +38,7 @@ namespace Il2Cpp_Modding_Codegen.Data
             int hashCode = 611187721;
             hashCode = hashCode * -1521134295 + EqualityComparer<string>.Default.GetHashCode(obj.Namespace);
             hashCode = hashCode * -1521134295 + EqualityComparer<string>.Default.GetHashCode(obj.Name);
-            hashCode = hashCode * -1521134295 + obj.IsGenericInstance.GetHashCode();
-            hashCode = hashCode * -1521134295 + obj.IsGenericTemplate.GetHashCode();
-            if (obj.Generics != null)
-            {
-                foreach (var gp in obj.Generics)
-                {
-                    try
-                    {
-                        hashCode = hashCode * 31 + GetHashCode(gp);
-                    }
-                    catch (OverflowException)
-                    {
-                        // Ignore it
-                    }
-                }
-            }
+            // Generics are not included in the hash code.
             return hashCode;
         }
     }

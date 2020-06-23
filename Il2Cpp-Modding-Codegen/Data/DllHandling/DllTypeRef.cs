@@ -1,5 +1,4 @@
 ﻿using Il2Cpp_Modding_Codegen.Serialization;
-using Il2Cpp_Modding_Codegen.Serialization.Interfaces;
 using Mono.Cecil;
 using System;
 using System.Collections.Generic;
@@ -13,28 +12,37 @@ namespace Il2Cpp_Modding_Codegen.Data.DllHandling
     public class DllTypeRef : TypeRef
     {
         internal TypeReference This;
-        readonly string _namespace;
+        private readonly string _namespace;
         public override string Namespace { get => _namespace; }
-        readonly string _name;
+        private readonly string _name;
         public override string Name { get => _name; }
 
-        public override bool IsGenericInstance { get => This.IsGenericInstance; }
-        public override bool IsGenericTemplate { get => This.HasGenericParameters; }
-        public override IReadOnlyList<TypeRef> Generics { get; } = new List<TypeRef>();
+        private bool _isGenericInstance;
+        public override bool IsGenericInstance { get => _isGenericInstance; }
+        private bool _isGenericTemplate;
+        public override bool IsGenericTemplate { get => _isGenericTemplate; }
+        private List<TypeRef> _generics = new List<TypeRef>();
+        public override IReadOnlyList<TypeRef> Generics { get => _generics; }
 
         public override TypeRef DeclaringType { get => From(This.DeclaringType); }
+
         public override TypeRef ElementType
         {
             get
             {
-                var typeSpec = This as TypeSpecification;
-                if (typeSpec == null) return null;
+                if (!(This is TypeSpecification typeSpec)) return null;
                 if (typeSpec.MetadataType == MetadataType.GenericInstance) return null;
                 return From(typeSpec.ElementType);
             }
         }
 
-        public override bool IsPointer(ITypeCollection types) => This.IsPointer;
+        public override bool IsVoid() => This.MetadataType == MetadataType.Void;
+
+        public override bool IsPointer() => This.IsPointer;
+
+        // TODO: plz god no, just handle pointer, array, string specially
+        public override bool IsPrimitive() => This.IsPrimitive || IsPointer() || IsArray() || This.MetadataType == MetadataType.String;
+
         public override bool IsArray() => This.IsArray;
 
         private static readonly Dictionary<TypeReference, DllTypeRef> cache = new Dictionary<TypeReference, DllTypeRef>();
@@ -54,25 +62,28 @@ namespace Il2Cpp_Modding_Codegen.Data.DllHandling
             }
             _name = This.Name;
 
+            _isGenericTemplate = This.HasGenericParameters;
+            _isGenericInstance = This.IsGenericInstance;
+
+            if (IsGenericInstance)
+                _generics.AddRange((This as GenericInstanceType).GenericArguments.Select(From));
+            else if (IsGenericTemplate)
+                _generics.AddRange(This.GenericParameters.Select(From));
+            if (IsGeneric && Generics.Count == 0)
+                throw new InvalidDataException($"Wtf? In DllTypeRef constructor, a generic with no generics: {this}, IsGenInst: {this.IsGenericInstance}");
+
             DllTypeRef refDeclaring = null;
             if (!This.IsGenericParameter && This.IsNested)
                 refDeclaring = From(This.DeclaringType);
 
-            if (refDeclaring != null)
-                _name = refDeclaring.Name + "/" + _name;
+            //if (refDeclaring != null)
+            //    _name = refDeclaring.Name + "/" + _name;
 
             // Remove *, [] from end of variable name
             _name = Regex.Replace(_name, @"\W+$", "");
             if (!char.IsLetterOrDigit(_name.Last())) Console.WriteLine(reference);
 
             _namespace = (refDeclaring?.Namespace ?? This.Namespace) ?? "";
-
-            if (IsGenericInstance)
-                Generics = (This as GenericInstanceType).GenericArguments.Select(From).ToList();
-            else if (IsGenericTemplate)
-                Generics = This.GenericParameters.Select(From).ToList();
-            if (IsGeneric && Generics.Count == 0)
-                throw new InvalidDataException($"Wtf? In DllTypeRef constructor, a generic with no generics: {this}, IsGenInst: {this.IsGenericInstance}");
         }
 
         public static DllTypeRef From(TypeReference type)

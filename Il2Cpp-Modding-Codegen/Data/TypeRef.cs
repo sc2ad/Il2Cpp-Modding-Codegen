@@ -2,6 +2,7 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Security.Principal;
 
@@ -9,6 +10,7 @@ namespace Il2Cpp_Modding_Codegen.Data
 {
     public abstract class TypeRef : IEquatable<TypeRef>
     {
+        private const string NoNamespace = "GlobalNamespace";
         public abstract string Namespace { get; }
         public abstract string Name { get; }
 
@@ -22,65 +24,140 @@ namespace Il2Cpp_Modding_Codegen.Data
         private ITypeData _resolvedType;
 
         /// <summary>
-        /// Resolves the type in the given context
+        /// Resolves the type from the given type collection
         /// </summary>
         public ITypeData Resolve(ITypeCollection types)
         {
+#pragma warning disable 612, 618
             if (_resolvedType == null)
-            {
                 _resolvedType = types.Resolve(this);
-            }
+#pragma warning restore 612, 618
             return _resolvedType;
         }
 
-        public bool IsVoid()
+        public virtual bool IsVoid()
         {
             return Name.Equals("void", StringComparison.OrdinalIgnoreCase);
         }
 
-        public virtual bool IsPointer(ITypeCollection types)
+        public virtual bool IsPointer()
         {
-            // Resolve type, if type is not a value type, it is a pointer
-            Resolve(types);
+            // If type is not a value type, it is a pointer
             return _resolvedType?.Info.TypeFlags == TypeFlags.ReferenceType;
         }
 
+        public abstract bool IsPrimitive();
+
         public abstract bool IsArray();
+
+        public string GetNamespace() => !string.IsNullOrEmpty(Namespace) ? Namespace.Replace(".", "::") : NoNamespace;
+
+        public string GetName()
+        {
+            if (Name.StartsWith("!"))
+                throw new InvalidOperationException("Tried to get the name of a copied generic parameter!");
+            return Name.Replace('`', '_').Replace('<', '$').Replace('>', '$');
+        }
+
+        public string GetQualifiedName()
+        {
+            var name = GetName();
+            var dt = this;
+            while (dt.DeclaringType != null)
+            {
+                name = dt.DeclaringType.GetName() + "::" + name;
+                dt = dt.DeclaringType;
+            }
+            // Namespace obtained from final declaring type
+            return dt.GetNamespace() + "::" + name;
+        }
+
+        // TODO: new method/param to easily allow for getting only the new generic templates that this TypeRef brings to the table?
+        public IEnumerable<TypeRef> GetDeclaredGenerics(bool includeSelf)
+        {
+            var genericsDefined = new List<TypeRef>();
+            // Populate genericsDefined with all TypeRefs that are used in a declaring type
+            var dt = includeSelf ? this : DeclaringType;
+            var lastGenerics = !includeSelf ? Generics : null;
+            while (dt != null)
+            {
+                if (dt.IsGeneric)
+                {
+                    foreach (var g in dt.Generics.Reverse())
+                    {
+                        if (IsGenericInstance && g.Name.StartsWith("!"))
+                        {
+                            // If we are a generic instance, and we see that the name of our generic parameter starts with a !
+                            var idx = int.Parse(g.Name.Substring(1));
+                            genericsDefined.Insert(0, lastGenerics[idx]);
+                            // Replace g with our lastGenerics[i]
+                        }
+                        else
+                            // We want the highest level declaring type's first generic parameter (template or argument) to be first in our genericsDefined list
+                            genericsDefined.Insert(0, g);
+                    }
+                    lastGenerics = dt.Generics;
+                }
+                dt = dt.DeclaringType;
+            }
+            // Return only the first occurance of each of the generic parameters (template or argument)
+            // Do not compare the generic types' declaring types (use the fastCompararer)
+            return genericsDefined.Distinct(fastComparer);
+        }
+
+        /// <summary>
+        /// Returns a mapping of <see cref="TypeRef"/> to generics explicitly defined by that <see cref="TypeRef"/>
+        /// </summary>
+        /// <param name="includeSelf"></param>
+        /// <returns></returns>
+        public Dictionary<TypeRef, List<TypeRef>> GetGenericMap(bool includeSelf)
+        {
+            // Use fastComparers here to avoid checking DeclaringType (and to be fast)
+            var genericMap = new Dictionary<TypeRef, List<TypeRef>>(fastComparer);
+            var genericParamToDeclaring = new Dictionary<TypeRef, TypeRef>(fastComparer);
+            var dt = includeSelf ? this : DeclaringType;
+            while (dt != null)
+            {
+                if (dt.IsGeneric)
+                {
+                    foreach (var g in dt.Generics)
+                    {
+                        // Overwrite existing declaring type and add it to genericParamToDeclaring
+                        genericParamToDeclaring[g] = dt;
+                    }
+                }
+                dt = dt.DeclaringType;
+            }
+            // Iterate over each generic param to declaring type and convert it to a mapping of declaring type to generic parameters
+            foreach (var pair in genericParamToDeclaring)
+            {
+                if (genericMap.TryGetValue(pair.Value, out var lst))
+                    lst.Add(pair.Key);
+                else
+                    genericMap.Add(pair.Value, new List<TypeRef> { pair.Key });
+            }
+            return genericMap;
+        }
+
+        internal string GetIncludeLocation()
+        {
+            var fileName = string.Join("-", GetName().Split(Path.GetInvalidFileNameChars())).Replace('$', '-');
+            if (DeclaringType != null)
+                return DeclaringType.GetIncludeLocation() + "_" + fileName;
+            // Splits multiple namespaces into nested directories
+            var directory = string.Join("-", string.Join("/", GetNamespace().Split(new string[] { "::" }, StringSplitOptions.RemoveEmptyEntries)).Split(Path.GetInvalidPathChars()));
+            return directory + "/" + fileName;
+        }
 
         public override string ToString()
         {
-            var s = string.IsNullOrWhiteSpace(Namespace) ? Name : $"{Namespace}::{Name}";
-            if (!IsGeneric)
-                return s;
-
-            s += "<";
-            bool first = true;
-            foreach (var param in Generics)
-            {
-                if (!first) s += ", ";
-                s += param.ToString();
-                first = false;
-            }
-            s += ">";
-            return s;
+            return GetNamespace() + "::" + GetName();
         }
 
-        public string SafeName()
-        {
-            return Name.Replace('<', '_').Replace('>', '_').Replace('`', '_').Replace("/", "::");
-        }
-
-        public string SafeNamespace()
-        {
-            return Namespace?.Replace('<', '_').Replace('>', '_').Replace('`', '_').Replace('/', '_').Replace(".", "::");
-        }
-
-        public string SafeFullName()
-        {
-            return SafeNamespace() + "::" + SafeName();
-        }
-
+        [ObsoleteAttribute("The argument should be a TypeRef!")]
+#pragma warning disable 809  // "obsolete method extends non-obsolete mehtod object.Equals(object)
         public override bool Equals(object obj)
+#pragma warning restore 809
         {
             return Equals(obj as TypeRef);
         }

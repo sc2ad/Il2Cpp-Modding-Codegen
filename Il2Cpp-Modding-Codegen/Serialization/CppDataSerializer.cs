@@ -1,6 +1,5 @@
 ﻿using Il2Cpp_Modding_Codegen.Config;
 using Il2Cpp_Modding_Codegen.Data;
-using Il2Cpp_Modding_Codegen.Serialization.Interfaces;
 using System;
 using System.CodeDom.Compiler;
 using System.Collections.Generic;
@@ -10,14 +9,18 @@ using System.Text;
 
 namespace Il2Cpp_Modding_Codegen.Serialization
 {
-    public class CppDataSerializer : ISerializer<IParsedData>
+    public class CppDataSerializer : Serializer<IParsedData>
     {
         // This class is responsible for creating the contexts and passing them to each of the types
         // It then needs to create a header and a non-header for each class, with reasonable file structuring
         // Images, fortunately, don't have to be created at all
-        private ITypeCollection _types;
+        private ITypeCollection _collection;
 
         private SerializationConfig _config;
+
+        private CppContextSerializer _contextSerializer;
+        private static Dictionary<ITypeData, CppTypeContext> _map = new Dictionary<ITypeData, CppTypeContext>();
+        public static IReadOnlyDictionary<ITypeData, CppTypeContext> TypeToContext { get => _map; }
 
         /// <summary>
         /// Creates a C++ Serializer with the given type context, which is a wrapper for a list of all types to serialize
@@ -25,21 +28,36 @@ namespace Il2Cpp_Modding_Codegen.Serialization
         /// <param name="types"></param>
         public CppDataSerializer(SerializationConfig config, ITypeCollection types)
         {
-            _types = types;
+            _collection = types;
             _config = config;
         }
 
-        private bool CheckGetsOwnHeader(ITypeData t, CppSerializerContext context)
+        private CppTypeContext CreateContext(ITypeData t)
         {
-            if (t.GetsOwnHeader) return true;
-            string[] lines = { $"#include \"{context.ConvertTypeToInclude(context.type)}.hpp\"" };
-            var headerLocation = Path.Combine(_config.OutputDirectory, _config.OutputHeaderDirectory, context.FileName) + ".hpp";
-            File.WriteAllLines(headerLocation, lines);
-            return false;
+            var typeContext = new CppTypeContext(_collection, t);
+            foreach (var nt in t.NestedTypes)
+            {
+                // For each nested type, we create a context for it, and we add it to our current context.
+                var nestedContexts = CreateContext(nt);
+                typeContext.AddNestedContext(nt, nestedContexts);
+                // In addition, we set the nested context's declaring context to headerContext
+                nestedContexts.SetDeclaringContext(typeContext);
+            }
+            // Each type is always added to _map (with a non-null header and cpp context)
+            _map.Add(t, typeContext);
+            return typeContext;
         }
 
-        public void PreSerialize(ISerializerContext _unused_, IParsedData data)
+        public override void PreSerialize(CppTypeContext _unused_, IParsedData data)
         {
+            // We create a CppContextSerializer for both headers and .cpp files
+            // We create a mapping (either here or in the serializer) of ITypeData --> CppSerializerContext
+            // For each type, we create their contexts, preserialize them.
+            // Then we iterate over all the types again, creating header and source creators for each, using our context serializers.
+            // We then serialize the header and source creators, actually creating the data.
+
+            _contextSerializer = new CppContextSerializer(_config, data);
+
             foreach (var t in data.Types)
             {
                 // We need to create both a header and a non-header serializer (and a context for each)
@@ -47,22 +65,46 @@ namespace Il2Cpp_Modding_Codegen.Serialization
                 // and ofc call PreSerialize on each of the types
                 // This could be simplified to actually SHARE a context... Not really sure how, atm
                 if (t.This.IsGeneric && _config.GenericHandling == GenericHandling.Skip)
-                {
                     // Skip the generic type, ensure it doesn't get serialized.
                     continue;
-                }
 
-                var headerContext = new CppSerializerContext(_types, t);
-                // TODO: give in-place nested types their own cpp files?
-                if (!CheckGetsOwnHeader(t, headerContext)) continue;
+                // Alright, so. We create only top level types, all nested types are recursively created.
+                if (t.This.DeclaringType is null)
+                    CreateContext(t);
 
-                var cppContext = new CppSerializerContext(_types, t, true);
-                var header = new CppTypeDataSerializer(_config, true);
-                var cpp = new CppTypeDataSerializer(_config, false);
-                header.PreSerialize(headerContext, t);
-                cpp.PreSerialize(cppContext, t);
+                // So, nested types are currently double counted.
+                // That is, we hit them once (or more) in the declaring type when it preserializes the nested types
+                // And we hit them again while we iterate over them.
+                // Nested types can have their own .cpp and .hpp, but truly nested types should only have their own .cpp
+                // If you need a definition of a truly nested type, you have to include the declaring type.
+                // Therefore, when we resolve include locations, we must ensure we are not a nested type before returning our include path
+                // (otherwise returning our declaring type's include path)
+            }
+            foreach (var pair in _map)
+            {
+                // We need to ensure that all of our definitions and declarations are resolved for our given type in both contexts.
+                // We do this by calling CppContextSerializer.Resolve(pair.Key, _map)
+                _contextSerializer.Resolve(pair.Value, _map, true);
+                _contextSerializer.Resolve(pair.Value, _map, false);
+            }
+        }
 
-                if (!CheckGetsOwnHeader(t, headerContext)) continue;
+        public override void Serialize(CppStreamWriter writer, IParsedData data, bool _unused_)
+        {
+            int i = 0;
+            int count = _map.Count;
+            foreach (var pair in _map)
+            {
+                // We iterate over every type.
+                // Then, we check InPlace for each context object, and if it is InPlace, we don't write a header for it
+                // (we attempt to write a .cpp for it, if it is a template, this won't do anything)
+                // Also, types that have no declaring context are always written (otherwise we would have 0 types!)
+
+                if (_config.PrintSerializationProgress)
+                    if (i % _config.PrintSerializationProgressFrequency == 0)
+                    {
+                        Console.WriteLine($"{i} / {count}");
+                    }
                 // Ensure that we are going to write everything in this context:
                 // Global context should have everything now, all names are also resolved!
                 // Now, we create the folders/files for the particular type we would like to create
@@ -71,14 +113,12 @@ namespace Il2Cpp_Modding_Codegen.Serialization
                 // Then, we write the actual file data (call header or cpp .Serialize on the stream)
                 // That's it!
                 // Now we serialize
-                new CppHeaderCreator(_config, headerContext).Serialize(header, t);
-                new CppSourceCreator(_config, cppContext).Serialize(cpp, t);
-            }
-        }
 
-        public void Serialize(IndentedTextWriter writer, IParsedData data)
-        {
-            throw new InvalidOperationException($"Cannot serialize a {nameof(CppDataSerializer)}, since it serializes in {nameof(PreSerialize)}!");
+                if (!pair.Value.InPlace || pair.Value.DeclaringContext == null)
+                    new CppHeaderCreator(_config, _contextSerializer).Serialize(pair.Value);
+                new CppSourceCreator(_config, _contextSerializer).Serialize(pair.Value);
+                i++;
+            }
         }
     }
 }

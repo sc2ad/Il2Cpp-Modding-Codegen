@@ -1,6 +1,5 @@
 ﻿using Il2Cpp_Modding_Codegen.Config;
 using Il2Cpp_Modding_Codegen.Data;
-using Il2Cpp_Modding_Codegen.Serialization.Interfaces;
 using System;
 using System.Collections.Generic;
 using System.CodeDom.Compiler;
@@ -13,173 +12,40 @@ namespace Il2Cpp_Modding_Codegen.Serialization
     public class CppHeaderCreator
     {
         private SerializationConfig _config;
-        private CppSerializerContext _context;
-        static HashSet<string> filesWritten = new HashSet<string>();
-        private List<ITypeData> defineArgTypes = new List<ITypeData>();
+        private CppContextSerializer _serializer;
 
-        public CppHeaderCreator(SerializationConfig config, CppSerializerContext context)
+        public CppHeaderCreator(SerializationConfig config, CppContextSerializer serializer)
         {
             _config = config;
-            _context = context;
+            _serializer = serializer;
         }
 
-        enum ForwardDeclareLevel
+        public void Serialize(CppTypeContext context)
         {
-            Global,
-            Namespace,
-            Class
-        }
-        private void WriteForwardDeclare(IndentedTextWriter writer, TypeName fd, ForwardDeclareLevel level)
-        {
-            // TODO: handle this better?
-            if (fd.Name == "Il2CppChar")  // cannot forward declare a primitive typedef without exactly copying typedef which is a bad idea
-                return;
-
-            string @namespace = fd.ConvertTypeToNamespace();
-            bool putNamespace = level == ForwardDeclareLevel.Global;
-            if (@namespace is null) putNamespace = false;
-            if (putNamespace)
-            {
-                writer.WriteLine($"namespace {@namespace} {{");
-                writer.Indent++;
-            }
-
-            var name = fd.Name;
-            if (fd.IsGeneric || name.Contains("<"))
-            {
-                // TODO: Resolve the type for GenericParameters if IsGenericInstance?
-
-                // If the forward declare is a generic template, we need to write an empty version of the template type instead
-                if (fd.IsGenericTemplate)  // better to forward declare nothing than something invalid
-                {
-                    var generics = fd.Generics;
-                    if (level >= ForwardDeclareLevel.Class && fd.DeclaringType != null && !fd.DeclaringType.IsGenericInstance)
-                        generics = fd.Generics.Except(fd.DeclaringType.Generics, TypeRef.fastComparer).ToList();
-
-                    if (generics.Count > 0)
-                    {
-                        var s = "template<";
-                        for (int i = 0; i < generics.Count; i++)
-                        {
-                            s += "typename " + generics[i].SafeName();
-                            if (i != generics.Count - 1)
-                                s += ", ";
-                        }
-                        s += ">";
-                        writer.WriteLine(s);
-                    }
-
-                    // Remove the <blah> from the name for the upcoming print
-                    var genericStart = name.IndexOf("<");
-                    if (genericStart >= 0)
-                    {
-                        name = name.Substring(0, genericStart);
-                    }
-                }
-                else name = "";
-            }
-
-            if (level == ForwardDeclareLevel.Class && !string.IsNullOrEmpty(name))
-            {
-                var nestedStart = name.LastIndexOf("::");
-                if (nestedStart >= 0)
-                {
-                    name = name.Substring(nestedStart + 2);
-                }
-            }
-
-            // TODO write class instead if we did so for the definition
-            if (name.Length > 0)
-                writer.WriteLine($"struct {name};");
-            else
-            {
-                var errorStr = $"Aborted forward declaration of {fd}";
-                writer.WriteLine($"// {errorStr}");
-                if (!fd.ToString().StartsWith("Array"))
-                    Console.Error.WriteLine(errorStr);
-            }
-
-            if (putNamespace)
-            {
-                writer.Indent--;
-                writer.WriteLine("}");
-            }
-        }
-
-        internal void WriteForwardDeclare(IndentedTextWriter writer, TypeName fd)
-        {
-            WriteForwardDeclare(writer, fd, ForwardDeclareLevel.Class);
-        }
-
-        internal void AddArgType(ITypeData type)
-        {
-            defineArgTypes.Insert(0, type);
-        }
-
-        public void Serialize(CppTypeDataSerializer serializer, ITypeData data)
-        {
-            var headerLocation = Path.Combine(_config.OutputDirectory, _config.OutputHeaderDirectory, _context.FileName) + ".hpp";
+            var data = context.LocalType;
+            var headerLocation = Path.Combine(_config.OutputDirectory, _config.OutputHeaderDirectory, context.HeaderFileName);
             Directory.CreateDirectory(Path.GetDirectoryName(headerLocation));
-            if (filesWritten.Contains(headerLocation))
-                throw new ArgumentException($"Type {data.This} tried to write to already written header {headerLocation}!");
-            filesWritten.Add(headerLocation);
             using (var ms = new MemoryStream())
             {
-                bool isSystemValueType = (data.This.Namespace == "System") && (data.This.Name == "ValueType");
-
                 var rawWriter = new StreamWriter(ms);
-                var writer = new IndentedTextWriter(rawWriter, "  ");
+                var writer = new CppStreamWriter(rawWriter, "  ");
                 // Write header
-                writer.WriteLine($"// Autogenerated from {nameof(CppHeaderCreator)} on {DateTime.Now}");
-                writer.WriteLine($"// Created by Sc2ad");
-                writer.WriteLine("// =========================================================================");
+                writer.WriteComment($"Autogenerated from {nameof(CppHeaderCreator)} on {DateTime.Now}");
+                writer.WriteComment("Created by Sc2ad");
+                writer.WriteComment("=========================================================================");
                 writer.WriteLine("#pragma once");
                 // TODO: determine when/if we need this
                 writer.WriteLine("#pragma pack(push, 8)");
-
-                // Write includes
-                writer.WriteLine("// Includes");
-                writer.WriteLine("#include \"utils/il2cpp-utils.hpp\"");
-                if (_config.OutputStyle == OutputStyle.Normal)
-                    writer.WriteLine("#include <optional>");
-                if (isSystemValueType) _context.Includes.Add("System/Object.hpp");
-                foreach (var include in _context.Includes)
-                    writer.WriteLine($"#include \"{include}\"");
-                writer.WriteLine("// End Includes");
-
-                // Write forward declarations
-                if (_context.ForwardDeclares.Count > 0)
-                {
-                    writer.WriteLine("// Forward declarations");
-                    foreach (var fd in _context.ForwardDeclares)
-                        WriteForwardDeclare(writer, fd, ForwardDeclareLevel.Global);
-                    writer.WriteLine("// End Forward declarations");
-                }
-
-                // Write namespace
-                writer.WriteLine("namespace " + _context.TypeNamespace + " {");
-                writer.Indent++;
-                writer.Flush();
-                if (_context.NamespaceForwardDeclares.Count > 0)
-                {
-                    writer.WriteLine("// Same-namespace forward declarations");
-                    foreach (var fd in _context.NamespaceForwardDeclares)
-                    {
-                        WriteForwardDeclare(writer, fd, ForwardDeclareLevel.Namespace);
-                    }
-                    writer.WriteLine("// End same-namespace forward declarations");
-                }
-                writer.Flush();
-                // Write actual type
+                // Write SerializerContext and actual type
                 try
                 {
-                    serializer.Serialize(writer, data, this);
+                    _serializer.Serialize(writer, context, true);
                 }
                 catch (UnresolvedTypeException e)
                 {
                     if (_config.UnresolvedTypeExceptionHandling.TypeHandling == UnresolvedTypeExceptionHandling.DisplayInFile)
                     {
-                        writer.WriteLine("// Unresolved type exception!");
+                        writer.WriteComment("Unresolved type exception!");
                         writer.WriteLine("/*");
                         writer.WriteLine(e);
                         writer.WriteLine("*/");
@@ -189,34 +55,33 @@ namespace Il2Cpp_Modding_Codegen.Serialization
                     else if (_config.UnresolvedTypeExceptionHandling.TypeHandling == UnresolvedTypeExceptionHandling.Elevate)
                         throw new InvalidOperationException($"Cannot elevate {e} to a parent type- there is no parent type!");
                 }
-                writer.Flush();
                 // End the namespace
-                writer.Indent--;
-                writer.WriteLine("}");
+                writer.CloseDefinition();
 
-                if (isSystemValueType)
+                if (data.This.Namespace == "System" && data.This.Name == "ValueType")
                 {
                     writer.WriteLine("template<class T>");
                     writer.WriteLine("struct is_value_type<T, typename std::enable_if_t<std::is_base_of_v<System::ValueType, T>>> : std::true_type{};");
                 }
 
                 // DEFINE_IL2CPP_ARG_TYPE
-                foreach (var argType in defineArgTypes)
+                string fullName = context.GetCppName(context.LocalType.This, true, true, CppTypeContext.NeedAs.Definition);
+                // For Name and Namespace here, we DO want all the `, /, etc
+                if (!data.This.IsGeneric)
+                    writer.WriteLine($"DEFINE_IL2CPP_ARG_TYPE({fullName}, \"{data.This.Namespace}\", \"{data.This.Name}\");");
+                else
                 {
-                    string arg0 = _context.GetNameFromReference(argType.This, ForceAsType.Literal, genericArgs: false);
-                    string arg1 = "";
-                    if (argType.Info.TypeFlags == TypeFlags.ReferenceType)
-                        arg1 = "*";
-                    // For Name and Namespace here, we DO want all the `, /, etc
-                    if (!argType.This.IsGeneric)
-                        writer.WriteLine($"DEFINE_IL2CPP_ARG_TYPE({arg0 + arg1}, \"{argType.This.Namespace}\", \"{argType.This.Name}\");");
-                    else
-                        writer.WriteLine($"DEFINE_IL2CPP_ARG_TYPE_GENERIC({arg0}, {arg1}, \"{argType.This.Namespace}\", \"{argType.This.Name}\");");
+                    var parts = fullName.Split(new char[] { '<', '>' });
+                    if (parts.Length != 3)
+                        Console.Error.WriteLine($"The DEFINE_IL2CPP_ARG_TYPE_GENERIC for {fullName} probably isn't valid...");
+
+                    writer.WriteLine($"DEFINE_IL2CPP_ARG_TYPE_GENERIC({parts[0]}, {parts[2]}, \"{data.This.Namespace}\", \"{data.This.Name}\");");
                 }
 
                 writer.WriteLine("#pragma pack(pop)");
                 writer.Flush();
-                rawWriter.Flush();
+                if (File.Exists(headerLocation))
+                    throw new InvalidOperationException($"Was about to overwrite existing file: {headerLocation} with context: {context.LocalType.This}");
                 using (var fs = File.OpenWrite(headerLocation))
                 {
                     rawWriter.BaseStream.Position = 0;

@@ -24,7 +24,6 @@ namespace Il2Cpp_Modding_Codegen.Data.DllHandling
         public List<IField> Fields { get; } = new List<IField>();
         public List<IProperty> Properties { get; } = new List<IProperty>();
         public List<IMethod> Methods { get; } = new List<IMethod>();
-        public bool GetsOwnHeader { get; set; } = true;
 
         private DllConfig _config;
 
@@ -45,9 +44,6 @@ namespace Il2Cpp_Modding_Codegen.Data.DllHandling
 
             if (def.BaseType != null)
                 Parent = DllTypeRef.From(def.BaseType);
-
-            foreach (var nestedType in def.NestedTypes)
-                NestedTypes.Add(new DllTypeData(nestedType, config));
 
             // TODO: Parse this eventually
             TypeDefIndex = -1;
