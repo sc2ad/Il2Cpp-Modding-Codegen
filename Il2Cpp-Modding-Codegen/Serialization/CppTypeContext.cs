@@ -108,11 +108,27 @@ namespace Il2Cpp_Modding_Codegen.Serialization
         public void AbsorbInPlaceNeeds()
         {
             // inherit DefinitionsToGet, Declarations from in-place NestedContexts
-            foreach (var nested in NestedContexts.Where(n => n.InPlace))
+            var prevInPlace = new HashSet<CppTypeContext>();
+            var newInPlace = new HashSet<CppTypeContext>(NestedContexts.Where(n => n.InPlace));
+            do
             {
-                Declarations.UnionWith(nested.Declarations.Except(nested.LocalType.NestedTypes.Select(t => t.This)).Except(Definitions));
-                DefinitionsToGet.UnionWith(nested.DefinitionsToGet.Except(Definitions));
-            }
+                foreach (var nested in newInPlace)
+                    TakeDefsAndDeclares(nested);
+                prevInPlace.UnionWith(newInPlace);
+                newInPlace = new HashSet<CppTypeContext>(NestedContexts.Where(n => n.InPlace).Except(prevInPlace));
+            } while (newInPlace.Count > 0);
+        }
+
+        // TODO: instead of having AbsorbInPlaceNeeds, call this when nested first becomes in-place and direct all ResolveAndStore calls to RootContext?
+        private void TakeDefsAndDeclares(CppTypeContext nested)
+        {
+            Contract.Requires(nested.InPlace);
+            Contract.Requires(this == RootContext);
+
+            foreach (var dec in nested.Declarations.Except(nested.LocalType.NestedTypes.Select(t => t.This)).Except(Definitions))
+                AddDeclaration(dec, null);
+            foreach (var def in nested.DefinitionsToGet.Except(Definitions))
+                AddDefinition(def);
         }
 
         public void AddNestedContext(ITypeData type, CppTypeContext context)
@@ -281,10 +297,10 @@ namespace Il2Cpp_Modding_Codegen.Serialization
                     var temp = declType.GetName() + declaringGenericParams;
                     if (!isThisType)
                         temp += "::" + declString;
-                    else
-                        isThisType = false;
+                    isThisType = false;
+
                     declString = temp;
-                    AddDefinition(declType);
+                    // AddDefinition(declType);
                     if (declType.DeclaringType is null)
                         // Grab namespace for name here
                         if (qualified)

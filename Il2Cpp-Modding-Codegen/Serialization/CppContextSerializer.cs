@@ -224,12 +224,15 @@ namespace Il2Cpp_Modding_Codegen.Serialization
                     if (completedFds.Contains(resolved))
                         // If we have completed this reference already, continue.
                         continue;
-                    if (resolved.DeclaringType != null && !resolved.DeclaringType.Equals(context.LocalType.This))
-                        // TODO: move this error to Resolve or earlier
-                        // If there are any nested types in declarations, the declaring type must be defined.
-                        // If the declaration is a nested type that exists in the local type, then we will serialize it within the type itself.
-                        // Thus, if this ever happens, it should not be a declaration.
-                        throw new InvalidOperationException($"Type: {resolved} (declaring type: {resolved.DeclaringType} cannot be declared by {context.LocalType.This} because it is a nested type! It should be defined instead!");
+                    if (resolved.DeclaringType != null)
+                        if (!resolved.DeclaringType.Equals(context.LocalType.This))
+                            // TODO: move this error to Resolve or earlier
+                            // If there are any nested types in declarations, the declaring type must be defined.
+                            // If the declaration is a nested type that exists in the local type, then we will serialize it within the type itself.
+                            // Thus, if this ever happens, it should not be a declaration.
+                            throw new InvalidOperationException($"Type: {resolved} (declaring type: {resolved.DeclaringType} cannot be declared by {context.LocalType.This} because it is a nested type! It should be defined instead!");
+                        else
+                            continue;  // don't namespace declare our own types
                     WriteForwardDeclaration(writer, resolved, typeData);
                 }
                 // Close namespace after all types in the same namespace have been FD'd
@@ -253,7 +256,7 @@ namespace Il2Cpp_Modding_Codegen.Serialization
                 // If the type being resolved is generic, we must template it, iff we have generic parameters that aren't in genericsDefined
                 var generics = string.Empty;
                 bool first = true;
-                foreach (var g in nested.LocalType.This.GetDeclaredGenerics(true).Except(nested.LocalType.This.GetDeclaredGenerics(false)))
+                foreach (var g in nested.LocalType.This.GetDeclaredGenerics(true).Except(nested.LocalType.This.GetDeclaredGenerics(false), TypeRef.fastComparer))
                 {
                     if (genericsDefined.Contains(g))
                         continue;

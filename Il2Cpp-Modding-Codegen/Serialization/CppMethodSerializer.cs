@@ -38,6 +38,7 @@ namespace Il2Cpp_Modding_Codegen.Serialization
             if (method.Generic)
                 // Skip generic methods
                 return;
+
             // Get the fully qualified name of the context
             bool success = true;
             _declaringFullyQualified = context.QualifiedTypeName;
