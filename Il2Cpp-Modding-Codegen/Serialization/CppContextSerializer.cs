@@ -225,6 +225,7 @@ namespace Il2Cpp_Modding_Codegen.Serialization
                         // If we have completed this reference already, continue.
                         continue;
                     if (resolved.DeclaringType != null && !resolved.DeclaringType.Equals(context.LocalType.This))
+                        // TODO: move this error to Resolve or earlier
                         // If there are any nested types in declarations, the declaring type must be defined.
                         // If the declaration is a nested type that exists in the local type, then we will serialize it within the type itself.
                         // Thus, if this ever happens, it should not be a declaration.
@@ -301,7 +302,7 @@ namespace Il2Cpp_Modding_Codegen.Serialization
                     writer.WriteComment("Type namespace: " + context.LocalType.This.Namespace);
                     writer.WriteDefinition("namespace " + context.TypeNamespace);
                 }
-                typeSerializer.WriteInitialTypeDefinition(writer, context.LocalType);
+                typeSerializer.WriteInitialTypeDefinition(writer, context.LocalType, context.InPlace);
 
                 // Now, we must also write all of the nested contexts of this particular context object that have InPlace = true
                 // We want to recurse on this, writing the declarations for our types first, followed by our nested types

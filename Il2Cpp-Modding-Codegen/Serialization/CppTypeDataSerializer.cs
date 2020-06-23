@@ -88,7 +88,7 @@ namespace Il2Cpp_Modding_Codegen.Serialization
         /// </summary>
         /// <param name="writer"></param>
         /// <param name="type"></param>
-        public void WriteInitialTypeDefinition(CppStreamWriter writer, ITypeData type)
+        public void WriteInitialTypeDefinition(CppStreamWriter writer, ITypeData type, bool isNested)
         {
             if (!map.TryGetValue(type.This, out var state))
                 throw new UnresolvedTypeException(type.This.DeclaringType, type.This);
@@ -131,7 +131,14 @@ namespace Il2Cpp_Modding_Codegen.Serialization
 
             // TODO: print enums as actual C++ smart enums? backing type is type of _value and A = #, should work for the lines inside the enum
             // TODO: We need to specify generic declaring types with their generic parameters
-            writer.WriteDefinition(type.Type.TypeName() + " " + state.type + s);
+            var typeName = state.type;
+            if (isNested)
+            {
+                int idx = typeName.LastIndexOf("::");
+                if (idx >= 0)
+                    typeName = typeName.Substring(idx + 2);
+            }
+            writer.WriteDefinition(type.Type.TypeName() + " " + typeName + s);
             if (type.Fields.Count > 0 || type.Methods.Count > 0 || type.NestedTypes.Count > 0)
                 writer.WriteLine("public:");
             writer.Flush();
