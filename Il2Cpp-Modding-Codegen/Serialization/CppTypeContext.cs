@@ -81,7 +81,7 @@ namespace Il2Cpp_Modding_Codegen.Serialization
             _context = context;
             LocalType = data;
             // Requiring it as a definition here simply makes it easier to remove (because we are asking for a definition of ourself, which we have)
-            QualifiedTypeName = GetCppName(data.This, true, false, NeedAs.Definition, ForceAsType.Literal);
+            QualifiedTypeName = GetCppName(data.This, true, true, NeedAs.Definition, ForceAsType.Literal);
             TypeNamespace = data.This.GetNamespace();
             TypeName = data.This.GetName();
 

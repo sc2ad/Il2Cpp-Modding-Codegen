@@ -72,6 +72,7 @@ namespace Il2Cpp_Modding_Codegen.Data
             return dt.GetNamespace() + "::" + name;
         }
 
+        // TODO: new method/param to easily allow for getting only the new generic templates that this TypeRef brings to the table?
         public IEnumerable<TypeRef> GetDeclaredGenerics(bool includeSelf)
         {
             var genericsDefined = new List<TypeRef>();

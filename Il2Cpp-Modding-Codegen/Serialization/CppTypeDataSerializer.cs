@@ -49,7 +49,8 @@ namespace Il2Cpp_Modding_Codegen.Serialization
                     s.parentName = "Object";
                 else
                     // Ask for a definition of our parent, cannot be allowed to be a declaration.
-                    s.parentName = context.GetCppName(type.Parent, true, false, CppTypeContext.NeedAs.Definition, CppTypeContext.ForceAsType.Literal);
+                    // TODO: just use type.Parent's QualifiedTypeName instead?
+                    s.parentName = context.GetCppName(type.Parent, true, true, CppTypeContext.NeedAs.Definition, CppTypeContext.ForceAsType.Literal);
             }
             map.Add(type.This, s);
 
@@ -113,7 +114,10 @@ namespace Il2Cpp_Modding_Codegen.Serialization
                 s = $" : public {state.parentName}";
             // TODO: add implementing interfaces to s
             // Even if we are a template, we need to write out our inherited declaring types
-            var declaredGenerics = type.This.GetDeclaredGenerics(true).ToList();
+            var generics = type.This.GetDeclaredGenerics(true);
+            if (isNested)
+                generics = generics.Except(type.This.GetDeclaredGenerics(false), TypeRef.fastComparer);
+            var declaredGenerics = generics.ToList();
             if (declaredGenerics.Count > 0)
             {
                 var templateStr = "template<";
