@@ -253,7 +253,7 @@ namespace Il2Cpp_Modding_Codegen.Serialization
                 // If the type being resolved is generic, we must template it, iff we have generic parameters that aren't in genericsDefined
                 var generics = string.Empty;
                 bool first = true;
-                foreach (var g in nested.LocalType.This.Generics)
+                foreach (var g in nested.LocalType.This.GetDeclaredGenerics(true).Except(nested.LocalType.This.GetDeclaredGenerics(false)))
                 {
                     if (genericsDefined.Contains(g))
                         continue;
