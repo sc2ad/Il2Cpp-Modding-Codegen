@@ -12,7 +12,7 @@ namespace Il2Cpp_Modding_Codegen.Data.DllHandling
 {
     internal class DllMethod : IMethod
     {
-        private MethodDefinition This;
+        private MethodDefinition This;  // just to aid with debugging
         public List<IAttribute> Attributes { get; } = new List<IAttribute>();
         public List<ISpecifier> Specifiers { get; } = new List<ISpecifier>();
         public int RVA { get; }
@@ -55,6 +55,7 @@ namespace Il2Cpp_Modding_Codegen.Data.DllHandling
 
             ReturnType = DllTypeRef.From(m.ReturnType);
             DeclaringType = DllTypeRef.From(m.DeclaringType);
+            // This is a very rare condition that we need to handle if it ever happens, but for now just log it
             if (m.HasOverrides)
                 Console.WriteLine($"{m}, Overrides: {String.Join(", ", m.Overrides)}");
 
