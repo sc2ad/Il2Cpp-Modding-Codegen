@@ -208,9 +208,6 @@ namespace Il2Cpp_Modding_Codegen.Serialization
             // If the TypeRef is a generic parameter, return its name
             if (_genericTypes.Contains(data))
                 return data.Name;
-            if (data.IsVoid())
-                // If the TypeRef is void, easily return void
-                return "void";
             if (data.IsPrimitive())
             {
                 // If the TypeRef is a primitive, we need to convert it to a C++ name upfront.
