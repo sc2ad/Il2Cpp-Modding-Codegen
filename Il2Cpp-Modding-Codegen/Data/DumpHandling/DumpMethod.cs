@@ -17,7 +17,7 @@ namespace Il2Cpp_Modding_Codegen.Data.DumpHandling
         public TypeRef ReturnType { get; }
         public TypeRef DeclaringType { get; }
         public TypeRef ImplementedFrom { get; }
-        public bool IsOverride { get; }
+        public bool HidesBase { get; }
         public TypeRef OverriddenFrom { get; } = null;
         public string Name { get; }
         public List<Parameter> Parameters { get; } = new List<Parameter>();
@@ -116,7 +116,7 @@ namespace Il2Cpp_Modding_Codegen.Data.DumpHandling
             // TODO: Implement Generic
             Generic = false;
 
-            IsOverride = Specifiers.Any(s => s.Override);
+            HidesBase = Specifiers.Any(s => s.Override);
             // TODO: Implement OverriddenFrom
         }
 

@@ -1,11 +1,8 @@
-﻿using Il2Cpp_Modding_Codegen.Parsers;
-using Il2Cpp_Modding_Codegen.Serialization;
-using Mono.Cecil;
+﻿using Mono.Cecil;
 using Mono.Cecil.Rocks;
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Text;
 using System.Text.RegularExpressions;
 
 namespace Il2Cpp_Modding_Codegen.Data.DllHandling
@@ -22,7 +19,7 @@ namespace Il2Cpp_Modding_Codegen.Data.DllHandling
         public TypeRef ReturnType { get; }
         public TypeRef DeclaringType { get; }
         public TypeRef ImplementedFrom { get; } = null;
-        public bool IsOverride { get; }
+        public bool HidesBase { get; }
         public TypeRef OverriddenFrom { get; }
         public string Name { get; }
         public List<Parameter> Parameters { get; } = new List<Parameter>();
@@ -48,8 +45,13 @@ namespace Il2Cpp_Modding_Codegen.Data.DllHandling
         public DllMethod(MethodDefinition m)
         {
             This = m;
-            IsOverride = m.IsVirtual && !m.IsNewSlot;
-            var baseMethod = m.GetBaseMethod();
+            var baseMethods = m.GetBaseMethods();
+            if (baseMethods.Count > 0)
+                HidesBase = true;
+
+            MethodDefinition baseMethod = m.GetBaseMethod();
+            if ((baseMethod == m) && baseMethods.Count == 1)
+                baseMethod = baseMethods.Single();
             if (baseMethod != m)
                 OverriddenFrom = DllTypeRef.From(baseMethod.DeclaringType);
 

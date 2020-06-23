@@ -37,10 +37,13 @@ namespace Il2Cpp_Modding_Codegen.Serialization
         /// </summary>
         /// <param name="method"></param>
         /// <returns></returns>
-        private CppTypeContext.NeedAs NeedTypesAs(IMethod method)
+        private CppTypeContext.NeedAs NeedTypesAs(IMethod method, bool returnType = false)
         {
             if (NeedDefinitionInHeader(method)) return CppTypeContext.NeedAs.BestMatch;
-            if (_isInterface && method.IsOverride) return CppTypeContext.NeedAs.Definition;
+            if (returnType && _pureVirtual && method.HidesBase)
+                // Prevents `error: return type of virtual function [name] is not covariant with the return type of the function
+                //   it overrides ([return type] is incomplete)`
+                return CppTypeContext.NeedAs.Definition;
             return CppTypeContext.NeedAs.Declaration;
         }
 
@@ -59,7 +62,7 @@ namespace Il2Cpp_Modding_Codegen.Serialization
             var needAs = NeedTypesAs(method);
             // We need to forward declare everything used in methods (return types and parameters)
             // If we are writing the definition, we MUST define it
-            var resolvedReturn = context.GetCppName(method.ReturnType, true, needAs: needAs);
+            var resolvedReturn = context.GetCppName(method.ReturnType, true, needAs: NeedTypesAs(method, true));
             if (resolvedReturn is null)
                 // If we fail to resolve the return type, we will simply add a null item to our dictionary.
                 // However, we should not call Resolved(method)
