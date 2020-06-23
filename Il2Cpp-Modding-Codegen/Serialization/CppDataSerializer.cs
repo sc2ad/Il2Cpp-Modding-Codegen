@@ -19,7 +19,8 @@ namespace Il2Cpp_Modding_Codegen.Serialization
         private SerializationConfig _config;
 
         private CppContextSerializer _contextSerializer;
-        private Dictionary<ITypeData, CppTypeContext> _map = new Dictionary<ITypeData, CppTypeContext>();
+        private static Dictionary<ITypeData, CppTypeContext> _map = new Dictionary<ITypeData, CppTypeContext>();
+        public static IReadOnlyDictionary<ITypeData, CppTypeContext> TypeToContext { get => _map; }
 
         /// <summary>
         /// Creates a C++ Serializer with the given type context, which is a wrapper for a list of all types to serialize
@@ -79,6 +80,13 @@ namespace Il2Cpp_Modding_Codegen.Serialization
                 // Therefore, when we resolve include locations, we must ensure we are not a nested type before returning our include path
                 // (otherwise returning our declaring type's include path)
             }
+            foreach (var pair in _map)
+            {
+                // We need to ensure that all of our definitions and declarations are resolved for our given type in both contexts.
+                // We do this by calling CppContextSerializer.Resolve(pair.Key, _map)
+                _contextSerializer.Resolve(pair.Value, _map, true);
+                _contextSerializer.Resolve(pair.Value, _map, false);
+            }
         }
 
         public override void Serialize(CppStreamWriter writer, IParsedData data, bool _unused_)
@@ -105,10 +113,6 @@ namespace Il2Cpp_Modding_Codegen.Serialization
                 // Then, we write the actual file data (call header or cpp .Serialize on the stream)
                 // That's it!
                 // Now we serialize
-                // We need to ensure that all of our definitions and declarations are resolved for our given type in both contexts.
-                // We do this by calling CppContextSerializer.Resolve(pair.Key, _map)
-                _contextSerializer.Resolve(pair.Value, _map, true);
-                _contextSerializer.Resolve(pair.Value, _map, false);
 
                 if (!pair.Value.InPlace || pair.Value.DeclaringContext == null)
                     new CppHeaderCreator(_config, _contextSerializer).Serialize(pair.Value);

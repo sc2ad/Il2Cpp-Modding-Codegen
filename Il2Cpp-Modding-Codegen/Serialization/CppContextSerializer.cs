@@ -55,6 +55,9 @@ namespace Il2Cpp_Modding_Codegen.Serialization
             foreach (var nested in context.NestedContexts)
                 Resolve(nested, map, asHeader);
 
+            if (asHeader)
+                context.AbsorbInPlaceNeeds();
+
             var includes = new HashSet<CppTypeContext>();
 
             var defs = context.Definitions;
@@ -225,7 +228,7 @@ namespace Il2Cpp_Modding_Codegen.Serialization
                         // If there are any nested types in declarations, the declaring type must be defined.
                         // If the declaration is a nested type that exists in the local type, then we will serialize it within the type itself.
                         // Thus, if this ever happens, it should not be a declaration.
-                        throw new InvalidOperationException($"Type: {resolved} (declaring type: {resolved.DeclaringType} cannot be declared because it is a nested type! It should be defined instead!");
+                        throw new InvalidOperationException($"Type: {resolved} (declaring type: {resolved.DeclaringType} cannot be declared by {context.LocalType.This} because it is a nested type! It should be defined instead!");
                     WriteForwardDeclaration(writer, resolved, typeData);
                 }
                 // Close namespace after all types in the same namespace have been FD'd
@@ -281,10 +284,8 @@ namespace Il2Cpp_Modding_Codegen.Serialization
                 WriteIncludes(writer, context, defsAndDeclares.Item1, asHeader);
                 if (asHeader) WriteDeclarations(writer, context, defsAndDeclares.Item2);
             }
-            else if (context.InPlace)
-                writer.WriteComment("Is in-place?");
 
-            // We need to start by actually WRITING our type here. This include the first portion of our writing, including the header.
+            // We need to start by actually WRITING our type here. This includes the first portion of our writing, including the header.
             // Then, we write our nested types (declared/defined as needed)
             // Then, we write our fields (static fields first)
             // And finally our methods
@@ -294,9 +295,12 @@ namespace Il2Cpp_Modding_Codegen.Serialization
             // Only write the initial type and nested declares/definitions if we are a header
             if (asHeader)
             {
-                // Write namespace
-                writer.WriteComment("Type namespace: " + context.LocalType.This.Namespace);
-                writer.WriteDefinition("namespace " + context.TypeNamespace);
+                if (!context.InPlace)
+                {
+                    // Write namespace
+                    writer.WriteComment("Type namespace: " + context.LocalType.This.Namespace);
+                    writer.WriteDefinition("namespace " + context.TypeNamespace);
+                }
                 typeSerializer.WriteInitialTypeDefinition(writer, context.LocalType);
 
                 // Now, we must also write all of the nested contexts of this particular context object that have InPlace = true
