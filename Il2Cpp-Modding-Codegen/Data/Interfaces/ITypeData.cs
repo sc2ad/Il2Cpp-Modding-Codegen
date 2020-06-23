@@ -12,7 +12,6 @@ namespace Il2Cpp_Modding_Codegen.Data
         TypeInfo Info { get; }
         TypeRef Parent { get; }
         HashSet<ITypeData> NestedTypes { get; }
-        HashSet<ITypeData> NestedInPlace { get; }
         List<TypeRef> ImplementingInterfaces { get; }
         int TypeDefIndex { get; }
         List<IAttribute> Attributes { get; }

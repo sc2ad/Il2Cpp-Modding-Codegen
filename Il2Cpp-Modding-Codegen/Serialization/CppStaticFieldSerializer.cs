@@ -11,7 +11,7 @@ namespace Il2Cpp_Modding_Codegen.Serialization
     {
         private string _declaringFullyQualified;
         private Dictionary<IField, string> _resolvedTypes = new Dictionary<IField, string>();
-        bool _asHeader;
+        private bool _asHeader;
         private SerializationConfig _config;
 
         public CppStaticFieldSerializer(SerializationConfig config)

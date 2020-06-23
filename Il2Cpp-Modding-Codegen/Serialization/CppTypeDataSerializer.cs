@@ -56,12 +56,11 @@ namespace Il2Cpp_Modding_Codegen.Serialization
                 if (type.This.Namespace == "System" && type.This.Name == "ValueType")
                     s.parentNames.Add("Object");
                 else
+                    // TODO: just use type.Parent's QualifiedTypeName instead?
                     s.parentNames.Add(context.GetCppName(type.Parent, true, true, CppTypeContext.NeedAs.Definition, CppTypeContext.ForceAsType.Literal));
             }
             foreach (var @interface in type.ImplementingInterfaces)
-            {
                 s.parentNames.Add("virtual " + context.GetCppName(@interface, true, true, CppTypeContext.NeedAs.Definition, CppTypeContext.ForceAsType.Literal));
-            }
             map.Add(type.This, s);
 
             if (fieldSerializer is null)

@@ -20,7 +20,6 @@ namespace Il2Cpp_Modding_Codegen.Data.DumpHandling
         public TypeRef This { get; private set; }
         public TypeRef Parent { get; private set; }
         public HashSet<ITypeData> NestedTypes { get; } = new HashSet<ITypeData>();
-        public HashSet<ITypeData> NestedInPlace { get; } = new HashSet<ITypeData>();
         public List<TypeRef> ImplementingInterfaces { get; } = new List<TypeRef>();
         public int TypeDefIndex { get; private set; }
         public List<IAttribute> Attributes { get; } = new List<IAttribute>();
