@@ -20,6 +20,28 @@ namespace Il2Cpp_Modding_Codegen.Serialization
             _serializer = serializer;
         }
 
+        // Outputs a DEFINE_IL2CPP_ARG_TYPE call for every type defined by this file
+        private void DefineIl2CppArgTypes(CppStreamWriter writer, CppTypeContext context)
+        {
+            var data = context.LocalType;
+            // DEFINE_IL2CPP_ARG_TYPE
+            string fullName = context.GetCppName(context.LocalType.This, true, true, CppTypeContext.NeedAs.Definition);
+            var (ns, name) = data.This.GetIl2CppName();
+            // For Name and Namespace here, we DO want all the `, /, etc
+            if (!data.This.IsGeneric)
+                writer.WriteLine($"DEFINE_IL2CPP_ARG_TYPE({fullName}, \"{ns}\", \"{name}\");");
+            else
+            {
+                var parts = fullName.Split(new char[] { '<', '>' });
+                if (parts.Length != 3)
+                    Console.Error.WriteLine($"The DEFINE_IL2CPP_ARG_TYPE_GENERIC for {fullName} probably isn't valid...");
+
+                writer.WriteLine($"DEFINE_IL2CPP_ARG_TYPE_GENERIC({parts[0]}, {parts[2]}, \"{ns}\", \"{name}\");");
+            }
+            foreach (var nested in context.NestedContexts.Where(n => n.InPlace))
+                DefineIl2CppArgTypes(writer, nested);
+        }
+
         public void Serialize(CppTypeContext context)
         {
             var data = context.LocalType;
@@ -64,19 +86,8 @@ namespace Il2Cpp_Modding_Codegen.Serialization
                     writer.WriteLine("struct is_value_type<T, typename std::enable_if_t<std::is_base_of_v<System::ValueType, T>>> : std::true_type{};");
                 }
 
-                // DEFINE_IL2CPP_ARG_TYPE
-                string fullName = context.GetCppName(context.LocalType.This, true, true, CppTypeContext.NeedAs.Definition);
-                // For Name and Namespace here, we DO want all the `, /, etc
-                if (!data.This.IsGeneric)
-                    writer.WriteLine($"DEFINE_IL2CPP_ARG_TYPE({fullName}, \"{data.This.Namespace}\", \"{data.This.Name}\");");
-                else
-                {
-                    var parts = fullName.Split(new char[] { '<', '>' });
-                    if (parts.Length != 3)
-                        Console.Error.WriteLine($"The DEFINE_IL2CPP_ARG_TYPE_GENERIC for {fullName} probably isn't valid...");
-
-                    writer.WriteLine($"DEFINE_IL2CPP_ARG_TYPE_GENERIC({parts[0]}, {parts[2]}, \"{data.This.Namespace}\", \"{data.This.Name}\");");
-                }
+                DefineIl2CppArgTypes(writer, context);
+                writer.Flush();
 
                 writer.WriteLine("#pragma pack(pop)");
                 writer.Flush();
