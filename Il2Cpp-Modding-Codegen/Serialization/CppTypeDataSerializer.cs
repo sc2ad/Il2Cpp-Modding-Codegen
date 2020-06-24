@@ -128,6 +128,7 @@ namespace Il2Cpp_Modding_Codegen.Serialization
 
             if (type.This.IsGenericTemplate)
             {
+                /*
                 // Even if we are a template, we need to write out our inherited declaring types
                 var generics = type.This.GetDeclaredGenerics(true);
                 if (isNested)
@@ -146,6 +147,10 @@ namespace Il2Cpp_Modding_Codegen.Serialization
                     }
                     writer.WriteLine(templateStr + ">");
                 }
+                */
+                var genericStr = CppTypeContext.GetTemplateLine(type, isNested);
+                if (!string.IsNullOrEmpty(genericStr))
+                    writer.WriteLine(genericStr);
             }
 
             // TODO: print enums as actual C++ smart enums? backing type is type of _value and A = #, should work for the lines inside the enum

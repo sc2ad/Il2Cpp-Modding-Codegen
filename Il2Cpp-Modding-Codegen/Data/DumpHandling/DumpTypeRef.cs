@@ -38,7 +38,7 @@ namespace Il2Cpp_Modding_Codegen.Data.DumpHandling
 
         /// <summary>
         /// For use with text dumps. Takes a given split array that contains a type at index ind and
-        /// returns the full typename and index where the end of the typename is while traversing the split array with direction and sep.
+        /// returns the full type name and index where the end of the type name is while traversing the split array with direction and sep.
         /// </summary>
         /// <param name="spl"></param>
         /// <param name="ind"></param>

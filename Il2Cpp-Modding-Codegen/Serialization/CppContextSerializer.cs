@@ -122,24 +122,17 @@ namespace Il2Cpp_Modding_Codegen.Serialization
             }
         }
 
-        private void WriteForwardDeclaration(CppStreamWriter writer, TypeRef resolved, ITypeData typeData)
+        private void WriteForwardDeclaration(CppStreamWriter writer, ITypeData typeData)
         {
+            var resolved = typeData.This;
             var comment = "Forward declaring type: " + resolved.Name;
             if (resolved.IsGenericTemplate)
             {
                 // If the type being resolved is generic, we must template it.
-                var generics = "template<";
-                bool first = true;
-                foreach (var g in resolved.Generics)
-                {
-                    if (!first)
-                        generics += ", ";
-                    else
-                        first = false;
-                    generics += "typename " + g.GetName();
-                }
+                var genericStr = CppTypeContext.GetTemplateLine(typeData);
                 writer.WriteComment(comment + "<" + string.Join(", ", resolved.Generics.Select(tr => tr.GetName())) + ">");
-                writer.WriteLine(generics + ">");
+                if (!string.IsNullOrEmpty(genericStr))
+                    writer.WriteLine(genericStr);
             }
             else
                 writer.WriteComment(comment);
@@ -233,7 +226,7 @@ namespace Il2Cpp_Modding_Codegen.Serialization
                             throw new InvalidOperationException($"Type: {resolved} (declaring type: {resolved.DeclaringType} cannot be declared by {context.LocalType.This} because it is a nested type! It should be defined instead!");
                         else
                             continue;  // don't namespace declare our own types
-                    WriteForwardDeclaration(writer, resolved, typeData);
+                    WriteForwardDeclaration(writer, typeData);
                 }
                 // Close namespace after all types in the same namespace have been FD'd
                 writer.CloseDefinition();
@@ -250,26 +243,28 @@ namespace Il2Cpp_Modding_Codegen.Serialization
         {
             var comment = "Nested type: " + nested.LocalType.This.GetQualifiedName();
             var typeStr = nested.LocalType.Type.TypeName();
-            var genericsDefined = nested.LocalType.This.GetDeclaredGenerics(false);
             if (nested.LocalType.This.IsGenericTemplate)
             {
+                /*
+                var genericsDefined = nested.LocalType.This.GetDeclaredGenerics(false);
                 // If the type being resolved is generic, we must template it, iff we have generic parameters that aren't in genericsDefined
                 var generics = string.Empty;
                 bool first = true;
-                foreach (var g in nested.LocalType.This.GetDeclaredGenerics(true).Except(nested.LocalType.This.GetDeclaredGenerics(false), TypeRef.fastComparer))
+                foreach (var g in nested.LocalType.This.GetDeclaredGenerics(true).Except(genericsDefined, TypeRef.fastComparer))
                 {
-                    if (genericsDefined.Contains(g))
-                        continue;
                     if (!first)
                         generics += ", ";
                     else
                         first = false;
                     generics += "typename " + g.GetName();
                 }
+                */
+                var genericStr = nested.GetTemplateLine(true);
                 // Write the comment regardless
                 writer.WriteComment(comment + "<" + string.Join(", ", nested.LocalType.This.Generics.Select(tr => tr.Name)) + ">");
-                if (!string.IsNullOrEmpty(generics))
-                    writer.WriteLine("template<" + generics + ">");
+                // if (!string.IsNullOrEmpty(generics)) writer.WriteLine("template<" + generics + ">");
+                if (!string.IsNullOrEmpty(genericStr))
+                    writer.WriteLine(genericStr);
             }
             else
                 writer.WriteComment(comment);

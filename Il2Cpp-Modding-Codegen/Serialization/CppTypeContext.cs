@@ -105,6 +105,31 @@ namespace Il2Cpp_Modding_Codegen.Serialization
             Definitions.Add(data.This);
         }
 
+        public string GetTemplateLine(bool localOnly = true)
+        {
+            var s = "";
+            if (LocalType.This.IsGeneric)
+            {
+                var generics = LocalType.This.GetDeclaredGenerics(true);
+                if (localOnly)
+                    generics = generics.Except(LocalType.This.GetDeclaredGenerics(false), TypeRef.fastComparer);
+
+                bool first = true;
+                foreach (var g in generics)
+                {
+                    if (!first)
+                        s += ", ";
+                    s += "typename " + g.GetName();
+                    first = false;
+                }
+            }
+            if (!string.IsNullOrEmpty(s))
+                s = $"template<{s}>";
+            return s;
+        }
+
+        public static string GetTemplateLine(ITypeData type, bool localOnly = true) => CppDataSerializer.TypeToContext[type].GetTemplateLine(localOnly);
+
         public void AbsorbInPlaceNeeds()
         {
             // inherit DefinitionsToGet, Declarations from in-place NestedContexts
@@ -236,7 +261,6 @@ namespace Il2Cpp_Modding_Codegen.Serialization
             if (resolved is null)
                 return null;
             var name = string.Empty;
-            // TODO: iff !ForceAs.Literal and there are generics in any of the declaring types, prepend "typename "
             if (resolved.This.DeclaringType != null)
             {
                 // Each declaring type must be defined, and must also have its generic parameters specified (confirm this is the case)
@@ -346,6 +370,8 @@ namespace Il2Cpp_Modding_Codegen.Serialization
                 return null;
             if (forceAsType == ForceAsType.Literal)
                 return name;
+            if (resolved.This.DeclaringType?.IsGeneric ?? false)  // note: it's important that ForceAsType.Literal is ruled out first
+                name = "typename " + name;
             if (resolved.Info.TypeFlags == TypeFlags.ReferenceType)
                 return name + "*";
             return name;
