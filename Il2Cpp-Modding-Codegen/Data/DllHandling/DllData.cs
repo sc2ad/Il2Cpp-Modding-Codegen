@@ -85,6 +85,9 @@ namespace Il2Cpp_Modding_Codegen.Data.DllHandling
             int total = DllTypeRef.hits + DllTypeRef.misses;
             Console.WriteLine($"{nameof(DllTypeRef)} cache hits: {DllTypeRef.hits} / {total} = {100.0f * DllTypeRef.hits / total}");
             // Ignore images for now.
+            Console.WriteLine(String.Join("\n", DllMethod.refDiffered));
+            Console.WriteLine("valDiffered: ");
+            Console.WriteLine(String.Join("\n", DllMethod.valDiffered));
         }
 
         public override string ToString()

@@ -25,6 +25,9 @@ namespace Il2Cpp_Modding_Codegen.Data.DllHandling
         public List<Parameter> Parameters { get; } = new List<Parameter>();
         public bool Generic { get; }
 
+        public static HashSet<MethodDefinition> refDiffered = new HashSet<MethodDefinition>();
+        public static HashSet<MethodDefinition> valDiffered = new HashSet<MethodDefinition>();
+
         TypeReference FindInterface(TypeReference type, string find)
         {
             if (type is null) return null;
@@ -42,25 +45,29 @@ namespace Il2Cpp_Modding_Codegen.Data.DllHandling
             return FindInterface(def.BaseType, find);
         }
 
+        private bool IsRefReturn(MethodDefinition m)
+        {
+            if (m.ReturnType.IsByReference || m.ReturnType.IsArray || m.ReturnType.IsPointer) return true;
+            if (m.ReturnType.IsValueType || m.ReturnType.IsGenericParameter) return false;
+            return true;
+        }
+
+        private string ToStr(IEnumerable<object> e)
+        {
+            return String.Join(", ", e);
+        }
+
         public DllMethod(MethodDefinition m)
         {
             This = m;
-            var baseMethods = m.GetBaseMethods();
-            if (baseMethods.Count > 0)
-                HidesBase = true;
-
-            MethodDefinition baseMethod = m.GetBaseMethod();
-            if ((baseMethod == m) && baseMethods.Count == 1)
-                baseMethod = baseMethods.Single();
-            if (baseMethod != m)
-                OverriddenFrom = DllTypeRef.From(baseMethod.DeclaringType);
-
             ReturnType = DllTypeRef.From(m.ReturnType);
             DeclaringType = DllTypeRef.From(m.DeclaringType);
             // This is a very rare condition that we need to handle if it ever happens, but for now just log it
             if (m.HasOverrides)
                 Console.WriteLine($"{m}, Overrides: {String.Join(", ", m.Overrides)}");
 
+            var origStr = m.ToString();
+            var origName = m.Name;
             Name = m.Name;
             int idxDot = Name.LastIndexOf(".");
             if (idxDot >= 2)  // ".ctor" doesn't count
@@ -72,7 +79,33 @@ namespace Il2Cpp_Modding_Codegen.Data.DllHandling
 
                 ImplementedFrom = DllTypeRef.From(iface);
                 Name = Name.Substring(idxDot + 1);
+                m.Name = Name; // temporarily changes the MethodDefinition's name for matching purposes
             }
+
+            var baseMethods = m.GetBaseMethods();
+            if (baseMethods.Count > 0)
+                HidesBase = true;
+
+            MethodDefinition baseMethod = m.GetBaseMethod();
+            if ((baseMethod == m) && baseMethods.Count == 1)
+                baseMethod = baseMethods.Single();
+            if (baseMethod != m)
+                OverriddenFrom = DllTypeRef.From(baseMethod.DeclaringType);
+
+            var grouped = baseMethods.ToLookup(IsRefReturn);
+            bool mIsRefReturn = IsRefReturn(m);
+            if (grouped[!mIsRefReturn].Any())
+            {
+                var str = ToStr(grouped[!mIsRefReturn]);
+                if (grouped[mIsRefReturn].Any())
+                    str += " but agrees with: " + ToStr(grouped[mIsRefReturn]);
+                Console.WriteLine($"Return refness of {origStr} differs from at least 1 base method: {str}");
+            }
+            if (mIsRefReturn)
+                valDiffered.UnionWith(grouped[false]);
+            else
+                refDiffered.UnionWith(grouped[true]);
+            m.Name = origName;  // restores the MethodDefinition's name
 
             RVA = -1;
             Offset = -1;
