@@ -20,6 +20,7 @@ namespace Il2Cpp_Modding_Codegen.Data.DumpHandling
         public bool HidesBase { get; }
         public TypeRef OverriddenFrom { get; } = null;
         public string Name { get; }
+        public string Il2CppName { get; }
         public List<Parameter> Parameters { get; } = new List<Parameter>();
         public bool Generic { get; }
 
@@ -98,15 +99,18 @@ namespace Il2Cpp_Modding_Codegen.Data.DumpHandling
                     var finalDot = typeStr.LastIndexOf('.');
                     ImplementedFrom = new DumpTypeRef(typeStr.Substring(0, finalDot));
                     Name = typeStr.Substring(finalDot + 1);
+                    Il2CppName = typeStr;
                 }
                 else
                 {
                     Name = methodSplit[methodSplit.Length - 1];
+                    Il2CppName = Name;
                 }
             }
             else
             {
                 Name = methodSplit[methodSplit.Length - 1].Substring(startIndex + 1);
+                Il2CppName = Name;
             }
             ReturnType = new DumpTypeRef(DumpTypeRef.FromMultiple(methodSplit, nameIdx - 1, out nameIdx, -1, " "));
             for (int i = 0; i < nameIdx - 1; i++)

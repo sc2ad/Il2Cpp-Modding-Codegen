@@ -19,6 +19,12 @@ namespace Il2Cpp_Modding_Codegen.Data
         // If the method overrides (in C# terms) another, OR iff HidesBase and only 1 such method is hidden, this gives that method's DeclaringType.
         TypeRef OverriddenFrom { get; }
         string Name { get; }
+        /// <summary>
+        /// The name of the method in Il2Cpp form.
+        /// If this is a method with the special name flag set, this will appear as a fully qualified type suffixed by the method name.
+        /// Otherwise, this name matches <see cref="Name"/>
+        /// </summary>
+        string Il2CppName { get; }
         List<Parameter> Parameters { get; }
     }
 }

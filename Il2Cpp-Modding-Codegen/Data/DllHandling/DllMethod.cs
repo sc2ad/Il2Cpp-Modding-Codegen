@@ -21,7 +21,8 @@ namespace Il2Cpp_Modding_Codegen.Data.DllHandling
         public TypeRef ImplementedFrom { get; } = null;
         public bool HidesBase { get; }
         public TypeRef OverriddenFrom { get; }
-        public string Name { get; private set; }
+        public string Name { get; }
+        public string Il2CppName { get; private set; }
         public List<Parameter> Parameters { get; } = new List<Parameter>();
         public bool Generic { get; }
 
@@ -50,6 +51,8 @@ namespace Il2Cpp_Modding_Codegen.Data.DllHandling
             cache.Add(m, this);
             This = m;
             Name = m.Name;
+            // Il2CppName is the MethodDefinition Name (hopefully we don't need to convert it for il2cpp, but we might)
+            Il2CppName = m.Name;
             int idxDot = Name.LastIndexOf(".");
             if (idxDot >= 2)  // ".ctor" doesn't count
             {
@@ -59,22 +62,34 @@ namespace Il2Cpp_Modding_Codegen.Data.DllHandling
                     throw new Exception($"For method {m}: failed to get TypeReference for ImplementedFrom {typeStr}");
 
                 ImplementedFrom = DllTypeRef.From(iface);
-                var shortName = Name.Substring(idxDot + 1);
-                var implementedMethod = iface.Resolve().Methods.Where(im => im.Name == shortName).Single();
-
+                // Set Name to method name only
+                Name = Name.Substring(idxDot + 1);
+                var implementedMethod = iface.Resolve().Methods.FirstOrDefault(im => im.Name == Name);
+                if (implementedMethod is null)
+                    throw new InvalidOperationException($"Implemented method is null for method name: {Name}");
                 bool alreadyDone = false;
-                if (cache.TryGetValue(implementedMethod, out var iMethod))
-                    iMethod.Name = Name;
+                // We need to ensure that the implementedMethod is aware that its Il2CppName should be set to our Il2CppName (all methods should match!)
+                if (cache.TryGetValue(implementedMethod, out var implementedDllMethod))
+                    // If we have the method in our cache, set its name
+                    implementedDllMethod.Il2CppName = Il2CppName;
                 else if (!toRename.ContainsKey(implementedMethod))
+                    // If we don't have it in our list to rename, add it
                     toRename.Add(implementedMethod, Name);
                 else
+                    // Otherwise, assume we have already renamed it. In such a case, we may need to set our Il2CppName to our implementing Il2CppName
+                    // This will be the case if we have an implementing method that sometimes does not have the specialname flag.
                     alreadyDone = true;
-                // if (!alreadyDone) Console.WriteLine($"Renaming interface method {implementedMethod} to {Name}.");
+                // In all cases, Il2CppName should not have any generic parameters. If it does, we need to change that (either here or on serialization side?)
+                if (Il2CppName.Contains("<"))
+                    Console.WriteLine($"Method: {Name} on type: {DeclaringType} has Il2CppName: {Il2CppName} which has a generic parameter!");
+                if (alreadyDone)
+                    Console.WriteLine("Do thing");
             }
-            if (toRename.TryGetValue(m, out var nameStr))
-                Name = nameStr;
 
-                var baseMethods = m.GetBaseMethods();
+            if (toRename.TryGetValue(m, out var nameStr))
+                Il2CppName = nameStr;
+
+            var baseMethods = m.GetBaseMethods();
             if (baseMethods.Count > 0)
                 HidesBase = true;
 
@@ -88,7 +103,7 @@ namespace Il2Cpp_Modding_Codegen.Data.DllHandling
             DeclaringType = DllTypeRef.From(m.DeclaringType);
             // This is a very rare condition that we need to handle if it ever happens, but for now just log it
             if (m.HasOverrides)
-                Console.WriteLine($"{m}, Overrides: {String.Join(", ", m.Overrides)}");
+                Console.WriteLine($"{m}, Overrides: {string.Join(", ", m.Overrides)}");
 
             RVA = -1;
             Offset = -1;
