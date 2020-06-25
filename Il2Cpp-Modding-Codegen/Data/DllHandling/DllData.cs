@@ -22,6 +22,7 @@ namespace Il2Cpp_Modding_Codegen.Data.DllHandling
         private IMetadataResolver _metadataResolver;
 
         private Dictionary<TypeRef, ITypeData> _types = new Dictionary<TypeRef, ITypeData>();
+        private Dictionary<TypeRef, ITypeData> _genericParameters = new Dictionary<TypeRef, ITypeData>();
 
         public DllData(string dir, DllConfig config)
         {
@@ -93,6 +94,8 @@ namespace Il2Cpp_Modding_Codegen.Data.DllHandling
 
         public ITypeData Resolve(TypeRef typeRef)
         {
+            // Generic parameters can never "Resolve"
+            if (typeRef.IsGenericParameter) return null;
             // TODO: Resolve only among our types that we actually plan on serializing
             // Basically, check it against our whitelist/blacklist
             ITypeData ret;
@@ -109,23 +112,22 @@ namespace Il2Cpp_Modding_Codegen.Data.DllHandling
                 return ret;
             }
 
-            if (typeRef.IsPointer())
-            {
-                // Pointers should be resolved without double checking the cache, they should resolve to what they were before pointing.
-                return Resolve(typeRef.ElementType);
-            }
             if (!_types.TryGetValue(typeRef, out ret))
             {
                 var def = (typeRef as DllTypeRef).This.Resolve();
                 if (def != null)
                 {
                     ret = new DllTypeData(def, _config);
-                    if (!_types.ContainsKey(ret.This))
+                    if (!ret.This.Equals(typeRef))
+                        // Resolve should never be called on pointers or arrays!
+                        throw new Exception($"{typeRef} resolves to a different type ({ret.This})!");
+                    else if (!_types.ContainsKey(ret.This))
                         Console.Error.WriteLine($"Too late to add {def} to Types!");
                     else
-                        Console.Error.WriteLine($"{typeRef} already existed in _types! Matching item: {_types[ret.This].This}");
+                        Console.Error.WriteLine($"{typeRef} already existed in _types?! Matching item: {_types[ret.This].This}");
                 }
-                // else likely a T, which can never "resolve"
+                else
+                    throw new InvalidOperationException($"Non-generic-parameter {typeRef} cannot be resolved!");
             }
             return ret;
         }

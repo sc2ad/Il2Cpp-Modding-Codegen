@@ -14,14 +14,18 @@ namespace Il2Cpp_Modding_Codegen.Data
         public abstract string Namespace { get; }
         public abstract string Name { get; }
 
+        public abstract bool IsGenericParameter { get; }
         public bool IsGeneric { get => IsGenericInstance || IsGenericTemplate; }
         public abstract bool IsGenericInstance { get; }
         public abstract bool IsGenericTemplate { get; }
         public abstract IReadOnlyList<TypeRef> Generics { get; }
         public abstract TypeRef DeclaringType { get; }
         public abstract TypeRef ElementType { get; }
+        public abstract bool IsCovariant { get; set; }
 
         private ITypeData _resolvedType;
+
+        public abstract TypeRef MakePointer();
 
         /// <summary>
         /// Resolves the type from the given type collection
@@ -70,6 +74,19 @@ namespace Il2Cpp_Modding_Codegen.Data
             }
             // Namespace obtained from final declaring type
             return dt.GetNamespace() + "::" + name;
+        }
+
+        public (string, string) GetIl2CppName()
+        {
+            var name = GetName();
+            var dt = this;
+            while (dt.DeclaringType != null)
+            {
+                name = dt.DeclaringType.GetName() + "/" + name;
+                dt = dt.DeclaringType;
+            }
+            // Namespace obtained from final declaring type
+            return (dt.GetNamespace().Replace("::", "."), name);
         }
 
         // TODO: new method/param to easily allow for getting only the new generic templates that this TypeRef brings to the table?
