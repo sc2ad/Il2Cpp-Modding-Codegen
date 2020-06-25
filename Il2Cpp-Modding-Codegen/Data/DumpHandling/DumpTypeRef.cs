@@ -10,6 +10,7 @@ namespace Il2Cpp_Modding_Codegen.Data.DumpHandling
         public static readonly DumpTypeRef ObjectType = new DumpTypeRef("object");
         public override string Namespace { get; } = string.Empty;
         public override string Name { get; }
+        public override bool IsGenericParameter => throw new NotImplementedException();
         public override bool IsGenericInstance { get; }
         public override bool IsGenericTemplate { get; }
 
@@ -17,6 +18,8 @@ namespace Il2Cpp_Modding_Codegen.Data.DumpHandling
 
         public override TypeRef DeclaringType { get; }
         public override TypeRef ElementType { get; }
+
+        public override bool IsCovariant { get => throw new NotImplementedException(); set => throw new NotImplementedException(); }
 
         public override bool IsPointer()
         {
@@ -35,6 +38,19 @@ namespace Il2Cpp_Modding_Codegen.Data.DumpHandling
             // TODO
             return Name.Equals("void", StringComparison.OrdinalIgnoreCase);
         }
+
+        private DumpTypeRef(DumpTypeRef other, string nameOverride = null)
+        {
+            Namespace = other.Namespace;
+            Name = nameOverride ?? other.Name;
+            IsGenericInstance = other.IsGenericInstance;
+            IsGenericTemplate = other.IsGenericTemplate;
+            Generics = new List<TypeRef>(other.Generics);
+            DeclaringType = other.DeclaringType;
+            ElementType = other.ElementType;
+        }
+
+        public override TypeRef MakePointer() => new DumpTypeRef(this, this.Name + "*");
 
         /// <summary>
         /// For use with text dumps. Takes a given split array that contains a type at index ind and
@@ -91,6 +107,7 @@ namespace Il2Cpp_Modding_Codegen.Data.DumpHandling
                         s += ", " + spl[i];
                         i++;
                     }
+                    // TODO: if this DumpTypeRef is the This for a DumpTypeData, mark these IsGenericParameter, and if they are "out ", mark IsCovariant
                     GenericTypes.Add(new DumpTypeRef(s));
                 }
             }

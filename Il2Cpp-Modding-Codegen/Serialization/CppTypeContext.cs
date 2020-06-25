@@ -63,7 +63,7 @@ namespace Il2Cpp_Modding_Codegen.Serialization
 
         private List<CppTypeContext> _nestedContexts = new List<CppTypeContext>();
 
-        private ITypeCollection _context;
+        private ITypeCollection _types;
 
         private void AddGenericTypes(TypeRef type)
         {
@@ -75,18 +75,20 @@ namespace Il2Cpp_Modding_Codegen.Serialization
             AddGenericTypes(type.DeclaringType);
         }
 
-        public CppTypeContext(ITypeCollection context, ITypeData data)
+        public CppTypeContext(ITypeCollection types, ITypeData data)
         {
             _rootContext = this;
-            _context = context;
+            _types = types;
             LocalType = data;
+
+            // Check all declaring types (and ourselves) if we have generic arguments/parameters. If we do, add them to _genericTypes.
+            AddGenericTypes(data.This);
+
             // Requiring it as a definition here simply makes it easier to remove (because we are asking for a definition of ourself, which we have)
             QualifiedTypeName = GetCppName(data.This, true, true, NeedAs.Definition, ForceAsType.Literal);
             TypeNamespace = data.This.GetNamespace();
             TypeName = data.This.GetName();
 
-            // Check all declaring types (and ourselves) if we have generic arguments/parameters. If we do, add them to _genericTypes.
-            AddGenericTypes(data.This);
             // Types need a definition of their parent type
             if (data.Parent != null)
             {
@@ -100,7 +102,7 @@ namespace Il2Cpp_Modding_Codegen.Serialization
             }
             // Declaring types need to declare (or define) ALL of their nested types
             foreach (var nested in data.NestedTypes)
-                AddNestedDeclaration(nested.This, nested.This.Resolve(_context));
+                AddNestedDeclaration(nested.This, nested.This.Resolve(_types));
             // Add ourselves to our Definitions
             Definitions.Add(data.This);
         }
@@ -190,7 +192,7 @@ namespace Il2Cpp_Modding_Codegen.Serialization
         {
             // Adding a definition is simple, ensure the type is resolved and add it
             if (resolved is null)
-                resolved = def.Resolve(_context);
+                resolved = def.Resolve(_types);
             if (resolved is null)
                 throw new UnresolvedTypeException(LocalType.This, def);
             // Remove anything that is already declared, we only need to define it
@@ -228,7 +230,7 @@ namespace Il2Cpp_Modding_Codegen.Serialization
                 // If we have it in our DefinitionsToGet, no need to declare as well
                 return;
             if (resolved is null)
-                resolved = def.Resolve(_context);
+                resolved = def.Resolve(_types);
             if (resolved is null)
                 throw new UnresolvedTypeException(LocalType.This, def);
 
@@ -238,6 +240,19 @@ namespace Il2Cpp_Modding_Codegen.Serialization
             else if (resolved != null)
                 // Otherwise, we can safely add it to declarations
                 Declarations.Add(def);
+        }
+
+        private void MatchGenericParamToArg(TypeRef genParam, ref TypeRef genArg)
+        {
+            //if (genParam.IsCovariant) {
+            //    if (genArg.IsGenericParameter)
+            //    {
+            //        if (!genArg.IsCovariant)
+            //            genArg.IsCovariant = true;
+            //    }
+            //    else if (genArg.IsPointer() || genArg.IsArray() || genArg.Resolve(_types).Info.TypeFlags.HasFlag(TypeFlags.ReferenceType))
+            //        genArg = genArg.MakePointer();
+            //}
         }
 
         /// <summary>
@@ -289,7 +304,12 @@ namespace Il2Cpp_Modding_Codegen.Serialization
                 {
                     argMapping = new Dictionary<TypeRef, TypeRef>(TypeRef.fastComparer);
                     for (int i = 0; i < count; i++)
-                        argMapping.Add(genericParams[i], genericArgs[i]);
+                    {
+                        var genParam = genericParams[i];
+                        var genArg = genericArgs[i];
+                        MatchGenericParamToArg(genParam, ref genArg);
+                        argMapping.Add(genParam, genArg);
+                    }
                 }
                 // Get full generic map of declaring type --> list of generic parameters declared in that type
                 var genericMap = resolved.This.GetGenericMap(true);
@@ -299,7 +319,7 @@ namespace Il2Cpp_Modding_Codegen.Serialization
                 while (declType != null)
                 {
                     // Recurse upwards starting at ourselves
-                    var declaringGenericParams = string.Empty;
+                    string declaringGenericParams = "";
                     if (genericMap.TryGetValue(declType, out var declaringGenerics))
                     {
                         // Write out the generics defined in this type
@@ -309,12 +329,11 @@ namespace Il2Cpp_Modding_Codegen.Serialization
                         {
                             if (!first)
                                 declaringGenericParams += ", ";
-                            else
-                                first = false;
                             if (data.IsGenericInstance)
                                 declaringGenericParams += GetCppName(argMapping[g], true, true);
                             else
                                 declaringGenericParams += GetCppName(g, true, true);
+                            first = false;
                         }
                         declaringGenericParams += ">";
                     }
@@ -340,12 +359,15 @@ namespace Il2Cpp_Modding_Codegen.Serialization
                     name = resolved.This.GetNamespace() + "::";
                 name += data.Name;
                 name = name.Replace('`', '_').Replace('<', '$').Replace('>', '$');
+                var genericParams = data.Generics;
+                if (data.IsGenericInstance) genericParams = data.Resolve(_types).This.Generics;
                 if (generics && data.Generics.Count > 0)
                 {
                     name += "<";
                     bool first = true;
-                    foreach (var g in data.Generics)
+                    for (int i = 0; i < data.Generics.Count; i++)
                     {
+                        var g = data.Generics[i];
                         if (!first)
                             name += ", ";
                         else
@@ -357,8 +379,9 @@ namespace Il2Cpp_Modding_Codegen.Serialization
                         }
                         else if (data.IsGenericInstance)
                         {
+                            MatchGenericParamToArg(genericParams[i], ref g);
                             // If this is a generic instance, call each of the generic's GetCppName
-                            name += GetCppName(g, qualified, true, needAs, ForceAsType.None);
+                            name += GetCppName(g, qualified, true, needAs);
                         }
                     }
                     name += ">";
@@ -389,7 +412,7 @@ namespace Il2Cpp_Modding_Codegen.Serialization
             if (_genericTypes.Contains(typeRef))
                 // Generic parameters are resolved to nothing and shouldn't even attempted to be resolved.
                 return null;
-            var resolved = typeRef.Resolve(_context);
+            var resolved = typeRef.Resolve(_types);
             if (resolved is null)
                 return null;
             switch (needAs)

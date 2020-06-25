@@ -21,6 +21,8 @@ namespace Il2Cpp_Modding_Codegen.Serialization
         private bool _pureVirtual;
 
         private HashSet<(TypeRef, string)> _signatures = new HashSet<(TypeRef, string)>();
+        private bool _ignoreSignatureMap;
+        private HashSet<IMethod> _aborted = new HashSet<IMethod>();
 
         public CppMethodSerializer(SerializationConfig config)
         {
@@ -121,14 +123,19 @@ namespace Il2Cpp_Modding_Codegen.Serialization
             string paramString = method.Parameters.FormatParameters(_parameterMaps[method], FormatParameterMode.Names | FormatParameterMode.Types);
             var signature = $"{nameStr}({paramString})";
 
-            if (!_signatures.Add((method.DeclaringType, signature)))
+            if (!_ignoreSignatureMap && !_signatures.Add((method.DeclaringType, signature)))
+            {
                 preRetStr = "// ABORTED: conflicts with another method. " + preRetStr;
+                _aborted.Add(method);
+            }
             return $"{preRetStr}{retStr} {ns}{signature}{overrideStr}{impl}";
         }
 
         // Write the method here
         public override void Serialize(CppStreamWriter writer, IMethod method, bool asHeader)
         {
+            if (_asHeader && !asHeader)
+                _ignoreSignatureMap = true;
             _asHeader = asHeader;
             if (!_resolvedReturns.ContainsKey(method))
                 // In the event we have decided to not parse this method (in PreSerialize) don't even bother.
@@ -138,7 +145,7 @@ namespace Il2Cpp_Modding_Codegen.Serialization
             var val = _parameterMaps[method].FindIndex(s => s.Item1 is null);
             if (val != -1)
                 throw new UnresolvedTypeException(method.DeclaringType, method.Parameters[val].Type);
-            if (IgnoredMethods.Contains(method.Name) || _config.BlacklistMethods.Contains(method.Name))
+            if (IgnoredMethods.Contains(method.Name) || _config.BlacklistMethods.Contains(method.Name) || _aborted.Contains(method))
                 return;
             if (method.DeclaringType.IsGeneric && !_asHeader)
                 // Need to create the method ENTIRELY in the header, instead of split between the C++ and the header

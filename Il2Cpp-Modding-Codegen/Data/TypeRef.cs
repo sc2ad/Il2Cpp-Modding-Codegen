@@ -14,14 +14,18 @@ namespace Il2Cpp_Modding_Codegen.Data
         public abstract string Namespace { get; }
         public abstract string Name { get; }
 
+        public abstract bool IsGenericParameter { get; }
         public bool IsGeneric { get => IsGenericInstance || IsGenericTemplate; }
         public abstract bool IsGenericInstance { get; }
         public abstract bool IsGenericTemplate { get; }
         public abstract IReadOnlyList<TypeRef> Generics { get; }
         public abstract TypeRef DeclaringType { get; }
         public abstract TypeRef ElementType { get; }
+        public abstract bool IsCovariant { get; set; }
 
         private ITypeData _resolvedType;
+
+        public abstract TypeRef MakePointer();
 
         /// <summary>
         /// Resolves the type from the given type collection

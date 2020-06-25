@@ -1,5 +1,6 @@
 ﻿using Il2Cpp_Modding_Codegen.Serialization;
 using Mono.Cecil;
+using Mono.Cecil.Rocks;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -17,10 +18,10 @@ namespace Il2Cpp_Modding_Codegen.Data.DllHandling
         private readonly string _name;
         public override string Name { get => _name; }
 
-        private bool _isGenericInstance;
-        public override bool IsGenericInstance { get => _isGenericInstance; }
-        private bool _isGenericTemplate;
-        public override bool IsGenericTemplate { get => _isGenericTemplate; }
+        public override bool IsGenericParameter { get => This.IsGenericParameter; }
+        public override bool IsGenericInstance { get => This.IsGenericInstance; }
+        public override bool IsGenericTemplate { get => This.HasGenericParameters; }
+
         private List<TypeRef> _generics = new List<TypeRef>();
         public override IReadOnlyList<TypeRef> Generics { get => _generics; }
 
@@ -36,6 +37,8 @@ namespace Il2Cpp_Modding_Codegen.Data.DllHandling
             }
         }
 
+        public override bool IsCovariant { get; set; }
+
         public override bool IsVoid() => This.MetadataType == MetadataType.Void;
 
         public override bool IsPointer() => This.IsPointer;
@@ -44,6 +47,8 @@ namespace Il2Cpp_Modding_Codegen.Data.DllHandling
         public override bool IsPrimitive() => This.IsPrimitive || IsVoid() || IsPointer() || IsArray() || This.MetadataType == MetadataType.String;
 
         public override bool IsArray() => This.IsArray;
+
+        public override TypeRef MakePointer() => From(This.MakePointerType());
 
         private static readonly Dictionary<TypeReference, DllTypeRef> cache = new Dictionary<TypeReference, DllTypeRef>();
 
@@ -61,9 +66,6 @@ namespace Il2Cpp_Modding_Codegen.Data.DllHandling
                 This = (This as ByReferenceType).ElementType;
             }
             _name = This.Name;
-
-            _isGenericTemplate = This.HasGenericParameters;
-            _isGenericInstance = This.IsGenericInstance;
 
             if (IsGenericInstance)
                 _generics.AddRange((This as GenericInstanceType).GenericArguments.Select(From));
@@ -84,6 +86,8 @@ namespace Il2Cpp_Modding_Codegen.Data.DllHandling
             if (!char.IsLetterOrDigit(_name.Last())) Console.WriteLine(reference);
 
             _namespace = (refDeclaring?.Namespace ?? This.Namespace) ?? "";
+
+            IsCovariant = IsGenericParameter ? (This as GenericParameter).IsCovariant : false;
         }
 
         public static DllTypeRef From(TypeReference type)
