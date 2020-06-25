@@ -55,7 +55,7 @@ namespace Il2Cpp_Modding_Codegen.Data.DllHandling
                 Properties.AddRange(def.Properties.Select(p => new DllProperty(p)));
             if (_config.ParseTypeMethods)
             {
-                var methods = def.Methods.Select(m => new DllMethod(m));
+                var methods = def.Methods.Select(m => new DllMethod(m)).ToList();
                 // It's important that Foo.IBar.func() goes after func() (if present)
                 Methods.AddRange(methods.Where(m => m.ImplementedFrom is null));
                 Methods.AddRange(methods.Where(m => m.ImplementedFrom != null));

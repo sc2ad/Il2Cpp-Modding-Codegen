@@ -26,6 +26,7 @@ namespace Il2Cpp_Modding_Codegen.Data.DllHandling
         public bool Generic { get; }
 
         private static Dictionary<MethodDefinition, DllMethod> cache = new Dictionary<MethodDefinition, DllMethod>();
+        private static Dictionary<MethodDefinition, string> toRename = new Dictionary<MethodDefinition, string>();
 
         TypeReference FindInterface(TypeReference type, string find)
         {
@@ -60,11 +61,20 @@ namespace Il2Cpp_Modding_Codegen.Data.DllHandling
                 ImplementedFrom = DllTypeRef.From(iface);
                 var shortName = Name.Substring(idxDot + 1);
                 var implementedMethod = iface.Resolve().Methods.Where(im => im.Name == shortName).Single();
-                Console.WriteLine($"Renaming interface method {implementedMethod} to {shortName}.");
-                cache[implementedMethod].Name = Name;
-            }
 
-            var baseMethods = m.GetBaseMethods();
+                bool alreadyDone = false;
+                if (cache.TryGetValue(implementedMethod, out var iMethod))
+                    iMethod.Name = Name;
+                else if (!toRename.ContainsKey(implementedMethod))
+                    toRename.Add(implementedMethod, Name);
+                else
+                    alreadyDone = true;
+                // if (!alreadyDone) Console.WriteLine($"Renaming interface method {implementedMethod} to {Name}.");
+            }
+            if (toRename.TryGetValue(m, out var nameStr))
+                Name = nameStr;
+
+                var baseMethods = m.GetBaseMethods();
             if (baseMethods.Count > 0)
                 HidesBase = true;
 
