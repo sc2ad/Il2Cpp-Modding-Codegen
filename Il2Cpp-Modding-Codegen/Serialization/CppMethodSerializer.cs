@@ -118,9 +118,7 @@ namespace Il2Cpp_Modding_Codegen.Serialization
                     retStr = "std::optional<" + retStr + ">";
             }
             // Handles i.e. ".ctor"
-            // Instead of using method.Name, we will instead use method.Il2CppName.
-            // This allows us to write out interface declarations as needed.
-            var nameStr = method.Il2CppName.Replace('<', '$').Replace('>', '$').Replace('.', '_');
+            var nameStr = method.Name.Replace('<', '$').Replace('>', '$').Replace('.', '_');
 
             string paramString = method.Parameters.FormatParameters(_parameterMaps[method], FormatParameterMode.Names | FormatParameterMode.Types);
             var signature = $"{nameStr}({paramString})";
@@ -225,7 +223,7 @@ namespace Il2Cpp_Modding_Codegen.Serialization
                 var paramString = method.Parameters.FormatParameters(_parameterMaps[method], FormatParameterMode.Names);
                 if (!string.IsNullOrEmpty(paramString))
                     paramString = ", " + paramString;
-                // Macro string should use Il2CppName (of course, without _ replacement)
+                // Macro string should use Il2CppName (of course, without _, $ replacement)
                 s += $"\"{method.Il2CppName}\"{paramString}){macroEnd};";
                 // Write method with return
                 writer.WriteLine(s);

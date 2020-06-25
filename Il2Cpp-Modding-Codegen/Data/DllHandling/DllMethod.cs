@@ -76,14 +76,16 @@ namespace Il2Cpp_Modding_Codegen.Data.DllHandling
                     // If we don't have it in our list to rename, add it
                     toRename.Add(implementedMethod, Name);
                 else
-                    // Otherwise, assume we have already renamed it. In such a case, we may need to set our Il2CppName to our implementing Il2CppName
+                {
+                    // Otherwise, assume we have already renamed it. In such a case, we may need to set our Name to our implementing Il2CppName
                     // This will be the case if we have an implementing method that sometimes does not have the specialname flag.
                     alreadyDone = true;
+                    Console.WriteLine($"Using Name: {implementedDllMethod.Name} for method: {Name} on type: {DeclaringType}");
+                    Name = implementedDllMethod.Il2CppName;
+                }
                 // In all cases, Il2CppName should not have any generic parameters. If it does, we need to change that (either here or on serialization side?)
                 if (Il2CppName.Contains("<"))
                     Console.WriteLine($"Method: {Name} on type: {DeclaringType} has Il2CppName: {Il2CppName} which has a generic parameter!");
-                if (alreadyDone)
-                    Console.WriteLine("Do thing");
             }
 
             if (toRename.TryGetValue(m, out var nameStr))
