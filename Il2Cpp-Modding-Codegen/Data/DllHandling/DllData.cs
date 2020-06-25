@@ -22,7 +22,6 @@ namespace Il2Cpp_Modding_Codegen.Data.DllHandling
         private IMetadataResolver _metadataResolver;
 
         private Dictionary<TypeRef, ITypeData> _types = new Dictionary<TypeRef, ITypeData>();
-        private Dictionary<TypeRef, ITypeData> _genericParameters = new Dictionary<TypeRef, ITypeData>();
 
         public DllData(string dir, DllConfig config)
         {
