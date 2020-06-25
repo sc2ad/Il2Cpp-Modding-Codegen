@@ -21,8 +21,8 @@ namespace Il2Cpp_Modding_Codegen.Data.DllHandling
         public TypeRef ImplementedFrom { get; } = null;
         public bool HidesBase { get; }
         public TypeRef OverriddenFrom { get; }
-        public string Name { get; }
-        public string Il2CppName { get; private set; }
+        public string Name { get; private set; }
+        public string Il2CppName { get; }
         public List<Parameter> Parameters { get; } = new List<Parameter>();
         public bool Generic { get; }
 
@@ -50,9 +50,9 @@ namespace Il2Cpp_Modding_Codegen.Data.DllHandling
         {
             cache.Add(m, this);
             This = m;
-            Name = m.Name;
             // Il2CppName is the MethodDefinition Name (hopefully we don't need to convert it for il2cpp, but we might)
             Il2CppName = m.Name;
+            Name = m.Name;
             int idxDot = Name.LastIndexOf(".");
             if (idxDot >= 2)  // ".ctor" doesn't count
             {
@@ -71,7 +71,7 @@ namespace Il2Cpp_Modding_Codegen.Data.DllHandling
                 // We need to ensure that the implementedMethod is aware that its Il2CppName should be set to our Il2CppName (all methods should match!)
                 if (cache.TryGetValue(implementedMethod, out var implementedDllMethod))
                     // If we have the method in our cache, set its name
-                    implementedDllMethod.Il2CppName = Il2CppName;
+                    implementedDllMethod.Name = Name;
                 else if (!toRename.ContainsKey(implementedMethod))
                     // If we don't have it in our list to rename, add it
                     toRename.Add(implementedMethod, Name);
@@ -81,15 +81,15 @@ namespace Il2Cpp_Modding_Codegen.Data.DllHandling
                     // This will be the case if we have an implementing method that sometimes does not have the specialname flag.
                     alreadyDone = true;
                     Console.WriteLine($"Using Name: {implementedDllMethod.Name} for method: {Name} on type: {DeclaringType}");
-                    Name = implementedDllMethod.Il2CppName;
+                    Name = implementedDllMethod.Name;
                 }
-                // In all cases, Il2CppName should not have any generic parameters. If it does, we need to change that (either here or on serialization side?)
-                if (Il2CppName.Contains("<"))
-                    Console.WriteLine($"Method: {Name} on type: {DeclaringType} has Il2CppName: {Il2CppName} which has a generic parameter!");
+                // In all cases, Name should not have any generic parameters. If it does, we need to change that (either here or on serialization side?)
+                if (Name.Contains("<"))
+                    Console.WriteLine($"Method: {m} on type: {DeclaringType} has Il2CppName: {Name} which has a generic parameter!");
             }
 
             if (toRename.TryGetValue(m, out var nameStr))
-                Il2CppName = nameStr;
+                Name = nameStr;
 
             var baseMethods = m.GetBaseMethods();
             if (baseMethods.Count > 0)
