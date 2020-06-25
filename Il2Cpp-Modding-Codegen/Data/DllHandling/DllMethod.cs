@@ -21,9 +21,11 @@ namespace Il2Cpp_Modding_Codegen.Data.DllHandling
         public TypeRef ImplementedFrom { get; } = null;
         public bool HidesBase { get; }
         public TypeRef OverriddenFrom { get; }
-        public string Name { get; }
+        public string Name { get; private set; }
         public List<Parameter> Parameters { get; } = new List<Parameter>();
         public bool Generic { get; }
+
+        private static Dictionary<MethodDefinition, DllMethod> cache = new Dictionary<MethodDefinition, DllMethod>();
 
         TypeReference FindInterface(TypeReference type, string find)
         {
@@ -44,7 +46,24 @@ namespace Il2Cpp_Modding_Codegen.Data.DllHandling
 
         public DllMethod(MethodDefinition m)
         {
+            cache.Add(m, this);
             This = m;
+            Name = m.Name;
+            int idxDot = Name.LastIndexOf(".");
+            if (idxDot >= 2)  // ".ctor" doesn't count
+            {
+                var typeStr = Name.Substring(0, idxDot);
+                var iface = FindInterface(m.DeclaringType, typeStr);
+                if (iface is null)
+                    throw new Exception($"For method {m}: failed to get TypeReference for ImplementedFrom {typeStr}");
+
+                ImplementedFrom = DllTypeRef.From(iface);
+                var shortName = Name.Substring(idxDot + 1);
+                var implementedMethod = iface.Resolve().Methods.Where(im => im.Name == shortName).Single();
+                Console.WriteLine($"Renaming interface method {implementedMethod} to {shortName}.");
+                cache[implementedMethod].Name = Name;
+            }
+
             var baseMethods = m.GetBaseMethods();
             if (baseMethods.Count > 0)
                 HidesBase = true;
@@ -60,19 +79,6 @@ namespace Il2Cpp_Modding_Codegen.Data.DllHandling
             // This is a very rare condition that we need to handle if it ever happens, but for now just log it
             if (m.HasOverrides)
                 Console.WriteLine($"{m}, Overrides: {String.Join(", ", m.Overrides)}");
-
-            Name = m.Name;
-            int idxDot = Name.LastIndexOf(".");
-            if (idxDot >= 2)  // ".ctor" doesn't count
-            {
-                var typeStr = Name.Substring(0, idxDot);
-                var iface = FindInterface(m.DeclaringType, typeStr);
-                if (iface is null)
-                    throw new Exception($"For method {m}: failed to get TypeReference for ImplementedFrom {typeStr}");
-
-                ImplementedFrom = DllTypeRef.From(iface);
-                Name = Name.Substring(idxDot + 1);
-            }
 
             RVA = -1;
             Offset = -1;
