@@ -47,11 +47,14 @@ namespace Il2Cpp_Modding_Codegen
             HashSet<MethodDefinition> matches = new HashSet<MethodDefinition>();
             if (type == null) return matches;
             if (type != self.DeclaringType)
+            {
+                var sName = self.Name.Substring(self.Name.LastIndexOf('.') + 1);
                 foreach (var m in type.Methods)
                 {
                     // We don't want to actually check the equivalence of these, we want to check to see if they mean the same thing.
                     // For example, if we have a T, we want to ensure that the Ts would match
-                    if (m.Name != self.Name)
+                    // We need to ensure the name of both self and m are fixed to not have any ., use the last . and ignore generic parameters
+                    if (m.Name.Substring(self.Name.LastIndexOf('.') + 1) != sName)
                         goto cont;
                     var ret = m.ReturnType;
                     if (genericMapping.TryGetValue(ret.Name, out var r2))
@@ -71,8 +74,9 @@ namespace Il2Cpp_Modding_Codegen
                             goto cont;
                     }
                     matches.Add(m);
-                    cont:;
+                cont:;
                 }
+            }
 
             var bType = type.ResolvedBaseType();
             matches.UnionWith(self.FindIn(bType, type.GetGenerics(bType)));
