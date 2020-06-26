@@ -22,7 +22,6 @@ namespace Il2Cpp_Modding_Codegen.Data.DllHandling
         public IMethod BaseMethod { get; private set; }
         public List<IMethod> ImplementingMethods { get; } = new List<IMethod>();
         public bool HidesBase { get; }
-        public TypeRef OverriddenFrom { get; }
         public string Name { get; private set; }
         public string Il2CppName { get; }
         public List<Parameter> Parameters { get; } = new List<Parameter>();
@@ -87,8 +86,7 @@ namespace Il2Cpp_Modding_Codegen.Data.DllHandling
             if (BaseMethod != null)
             {
                 // TODO: This may not be true for generic methods. Should ensure validity for IEnumerator<T> methods
-                // This method is an overriden method.
-                OverriddenFrom = BaseMethod.DeclaringType;
+                // This method is an implemented/overriden method.
                 ImplementedFrom = BaseMethod.DeclaringType;
                 // Add ourselves to our BaseMethod's ImplementingMethods
                 BaseMethod.ImplementingMethods.Add(this);

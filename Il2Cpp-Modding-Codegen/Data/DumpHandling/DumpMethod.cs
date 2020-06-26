@@ -20,7 +20,6 @@ namespace Il2Cpp_Modding_Codegen.Data.DumpHandling
         public IMethod BaseMethod { get; }
         public List<IMethod> ImplementingMethods { get; } = new List<IMethod>();
         public bool HidesBase { get; }
-        public TypeRef OverriddenFrom { get; } = null;
         public string Name { get; }
         public string Il2CppName { get; }
         public List<Parameter> Parameters { get; } = new List<Parameter>();
