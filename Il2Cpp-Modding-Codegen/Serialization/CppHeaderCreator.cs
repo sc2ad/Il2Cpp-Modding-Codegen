@@ -32,7 +32,7 @@ namespace Il2Cpp_Modding_Codegen.Serialization
                     throw new Exception("context.GetTemplateLine(false) failed???");
                 writer.WriteLine(templateLine);
                 var typeStr = context.GetCppName(context.LocalType.This, false, true, CppTypeContext.NeedAs.Declaration, CppTypeContext.ForceAsType.Literal);
-                var alias = Regex.Replace(typeStr, @"<[^>]*>", "").Replace("::", "_");
+                var alias = Regex.Replace(typeStr, @"<[^<>]*>", "").Replace("::", "_");
                 templateAliases.Add(context, alias);
                 writer.WriteLine($"using {alias} = typename {typeStr};");
             }
