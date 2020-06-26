@@ -54,7 +54,7 @@ namespace Il2Cpp_Modding_Codegen.Serialization
             {
                 // System::ValueType should be the 1 type where we want to extend System::Object without the Il2CppObject fields
                 if (type.This.Namespace == "System" && type.This.Name == "ValueType")
-                    s.parentNames.Add("Object");
+                    s.parentNames.Add("System::Object");
                 else
                     // TODO: just use type.Parent's QualifiedTypeName instead?
                     s.parentNames.Add(context.GetCppName(type.Parent, true, true, CppTypeContext.NeedAs.Definition, CppTypeContext.ForceAsType.Literal));

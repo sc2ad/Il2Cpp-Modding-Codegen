@@ -62,7 +62,7 @@ namespace Il2Cpp_Modding_Codegen.Data.DllHandling
                     throw new Exception($"For method {m}: failed to get TypeReference for ImplementedFrom {typeStr}");
 
                 ImplementedFrom = DllTypeRef.From(iface);
-                // Set Name to method name only
+                // Set tName to method name only
                 var tName = Name.Substring(idxDot + 1);
                 var implementedMethod = iface.Resolve().Methods.Where(im => im.Name == tName).Single();
                 // Set Name to safe Il2CppName

@@ -264,14 +264,12 @@ namespace Il2Cpp_Modding_Codegen.Serialization
             // If the TypeRef is a generic parameter, return its name
             if (_genericTypes.Contains(data))
                 return data.Name;
-            if (data.IsPrimitive())
-            {
-                // If the TypeRef is a primitive, we need to convert it to a C++ name upfront.
-                var primitiveName = ConvertPrimitive(data, forceAsType, needAs);
-                if (!string.IsNullOrEmpty(primitiveName))
-                    return primitiveName;
-                // Failsafe return non-primitive converted name for special types like System.IntPtr
-            }
+
+            // If the TypeRef is a primitive, we need to convert it to a C++ name upfront.
+            var primitiveName = ConvertPrimitive(data, forceAsType, needAs);
+            if (!string.IsNullOrEmpty(primitiveName))
+                return primitiveName;
+
             var resolved = ResolveAndStore(data, forceAsType, needAs);
             if (resolved is null)
                 return null;
