@@ -17,6 +17,8 @@ namespace Il2Cpp_Modding_Codegen.Data.DumpHandling
         public TypeRef ReturnType { get; }
         public TypeRef DeclaringType { get; }
         public TypeRef ImplementedFrom { get; }
+        public IMethod BaseMethod { get; }
+        public List<IMethod> ImplementingMethods { get; } = new List<IMethod>();
         public bool HidesBase { get; }
         public TypeRef OverriddenFrom { get; } = null;
         public string Name { get; }
@@ -122,6 +124,7 @@ namespace Il2Cpp_Modding_Codegen.Data.DumpHandling
 
             HidesBase = Specifiers.Any(s => s.Override);
             // TODO: Implement OverriddenFrom
+            // TODO: Implement BaseMethod, ImplementingMethods
         }
 
         public override string ToString()

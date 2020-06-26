@@ -1,4 +1,4 @@
-﻿using Mono.Cecil;
+using Mono.Cecil;
 using Mono.Cecil.Rocks;
 using System;
 using System.Collections.Generic;
@@ -19,6 +19,8 @@ namespace Il2Cpp_Modding_Codegen.Data.DllHandling
         public TypeRef ReturnType { get; }
         public TypeRef DeclaringType { get; }
         public TypeRef ImplementedFrom { get; } = null;
+        public IMethod BaseMethod { get; private set; }
+        public List<IMethod> ImplementingMethods { get; } = new List<IMethod>();
         public bool HidesBase { get; }
         public TypeRef OverriddenFrom { get; }
         public string Name { get; private set; }
@@ -27,7 +29,6 @@ namespace Il2Cpp_Modding_Codegen.Data.DllHandling
         public bool Generic { get; }
 
         private static Dictionary<MethodDefinition, DllMethod> cache = new Dictionary<MethodDefinition, DllMethod>();
-        private static Dictionary<MethodDefinition, string> toRename = new Dictionary<MethodDefinition, string>();
 
         TypeReference FindInterface(TypeReference type, string find)
         {
@@ -46,57 +47,52 @@ namespace Il2Cpp_Modding_Codegen.Data.DllHandling
             return FindInterface(def.BaseType, find);
         }
 
-        public DllMethod(MethodDefinition m)
+        public static DllMethod From(MethodDefinition def)
+        {
+            if (cache.TryGetValue(def, out var m))
+                return m;
+            return new DllMethod(def);
+        }
+
+        private DllMethod(MethodDefinition m)
         {
             cache.Add(m, this);
             This = m;
             // Il2CppName is the MethodDefinition Name (hopefully we don't need to convert it for il2cpp, but we might)
             Il2CppName = m.Name;
             Name = m.Name;
-            int idxDot = Name.LastIndexOf(".");
-            if (idxDot >= 2)  // ".ctor" doesn't count
-            {
-                var typeStr = Name.Substring(0, idxDot);
-                var iface = FindInterface(m.DeclaringType, typeStr);
-                if (iface is null)
-                    throw new Exception($"For method {m}: failed to get TypeReference for ImplementedFrom {typeStr}");
-
-                ImplementedFrom = DllTypeRef.From(iface);
-                // Set tName to method name only
-                var tName = Name.Substring(idxDot + 1);
-                var implementedMethod = iface.Resolve().Methods.Where(im => im.Name == tName).Single();
-                // Set Name to safe Il2CppName
-                Name = DllTypeRef.From(implementedMethod.DeclaringType).GetQualifiedName().Replace("::", "_") + "_" + tName;
-                // We need to ensure that the implementedMethod is aware that its Il2CppName should be set to our Il2CppName (all methods should match!)
-                if (cache.TryGetValue(implementedMethod, out var implementedDllMethod))
-                    // TODO: We want to grab the safe name from our cached method if it has been set, otherwise we set it to our method's Name
-                    implementedDllMethod.Name = Name;
-                else if (!toRename.ContainsKey(implementedMethod))
-                    // If we don't have it in our list to rename, add it
-                    toRename.Add(implementedMethod, Name);
-                else
-                {
-                    // Otherwise, assume we have already renamed it. In such a case, we may need to set our Name to our implementing Il2CppName
-                    // This will be the case if we have an implementing method that sometimes does not have the specialname flag.
-                    Console.WriteLine($"Already renamed method: {implementedMethod} to Name: {Name}");
-                }
-                // In all cases, Name should not have any generic parameters. If it does, we need to change that (either here or on serialization side?)
-                if (Name.Contains("<"))
-                    Console.WriteLine($"Method: {m} on type: {DeclaringType} has Name: {Name} which has a generic parameter!");
-            }
-
-            if (toRename.TryGetValue(m, out var nameStr))
-                Name = nameStr;
 
             var baseMethods = m.GetBaseMethods();
             if (baseMethods.Count > 0)
                 HidesBase = true;
-
             MethodDefinition baseMethod = m.GetBaseMethod();
-            if ((baseMethod == m) && baseMethods.Count == 1)
+            if (baseMethod == m && baseMethods.Count == 1)
                 baseMethod = baseMethods.Single();
             if (baseMethod != m)
-                OverriddenFrom = DllTypeRef.From(baseMethod.DeclaringType);
+                BaseMethod = From(baseMethod);
+
+            // This may not always be the case, we could have a special name in which case we have to do some sorcery
+            // Grab the special name, grab the type from the special name
+            int idxDot = Name.LastIndexOf('.');
+            if (idxDot >= 2)
+            {
+                var typeStr = Name.Substring(0, idxDot);
+                var iface = FindInterface(m.DeclaringType, typeStr);
+                ImplementedFrom = DllTypeRef.From(iface);
+                var tName = Name.Substring(idxDot + 1);
+                baseMethod = iface.Resolve().Methods.Where(im => im.Name == tName).Single();
+                BaseMethod = From(baseMethod);
+            }
+
+            if (BaseMethod != null)
+            {
+                // TODO: This may not be true for generic methods. Should ensure validity for IEnumerator<T> methods
+                // This method is an overriden method.
+                OverriddenFrom = BaseMethod.DeclaringType;
+                ImplementedFrom = BaseMethod.DeclaringType;
+                // Add ourselves to our BaseMethod's ImplementingMethods
+                BaseMethod.ImplementingMethods.Add(this);
+            }
 
             ReturnType = DllTypeRef.From(m.ReturnType);
             DeclaringType = DllTypeRef.From(m.DeclaringType);
