@@ -265,10 +265,13 @@ namespace Il2Cpp_Modding_Codegen.Serialization
             if (_genericTypes.Contains(data))
                 return data.Name;
 
-            // If the TypeRef is a primitive, we need to convert it to a C++ name upfront.
-            var primitiveName = ConvertPrimitive(data, forceAsType, needAs);
-            if (!string.IsNullOrEmpty(primitiveName))
-                return primitiveName;
+            if (!data.Equals(LocalType.This))
+            {
+                // If the TypeRef is a primitive, we need to convert it to a C++ name upfront.
+                var primitiveName = ConvertPrimitive(data, forceAsType, needAs);
+                if (!string.IsNullOrEmpty(primitiveName))
+                    return primitiveName;
+            }
 
             var resolved = ResolveAndStore(data, forceAsType, needAs);
             if (resolved is null)
