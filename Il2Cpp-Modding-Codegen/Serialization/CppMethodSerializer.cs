@@ -4,6 +4,7 @@ using Il2Cpp_Modding_Codegen.Data.DllHandling;
 using System;
 using System.CodeDom.Compiler;
 using System.Collections.Generic;
+using System.ComponentModel.Design.Serialization;
 using System.IO;
 
 namespace Il2Cpp_Modding_Codegen.Serialization
@@ -23,6 +24,9 @@ namespace Il2Cpp_Modding_Codegen.Serialization
         private HashSet<(TypeRef, string)> _signatures = new HashSet<(TypeRef, string)>();
         private bool _ignoreSignatureMap;
         private HashSet<IMethod> _aborted = new HashSet<IMethod>();
+
+        // Holds a mapping of IMethod to the name, as well as if the name has been specifically converted already.
+        private static Dictionary<IMethod, (string, bool)> _nameMap = new Dictionary<IMethod, (string, bool)>();
 
         public CppMethodSerializer(SerializationConfig config)
         {
@@ -47,6 +51,77 @@ namespace Il2Cpp_Modding_Codegen.Serialization
                 //   it overrides ([return type] is incomplete)`
                 return CppTypeContext.NeedAs.Definition;
             return CppTypeContext.NeedAs.Declaration;
+        } 
+
+        private void ResolveName(IMethod method)
+        {
+            void FixNames(IMethod m, string n, bool isFullName, HashSet<IMethod> skip)
+            {
+                if (skip.Contains(m))
+                    return;
+                skip.Add(m);
+                // Fix all names for a given method by recursively checking our base method and our implementing methods.
+                foreach (var im in m.ImplementingMethods)
+                {
+                    // For each implementing method, recurse on it
+                    FixNames(im, n, isFullName, skip);
+                }
+                if (_nameMap.TryGetValue(m, out var pair))
+                {
+                    if (pair.Item2)
+                        // This pair already has a converted name!
+                        Console.WriteLine($"Method: {m.Name} already has rectified name: {pair.Item1}! Was trying new name: {n}");
+                    if (isFullName)
+                        _nameMap[m] = (n, isFullName);
+                }
+                else
+                    _nameMap[m] = (n, isFullName);
+            }
+
+            // If this method is already in the _nameMap, with a true value in the pair, we are done.
+            if (_nameMap.TryGetValue(method, out var p))
+                if (p.Item2)
+                {
+                    Console.WriteLine($"Already have a name for method: {method.Name}, {p.Item1}");
+                    return;
+                }
+
+            // If the method has a special name, we need to use it.
+            int idxDot = method.Name.LastIndexOf('.');
+            // Here we need to add our method to a mapping, we need to ensure that if we need to make changes to the name we can do so without issue
+            // Basically, for any special name methods that have base methods, we need to change the name of the base method as well.
+            // We do this by holding a static mapping of IMethod --> Name
+            // And for each method, if it is a special name, we modify the name of the base method (as well as all implementing methods) in this map
+            // Then, when we go to write the method, we look it up in this map, if we find it, we use the name.
+
+            // Create name
+            string name;
+            bool fullName = false;
+            if (idxDot >= 2)
+            {
+                var tName = method.Name.Substring(idxDot + 1);
+                name = method.ImplementedFrom.GetQualifiedName().Replace("::", "_") + "_" + tName;
+                fullName = true;
+            }
+            else
+                // If the name is not a special name, set it to be the method name
+                name = method.Name;
+            name = name.Replace('<', '$').Replace('>', '$').Replace('.', '_');
+            // Iterate over all implementing and base methods and change their names accordingly
+            var skips = new HashSet<IMethod>();
+            // Chances are, for the first time a method is hit, it has a false for fullName.
+            // We essentially only truly modify all the methods when fullName is true, otherwise they are pretty much exactly as they would be normally.
+            while (method != null)
+            {
+                // For each base method, iterate over it and all its implementing methods
+                // Change the name for each of these methods to have the name
+                FixNames(method, name, fullName, skips);
+                foreach (var m in method.ImplementingMethods)
+                {
+                    FixNames(m, name, fullName, skips);
+                }
+                method = method.BaseMethod;
+            }
         }
 
         public override void PreSerialize(CppTypeContext context, IMethod method)
@@ -82,6 +157,7 @@ namespace Il2Cpp_Modding_Codegen.Serialization
                 parameterMap.Add((s, p.Flags));
             }
             _parameterMaps.Add(method, parameterMap);
+            ResolveName(method);
             if (success)
                 Resolved(method);
         }
@@ -118,7 +194,10 @@ namespace Il2Cpp_Modding_Codegen.Serialization
                     retStr = "std::optional<" + retStr + ">";
             }
             // Handles i.e. ".ctor"
-            var nameStr = method.Name.Replace('<', '$').Replace('>', '$').Replace('.', '_');
+            if (!_nameMap.TryGetValue(method, out var namePair)) {
+                throw new InvalidOperationException($"Could not find method: {method} in _nameMap! Ensure it is PreSerialized first!");
+            }
+            var nameStr = namePair.Item1;
 
             string paramString = method.Parameters.FormatParameters(_parameterMaps[method], FormatParameterMode.Names | FormatParameterMode.Types);
             var signature = $"{nameStr}({paramString})";
