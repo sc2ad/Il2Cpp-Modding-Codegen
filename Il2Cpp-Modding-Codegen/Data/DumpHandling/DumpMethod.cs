@@ -122,7 +122,6 @@ namespace Il2Cpp_Modding_Codegen.Data.DumpHandling
             Generic = false;
 
             HidesBase = Specifiers.Any(s => s.Override);
-            // TODO: Implement OverriddenFrom
             // TODO: Implement BaseMethod, ImplementingMethods
         }
 
