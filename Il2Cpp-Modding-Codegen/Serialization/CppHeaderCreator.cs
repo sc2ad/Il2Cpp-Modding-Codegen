@@ -1,116 +1,98 @@
 ﻿using Il2Cpp_Modding_Codegen.Config;
 using Il2Cpp_Modding_Codegen.Data;
-using Il2Cpp_Modding_Codegen.Serialization.Interfaces;
 using System;
 using System.Collections.Generic;
 using System.CodeDom.Compiler;
 using System.IO;
 using System.Text;
+using System.Linq;
+using System.Text.RegularExpressions;
 
 namespace Il2Cpp_Modding_Codegen.Serialization
 {
     public class CppHeaderCreator
     {
         private SerializationConfig _config;
-        private CppSerializerContext _context;
+        private CppContextSerializer _serializer;
 
-        public CppHeaderCreator(SerializationConfig config, CppSerializerContext context)
+        public CppHeaderCreator(SerializationConfig config, CppContextSerializer serializer)
         {
             _config = config;
-            _context = context;
+            _serializer = serializer;
         }
 
-        private void WriteForwardDeclare(IndentedTextWriter writer, TypeName fd, bool putNamespace = true)
+        private Dictionary<CppTypeContext, string> templateAliases = new Dictionary<CppTypeContext, string>();
+
+        private void AliasNestedTemplates(CppStreamWriter writer, CppTypeContext context)
         {
-            if (fd.Namespace.Length == 0) putNamespace = false;
-            if (putNamespace)
+            if (context.DeclaringContext != null && context.LocalType.This.IsGeneric)
             {
-                writer.WriteLine($"namespace {fd.Namespace} {{");
-                writer.Indent++;
+                var templateLine = context.GetTemplateLine(false);
+                if (string.IsNullOrEmpty(templateLine))
+                    throw new Exception("context.GetTemplateLine(false) failed???");
+                writer.WriteLine(templateLine);
+                var typeStr = context.GetCppName(context.LocalType.This, false, true, CppTypeContext.NeedAs.Declaration, CppTypeContext.ForceAsType.Literal);
+                var alias = Regex.Replace(typeStr, @"<[^<>]*>", "").Replace("::", "_");
+                templateAliases.Add(context, alias);
+                writer.WriteLine($"using {alias} = typename {typeStr};");
             }
-            if (fd.Generic)
-            {
-                // If the forward declare is generic, we need to write the template type
-                var s = "template<";
-                for (int i = 0; i < fd.GenericParameters.Count; i++)
-                {
-                    s += "typename " + fd.GenericParameters[i].Name;
-                    if (i != fd.GenericParameters.Count - 1)
-                        s += ", ";
-                }
-                s += ">";
-                writer.WriteLine(s);
-            }
-            writer.WriteLine($"struct {fd.Name};");
-            if (putNamespace)
-            {
-                writer.Indent--;
-                writer.WriteLine("}");
-            }
+            foreach (var nested in context.NestedContexts.Where(n => n.InPlace))
+                AliasNestedTemplates(writer, nested);
         }
 
-        public void Serialize(ISerializer<ITypeData> serializer, ITypeData data)
+        // Outputs a DEFINE_IL2CPP_ARG_TYPE call for every type defined by this file
+        private void DefineIl2CppArgTypes(CppStreamWriter writer, CppTypeContext context)
         {
-            var headerLocation = Path.Combine(_config.OutputDirectory, _config.OutputHeaderDirectory, _context.FileName) + ".hpp";
+            var type = context.LocalType;
+            // DEFINE_IL2CPP_ARG_TYPE
+            var (ns, il2cppName) = type.This.GetIl2CppName();
+            // For Name and Namespace here, we DO want all the `, /, etc
+            if (!type.This.IsGeneric)
+            {
+                string fullName = context.GetCppName(context.LocalType.This, true, true, CppTypeContext.NeedAs.Definition);
+                writer.WriteLine($"DEFINE_IL2CPP_ARG_TYPE({fullName}, \"{ns}\", \"{il2cppName}\");");
+            }
+            else
+            {
+                string templateName;
+                if (!templateAliases.TryGetValue(context, out templateName))
+                    templateName = context.GetCppName(context.LocalType.This, false, false, CppTypeContext.NeedAs.Declaration, CppTypeContext.ForceAsType.Literal);
+                templateName = context.LocalType.This.GetNamespace() + "::" + templateName;
+
+                var structStr = context.LocalType.Info.TypeFlags.HasFlag(TypeFlags.ReferenceType) ? "CLASS" : "STRUCT";
+
+                writer.WriteLine($"DEFINE_IL2CPP_ARG_TYPE_GENERIC_{structStr}({templateName}, \"{ns}\", \"{il2cppName}\");");
+            }
+            foreach (var nested in context.NestedContexts.Where(n => n.InPlace))
+                DefineIl2CppArgTypes(writer, nested);
+        }
+
+        public void Serialize(CppTypeContext context)
+        {
+            var data = context.LocalType;
+            var headerLocation = Path.Combine(_config.OutputDirectory, _config.OutputHeaderDirectory, context.HeaderFileName);
             Directory.CreateDirectory(Path.GetDirectoryName(headerLocation));
             using (var ms = new MemoryStream())
             {
                 var rawWriter = new StreamWriter(ms);
-                var writer = new IndentedTextWriter(rawWriter, "  ");
+                var writer = new CppStreamWriter(rawWriter, "  ");
                 // Write header
-                writer.WriteLine($"// Autogenerated from {nameof(CppHeaderCreator)} on {DateTime.Now}");
-                writer.WriteLine($"// Created by Sc2ad");
-                writer.WriteLine("// =========================================================================");
+                writer.WriteComment($"Autogenerated from {nameof(CppHeaderCreator)} on {DateTime.Now}");
+                writer.WriteComment("Created by Sc2ad");
+                writer.WriteComment("=========================================================================");
                 writer.WriteLine("#pragma once");
-                writer.WriteLine("#pragma pack(8)");
-                // Write includes
-                writer.WriteLine("// Includes");
-                writer.WriteLine("#include \"utils/il2cpp-utils.hpp\"");
-                if (_config.OutputStyle == OutputStyle.Normal)
-                    writer.WriteLine("#include <optional>");
-                if (data.Type != TypeEnum.Interface)
-                {
-                    foreach (var include in _context.Includes)
-                    {
-                        writer.WriteLine($"#include \"{include}\"");
-                    }
-                    writer.WriteLine("// End Includes");
-                    // Write forward declarations
-                    if (_context.ForwardDeclares.Count > 0)
-                    {
-                        writer.WriteLine("// Forward declarations");
-                        foreach (var fd in _context.ForwardDeclares)
-                        {
-                            WriteForwardDeclare(writer, fd);
-                        }
-                        writer.WriteLine("// End Forward declarations");
-                    }
-                }
-                // Write namespace
-                writer.WriteLine("namespace " + _context.TypeNamespace + " {");
-                writer.Flush();
-                if (_context.NamespaceForwardDeclares.Count > 0)
-                {
-                    writer.Indent++;
-                    writer.WriteLine("// Same-namespace forward declarations");
-                    foreach (var fd in _context.NamespaceForwardDeclares)
-                    {
-                        WriteForwardDeclare(writer, fd, false);
-                    }
-                    writer.WriteLine("// End same-namespace forward declarations");
-                }
-                writer.Flush();
-                // Write actual type
+                // TODO: determine when/if we need this
+                writer.WriteLine("#pragma pack(push, 8)");
+                // Write SerializerContext and actual type
                 try
                 {
-                    // TODO: use the indentWriter?
-                    serializer.Serialize(rawWriter.BaseStream, data);
+                    _serializer.Serialize(writer, context, true);
                 }
                 catch (UnresolvedTypeException e)
                 {
                     if (_config.UnresolvedTypeExceptionHandling.TypeHandling == UnresolvedTypeExceptionHandling.DisplayInFile)
                     {
-                        writer.WriteLine("// Unresolved type exception!");
+                        writer.WriteComment("Unresolved type exception!");
                         writer.WriteLine("/*");
                         writer.WriteLine(e);
                         writer.WriteLine("*/");
@@ -120,11 +102,23 @@ namespace Il2Cpp_Modding_Codegen.Serialization
                     else if (_config.UnresolvedTypeExceptionHandling.TypeHandling == UnresolvedTypeExceptionHandling.Elevate)
                         throw new InvalidOperationException($"Cannot elevate {e} to a parent type- there is no parent type!");
                 }
-                writer.Indent--;
-                writer.WriteLine("}");
-                if (!data.This.Generic)
-                    writer.WriteLine($"DEFINE_IL2CPP_ARG_TYPE({_context.QualifiedTypeName}, \"{data.This.Namespace}\", \"{data.This.Name}\");");
+                AliasNestedTemplates(writer, context);
+                // End the namespace
+                writer.CloseDefinition();
+
+                if (data.This.Namespace == "System" && data.This.Name == "ValueType")
+                {
+                    writer.WriteLine("template<class T>");
+                    writer.WriteLine("struct is_value_type<T, typename std::enable_if_t<std::is_base_of_v<System::ValueType, T>>> : std::true_type{};");
+                }
+
+                DefineIl2CppArgTypes(writer, context);
                 writer.Flush();
+
+                writer.WriteLine("#pragma pack(pop)");
+                writer.Flush();
+                if (File.Exists(headerLocation))
+                    throw new InvalidOperationException($"Was about to overwrite existing file: {headerLocation} with context: {context.LocalType.This}");
                 using (var fs = File.OpenWrite(headerLocation))
                 {
                     rawWriter.BaseStream.Position = 0;

@@ -44,6 +44,14 @@ namespace Il2Cpp_Modding_Codegen.Config
         /// How to handle generics
         /// </summary>
         public GenericHandling GenericHandling { get; set; }
+        /// <summary>
+        /// To display progress using <see cref="PrintSerializationProgressFrequency"/> while serializing
+        /// </summary>
+        public bool PrintSerializationProgress { get; set; }
+        /// <summary>
+        /// Frequency to display progress. Only used if <see cref="PrintSerializationProgress"/> is true
+        /// </summary>
+        public int PrintSerializationProgressFrequency { get; set; }
     }
 
     public struct ExceptionHandling

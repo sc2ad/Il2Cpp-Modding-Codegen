@@ -8,17 +8,53 @@ namespace Il2Cpp_Modding_Codegen.Data.DumpHandling
     public class DumpTypeRef : TypeRef
     {
         public static readonly DumpTypeRef ObjectType = new DumpTypeRef("object");
-        public override string Namespace { get; protected set; } = string.Empty;
-        public override string Name { get; protected set; }
-        public override bool Generic { get; protected set; }
+        public override string Namespace { get; } = string.Empty;
+        public override string Name { get; }
+        public override bool IsGenericParameter => throw new NotImplementedException();
+        public override bool IsGenericInstance { get; }
+        public override bool IsGenericTemplate { get; }
 
-        public override List<TypeRef> GenericParameters { get; } = new List<TypeRef>();
+        public override IReadOnlyList<TypeRef> Generics { get; }
 
-        public override TypeRef DeclaringType { get; protected set; }
+        public override TypeRef DeclaringType { get; }
+        public override TypeRef ElementType { get; }
+
+        public override bool IsCovariant { get => throw new NotImplementedException(); set => throw new NotImplementedException(); }
+
+        public override bool IsPointer()
+        {
+            if (Name.EndsWith("*"))
+                return true;
+            return base.IsPointer();
+        }
+
+        public override bool IsArray()
+        {
+            return Name.EndsWith("[]");
+        }
+
+        public override bool IsPrimitive()
+        {
+            // TODO
+            return Name.Equals("void", StringComparison.OrdinalIgnoreCase);
+        }
+
+        private DumpTypeRef(DumpTypeRef other, string nameOverride = null)
+        {
+            Namespace = other.Namespace;
+            Name = nameOverride ?? other.Name;
+            IsGenericInstance = other.IsGenericInstance;
+            IsGenericTemplate = other.IsGenericTemplate;
+            Generics = new List<TypeRef>(other.Generics);
+            DeclaringType = other.DeclaringType;
+            ElementType = other.ElementType;
+        }
+
+        public override TypeRef MakePointer() => new DumpTypeRef(this, this.Name + "*");
 
         /// <summary>
         /// For use with text dumps. Takes a given split array that contains a type at index ind and
-        /// returns the full typename and index where the end of the typename is while traversing the split array with direction and sep.
+        /// returns the full type name and index where the end of the type name is while traversing the split array with direction and sep.
         /// </summary>
         /// <param name="spl"></param>
         /// <param name="ind"></param>
@@ -48,11 +84,13 @@ namespace Il2Cpp_Modding_Codegen.Data.DumpHandling
             return direction > 0 ? s.Substring(sep.Length) : s.Substring(0, s.Length - sep.Length);
         }
 
-        public void Set(string typeName)
+        public DumpTypeRef(string @namespace, string typeName)
         {
+            Namespace = @namespace;
+
+            var GenericTypes = new List<TypeRef>();
             if (typeName.EndsWith(">") && !typeName.StartsWith("<"))
             {
-                Generic = true;
                 var ind = typeName.IndexOf("<");
                 var types = typeName.Substring(ind + 1, typeName.Length - ind - 2);
                 var spl = types.Split(new string[] { ", " }, StringSplitOptions.None);
@@ -69,38 +107,35 @@ namespace Il2Cpp_Modding_Codegen.Data.DumpHandling
                         s += ", " + spl[i];
                         i++;
                     }
-                    GenericParameters.Add(new DumpTypeRef(s));
+                    // TODO: if this DumpTypeRef is the This for a DumpTypeData, mark these IsGenericParameter, and if they are "out ", mark IsCovariant
+                    GenericTypes.Add(new DumpTypeRef(s));
                 }
-                var declInd = typeName.LastIndexOf('.');
-                if (declInd != -1)
-                {
-                    // Create a new TypeRef for the declaring type, it should recursively create more declaring types
-                    DeclaringType = new DumpTypeRef(typeName.Substring(0, declInd));
-                }
-                Name = typeName.Substring(declInd + 1);
             }
+            Generics = GenericTypes;
+            // TODO: check that this gives correct results
+            if (string.IsNullOrEmpty(@namespace))
+                IsGenericInstance = true;
             else
+                IsGenericTemplate = true;
+
+            var declInd = typeName.LastIndexOf('.');
+            if (declInd != -1)
             {
-                var declInd = typeName.LastIndexOf('.');
-                if (declInd != -1)
-                {
-                    // Create a new TypeRef for the declaring type, it should recursively create more declaring types
-                    DeclaringType = new DumpTypeRef(typeName.Substring(0, declInd));
-                }
-                Name = typeName.Substring(declInd + 1);
+                // Create a new TypeRef for the declaring type, it should recursively create more declaring types
+                DeclaringType = new DumpTypeRef(typeName.Substring(0, declInd));
+                // TODO: need to resolve DeclaringType before this will make sense?
+                Namespace = DeclaringType.Namespace;
+            }
+            Name = typeName.Replace('.', '/');
+            if (IsArray())
+            {
+                ElementType = new DumpTypeRef(Name.Substring(0, Name.Length - 2));
+                // TODO: else set ElementType to `this` as Mono.Cecil does?
             }
         }
 
-        public DumpTypeRef(string @namespace, string name)
+        public DumpTypeRef(string qualifiedName) : this("", qualifiedName)
         {
-            Namespace = @namespace;
-            Set(name);
-        }
-
-        public DumpTypeRef(string qualifiedName)
-        {
-            Set(qualifiedName);
-            Namespace = "";
         }
     }
 }

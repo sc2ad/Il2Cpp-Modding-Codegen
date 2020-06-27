@@ -15,9 +15,8 @@ namespace Codegen_CLI
         {
             Console.WriteLine("Drag and drop your dump.cs file (or a partial of it of the correct format) then press enter...");
             string path;
-            //if (File.Exists(@"C:\Users\Sc2ad\Desktop\Code\Android Modding\BeatSaber\1.8.0\partial.cs"))
-            if (false)
-                path = @"C:\Users\Sc2ad\Desktop\Code\Android Modding\BeatSaber\1.8.0\partial.cs";
+            if (Directory.Exists(@"C:\Users\Sc2ad\Desktop\Code\Android Modding\BeatSaber\1.8.0\DummyDll"))
+                path = @"C:\Users\Sc2ad\Desktop\Code\Android Modding\BeatSaber\1.8.0\DummyDll";
             else
                 path = Console.ReadLine().Replace("\"", string.Empty);
             bool parseDlls = false;
@@ -51,12 +50,12 @@ namespace Codegen_CLI
             }
             watch.Stop();
             //Console.WriteLine(parsed);
-            Console.WriteLine($"Parsing took: {watch.ElapsedMilliseconds}ms");
+            Console.WriteLine($"Parsing took: {watch.Elapsed}!");
             Console.WriteLine("============================================");
             Console.WriteLine("Type the name of an output style (or don't for Normal) then press enter to serialize:");
             var input = Console.ReadLine();
             // TODO: strip non-alphabetic characters out of input before parsing it
-            OutputStyle style = OutputStyle.Normal;
+            OutputStyle style;
             if (Enum.TryParse(input, true, out style))
             {
                 Console.WriteLine($"Parsed style '{style}'");
@@ -75,7 +74,9 @@ namespace Codegen_CLI
                     FieldHandling = UnresolvedTypeExceptionHandling.DisplayInFile,
                     MethodHandling = UnresolvedTypeExceptionHandling.DisplayInFile,
                     TypeHandling = UnresolvedTypeExceptionHandling.DisplayInFile
-                }
+                },
+                PrintSerializationProgress = true,
+                PrintSerializationProgressFrequency = 1000
             };
 
             if (Directory.Exists(Path.Combine(config.OutputDirectory, config.OutputHeaderDirectory)))
@@ -84,12 +85,24 @@ namespace Codegen_CLI
                 Directory.Delete(Path.Combine(config.OutputDirectory, config.OutputSourceDirectory), true);
 
             var serializer = new CppDataSerializer(config, parsed);
-            Console.WriteLine("Serializing...");
+            Console.WriteLine("Resolving types...");
             try
             {
                 watch.Restart();
                 // context unused
                 serializer.PreSerialize(null, parsed);
+                watch.Stop();
+                Console.WriteLine($"Resolution Complete, took: {watch.Elapsed}!");
+            }
+            catch (Exception e)
+            {
+                Console.WriteLine(e);
+            }
+            Console.WriteLine("Serializing...");
+            try
+            {
+                watch.Restart();
+                serializer.Serialize(null, parsed, true);
                 watch.Stop();
                 Console.WriteLine($"Serialization Complete, took: {watch.Elapsed}!");
             }

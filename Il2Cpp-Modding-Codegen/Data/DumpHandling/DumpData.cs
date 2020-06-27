@@ -12,9 +12,9 @@ namespace Il2Cpp_Modding_Codegen.Data.DumpHandling
     {
         public string Name => "Dump Data";
         public List<IImage> Images { get; } = new List<IImage>();
-        public List<ITypeData> Types { get; } = new List<ITypeData>();
-        private Dictionary<TypeRef, TypeName> _resolvedTypeNames { get; } = new Dictionary<TypeRef, TypeName>();
+        public IEnumerable<ITypeData> Types { get { return _types; } }
         private DumpConfig _config;
+        private List<ITypeData> _types = new List<ITypeData>();
 
         private void ParseImages(PeekableStreamReader fs)
         {
@@ -37,13 +37,18 @@ namespace Il2Cpp_Modding_Codegen.Data.DumpHandling
                     // Read empty lines
                     fs.ReadLine();
                     line = fs.PeekLine();
-                    if (line == null)
-                    {
-                        return;
-                    }
+                    if (line is null) return;
                 }
                 if (_config.ParseTypes)
-                    Types.Add(new DumpTypeData(fs, _config));
+                {
+                    var typeData = new DumpTypeData(fs, _config);
+                    if (typeData.This.DeclaringType != null)
+                    {
+                        var declaringTypeData = Resolve(typeData.This.DeclaringType);
+                        declaringTypeData.NestedTypes.Add(typeData);
+                    }
+                    _types.Add(typeData);
+                }
                 line = fs.PeekLine();
             }
         }
@@ -91,33 +96,8 @@ namespace Il2Cpp_Modding_Codegen.Data.DumpHandling
         {
             // TODO: Resolve only among our types that we actually plan on serializing
             // Basically, check it against our whitelist/blacklist
-            var te = Types.FirstOrDefault(t => t.This.Equals(TypeRef) || t.This.Name == TypeRef.Name);
+            var te = Types.LastOrDefault(t => t.This.Equals(TypeRef) || t.This.Name == TypeRef.Name);
             return te;
-        }
-
-        // Resolves the TypeRef def in the current context and returns a TypeName that is guaranteed unique
-        public TypeName ResolvedTypeRef(TypeRef def)
-        {
-            // If the type we are looking for exactly matches a type we have resolved
-            if (_resolvedTypeNames.TryGetValue(def, out TypeName v))
-            {
-                return v;
-            }
-            // Otherwise, check our set of created names (values) until we are unique
-
-            int i = 1;
-
-            var tn = new TypeName(def);
-            while (_resolvedTypeNames.ContainsValue(tn))
-            {
-                // The type we are trying to add a reference to is already resolved, but is not referenced.
-                // This means we have a duplicate typename. We will unique-ify this one by suffixing _{i} to the original typename
-                // until the typename is unique.
-                tn = new TypeName(def, i);
-                i++;
-            }
-            _resolvedTypeNames.Add(def, tn);
-            return tn;
         }
     }
 }

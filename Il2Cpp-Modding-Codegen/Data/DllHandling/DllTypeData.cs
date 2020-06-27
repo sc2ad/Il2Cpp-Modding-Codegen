@@ -15,6 +15,7 @@ namespace Il2Cpp_Modding_Codegen.Data.DllHandling
         public TypeInfo Info { get; }
         public TypeRef This { get; }
         public TypeRef Parent { get; }
+        public HashSet<ITypeData> NestedTypes { get; } = new HashSet<ITypeData>();
         public List<TypeRef> ImplementingInterfaces { get; } = new List<TypeRef>();
         public int TypeDefIndex { get; }
         public List<IAttribute> Attributes { get; } = new List<IAttribute>();
@@ -32,27 +33,33 @@ namespace Il2Cpp_Modding_Codegen.Data.DllHandling
             {
                 ImplementingInterfaces.Add(DllTypeRef.From(i.InterfaceType));
             }
+
+            This = DllTypeRef.From(def);
+            Type = def.IsEnum ? TypeEnum.Enum : (def.IsInterface ? TypeEnum.Interface : (def.IsValueType ? TypeEnum.Struct : TypeEnum.Class));
+            Info = new TypeInfo
+            {
+                TypeFlags = def.IsValueType ? TypeFlags.ValueType : TypeFlags.ReferenceType
+            };
+
             if (def.BaseType != null)
                 Parent = DllTypeRef.From(def.BaseType);
 
-            This = DllTypeRef.From(def);
-            Type = def.IsEnum ? TypeEnum.Enum : def.IsInterface ? TypeEnum.Interface : def.IsClass ? TypeEnum.Class : TypeEnum.Struct;
-            Info = new TypeInfo
-            {
-                TypeFlags = Type == TypeEnum.Class || Type == TypeEnum.Interface ? TypeFlags.ReferenceType : TypeFlags.ValueType
-            };
-
             // TODO: Parse this eventually
             TypeDefIndex = -1;
-            if (def.HasCustomAttributes && _config.ParseTypeAttributes)
-                Attributes.AddRange(def.CustomAttributes.Select(ca => new DllAttribute(ca)));
 
+            if (_config.ParseTypeAttributes && def.HasCustomAttributes)
+                Attributes.AddRange(def.CustomAttributes.Select(ca => new DllAttribute(ca)));
             if (_config.ParseTypeFields)
                 Fields.AddRange(def.Fields.Select(f => new DllField(f)));
             if (_config.ParseTypeProperties)
                 Properties.AddRange(def.Properties.Select(p => new DllProperty(p)));
             if (_config.ParseTypeMethods)
-                Methods.AddRange(def.Methods.Select(m => new DllMethod(m)));
+            {
+                var methods = def.Methods.Select(m => DllMethod.From(m)).ToList();
+                // It's important that Foo.IBar.func() goes after func() (if present)
+                Methods.AddRange(methods.Where(m => m.ImplementedFrom is null));
+                Methods.AddRange(methods.Where(m => m.ImplementedFrom != null));
+            }
         }
 
         public override string ToString()

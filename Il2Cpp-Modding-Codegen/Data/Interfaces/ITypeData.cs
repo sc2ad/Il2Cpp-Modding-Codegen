@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Runtime.CompilerServices;
 using System.Text;
 
 namespace Il2Cpp_Modding_Codegen.Data
@@ -10,6 +11,7 @@ namespace Il2Cpp_Modding_Codegen.Data
         TypeEnum Type { get; }
         TypeInfo Info { get; }
         TypeRef Parent { get; }
+        HashSet<ITypeData> NestedTypes { get; }
         List<TypeRef> ImplementingInterfaces { get; }
         int TypeDefIndex { get; }
         List<IAttribute> Attributes { get; }

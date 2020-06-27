@@ -1,9 +1,7 @@
 ﻿using Il2Cpp_Modding_Codegen.Data.DllHandling;
 using Il2Cpp_Modding_Codegen.Data.DumpHandling;
 using Mono.Cecil;
-using System;
 using System.Collections.Generic;
-using System.Text;
 
 namespace Il2Cpp_Modding_Codegen.Data
 {
@@ -77,7 +75,24 @@ namespace Il2Cpp_Modding_Codegen.Data
 
     public static class ParameterExtensions
     {
-        public static string FormatParameters(this List<Parameter> parameters, List<string> resolvedNames = null, FormatParameterMode mode = FormatParameterMode.Normal)
+        public static string PrintParameter(this (string, ParameterFlags) param, bool csharp = false)
+        {
+            var s = param.Item1;
+            if (csharp)
+            {
+                if (param.Item2.HasFlag(ParameterFlags.Out))
+                    s = "out " + s;
+                if (param.Item2.HasFlag(ParameterFlags.Ref))
+                    s = "ref " + s;
+                if (param.Item2.HasFlag(ParameterFlags.In))
+                    s = "in " + s;
+            }
+            else if (param.Item2 != ParameterFlags.None)
+                s += "&";
+            return s;
+        }
+
+        public static string FormatParameters(this List<Parameter> parameters, List<(string, ParameterFlags)> resolvedNames = null, FormatParameterMode mode = FormatParameterMode.Normal, bool csharp = false)
         {
             var s = "";
             for (int i = 0; i < parameters.Count; i++)
@@ -91,6 +106,7 @@ namespace Il2Cpp_Modding_Codegen.Data
                         nameStr = $"param_{i}";
                     }
                 }
+                nameStr = nameStr.Replace('<', '$').Replace('>', '$');
                 if (mode == FormatParameterMode.Names)
                 {
                     // Only names
@@ -101,7 +117,7 @@ namespace Il2Cpp_Modding_Codegen.Data
                     // Only types
                     if (resolvedNames != null)
                     {
-                        s += $"{resolvedNames[i]}";
+                        s += $"{resolvedNames[i].PrintParameter(csharp)}";
                     }
                     else
                     {
@@ -114,7 +130,7 @@ namespace Il2Cpp_Modding_Codegen.Data
                     // Types and names
                     if (resolvedNames != null)
                     {
-                        s += $"{resolvedNames[i]} {nameStr}";
+                        s += $"{resolvedNames[i].PrintParameter(csharp)} {nameStr}";
                     }
                     else
                     {

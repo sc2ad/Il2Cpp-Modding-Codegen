@@ -1,49 +1,98 @@
-﻿using Mono.Cecil;
+﻿using Il2Cpp_Modding_Codegen.Serialization;
+using Mono.Cecil;
+using Mono.Cecil.Rocks;
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Text;
+using System.Text.RegularExpressions;
 
 namespace Il2Cpp_Modding_Codegen.Data.DllHandling
 {
     public class DllTypeRef : TypeRef
     {
-        public override string Namespace { get; protected set; }
-        public override string Name { get; protected set; }
-        public override bool Generic { get; protected set; }
+        internal TypeReference This;
+        private readonly string _namespace;
+        public override string Namespace { get => _namespace; }
+        private readonly string _name;
+        public override string Name { get => _name; }
 
-        public override List<TypeRef> GenericParameters { get; } = new List<TypeRef>();
+        public override bool IsGenericParameter { get => This.IsGenericParameter; }
+        public override bool IsGenericInstance { get => This.IsGenericInstance; }
+        public override bool IsGenericTemplate { get => This.HasGenericParameters; }
 
-        public override TypeRef DeclaringType { get; protected set; }
+        private List<TypeRef> _generics = new List<TypeRef>();
+        public override IReadOnlyList<TypeRef> Generics { get => _generics; }
+
+        public override TypeRef DeclaringType { get => From(This.DeclaringType); }
+
+        public override TypeRef ElementType
+        {
+            get
+            {
+                if (!(This is TypeSpecification typeSpec)) return null;
+                if (typeSpec.MetadataType == MetadataType.GenericInstance) return null;
+                return From(typeSpec.ElementType);
+            }
+        }
+
+        public override bool IsCovariant { get; set; }
+
+        public override bool IsVoid() => This.MetadataType == MetadataType.Void;
+
+        public override bool IsPointer() => This.IsPointer;
+
+        // TODO: plz god no, just handle pointer, array, string specially
+        public override bool IsPrimitive() => This.IsPrimitive || IsVoid() || IsPointer() || IsArray() || This.MetadataType == MetadataType.String;
+
+        public override bool IsArray() => This.IsArray;
+
+        public override TypeRef MakePointer() => From(This.MakePointerType());
 
         private static readonly Dictionary<TypeReference, DllTypeRef> cache = new Dictionary<TypeReference, DllTypeRef>();
-
-        // Should ONLY have contents during TypeRef functions!
-        private static readonly Stack<DllTypeRef> toPopulate = new Stack<DllTypeRef>();
 
         public static int hits = 0;
         public static int misses = 0;
 
         // Should use DllTypeRef.From instead!
-        private DllTypeRef()
+        private DllTypeRef(TypeReference reference)
         {
-        }
+            This = reference;
 
-        private static DllTypeRef GenericT(TypeReference type)
-        {
-            return new DllTypeRef
+            if (This.IsByReference)
             {
-                // Hopefully this doesn't cause stuff to recurse forever...
-                DeclaringType = FromInternal(type.DeclaringType),
-                // The generic parameter itself isn't generic
-                Generic = false,
-                Namespace = string.Empty,
-                Name = type.Name
-            };
+                // TODO: Set as ByReference? For method params, the ref keyword is handled by Parameter.cs
+                This = (This as ByReferenceType).ElementType;
+            }
+            _name = This.Name;
+
+            if (IsGenericInstance)
+                _generics.AddRange((This as GenericInstanceType).GenericArguments.Select(From));
+            else if (IsGenericTemplate)
+                _generics.AddRange(This.GenericParameters.Select(From));
+            if (IsGeneric && Generics.Count == 0)
+                throw new InvalidDataException($"Wtf? In DllTypeRef constructor, a generic with no generics: {this}, IsGenInst: {this.IsGenericInstance}");
+
+            DllTypeRef refDeclaring = null;
+            if (!This.IsGenericParameter && This.IsNested)
+                refDeclaring = From(This.DeclaringType);
+
+            //if (refDeclaring != null)
+            //    _name = refDeclaring.Name + "/" + _name;
+
+            // Remove *, [] from end of variable name
+            _name = Regex.Replace(_name, @"\W+$", "");
+            if (!char.IsLetterOrDigit(_name.Last())) Console.WriteLine(reference);
+
+            _namespace = (refDeclaring?.Namespace ?? This.Namespace) ?? "";
+
+            IsCovariant = IsGenericParameter ? (This as GenericParameter).IsCovariant : false;
         }
 
-        private static DllTypeRef FromInternal(TypeReference type)
+        public static DllTypeRef From(TypeReference type)
         {
+            if (type is null) return null;
             if (cache.TryGetValue(type, out var value))
             {
                 hits++;
@@ -51,40 +100,16 @@ namespace Il2Cpp_Modding_Codegen.Data.DllHandling
             }
             misses++;
 
-            // Creates TypeRef to be populated later
-            value = new DllTypeRef();
-            // Ensures the placeholder TypeRef will be resolved as THE TypeRef for this TypeReference
+            // Creates new TypeRef and add it to map
+            value = new DllTypeRef(type);
             cache.Add(type, value);
-            // Queues the TypeRef for population as the new First
-            toPopulate.Push(value);
             return value;
         }
 
-        public static DllTypeRef From(TypeReference type)
+        // For better comments
+        public override string ToString()
         {
-            // Initiates and queues only the requested TypeRef
-            var ret = FromInternal(type);
-            // We must populate ALL un-populated TypeRefs before leaving TypeRef execution!
-            while (toPopulate.Count > 0)
-            {
-                var t = toPopulate.Pop();
-                // Populates t and queues any uncached TypeRefs among its fields
-                t.SetFieldsFromTypeReference(type);
-            }
-            return ret;
-        }
-
-        private void SetFieldsFromTypeReference(TypeReference reference)
-        {
-            Namespace = reference.Namespace;
-            Name = reference.Name;
-            Generic = reference.IsGenericInstance;
-            if (Generic)
-                GenericParameters.AddRange(reference.GenericParameters.Select(gp => FromInternal(gp)));
-            else if (reference.HasGenericParameters)
-                GenericParameters.AddRange(reference.GenericParameters.Select(gp => GenericT(gp)));
-            if (reference.DeclaringType != null && !reference.DeclaringType.Equals(reference))
-                DeclaringType = FromInternal(reference.DeclaringType);
+            return This.ToString();
         }
     }
 }

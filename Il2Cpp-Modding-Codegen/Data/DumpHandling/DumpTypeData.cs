@@ -3,6 +3,7 @@ using Il2Cpp_Modding_Codegen.Parsers;
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Text;
 
 namespace Il2Cpp_Modding_Codegen.Data.DumpHandling
@@ -18,6 +19,7 @@ namespace Il2Cpp_Modding_Codegen.Data.DumpHandling
         public TypeInfo Info { get; private set; }
         public TypeRef This { get; private set; }
         public TypeRef Parent { get; private set; }
+        public HashSet<ITypeData> NestedTypes { get; } = new HashSet<ITypeData>();
         public List<TypeRef> ImplementingInterfaces { get; } = new List<TypeRef>();
         public int TypeDefIndex { get; private set; }
         public List<IAttribute> Attributes { get; } = new List<IAttribute>();
@@ -95,7 +97,7 @@ namespace Il2Cpp_Modding_Codegen.Data.DumpHandling
             {
                 TypeFlags = Type == TypeEnum.Class || Type == TypeEnum.Interface ? TypeFlags.ReferenceType : TypeFlags.ValueType
             };
-            if (Parent == null)
+            if (Parent is null)
             {
                 // If the type is a value type, it has no parent.
                 // If the type is a reference type, it has parent Il2CppObject
@@ -182,6 +184,12 @@ namespace Il2Cpp_Modding_Codegen.Data.DumpHandling
                     fs.ReadLine();
                 line = fs.PeekLine().Trim();
             }
+
+            // It's important that Foo.IBar.func() goes after func() (if present)
+            var methods = new List<IMethod>(Methods);
+            Methods.Clear();
+            Methods.AddRange(methods.Where(m => m.ImplementedFrom is null));
+            Methods.AddRange(methods.Where(m => m.ImplementedFrom != null));
         }
 
         public DumpTypeData(PeekableStreamReader fs, DumpConfig config)

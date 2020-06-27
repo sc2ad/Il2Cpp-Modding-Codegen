@@ -5,12 +5,10 @@ using System.Text;
 
 namespace Il2Cpp_Modding_Codegen.Data
 {
-    public interface ITypeContext
+    public interface ITypeCollection
     {
-        List<ITypeData> Types { get; }
-
+        IEnumerable<ITypeData> Types { get; }
+        [ObsoleteAttribute("Please call TypeRef.Resolve(ITypeCollection) instead.")]
         ITypeData Resolve(TypeRef TypeRef);
-
-        TypeName ResolvedTypeRef(TypeRef def);
     }
 }
