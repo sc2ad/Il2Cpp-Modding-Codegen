@@ -7,7 +7,7 @@ using System.Linq;
 
 namespace Il2Cpp_Modding_Codegen
 {
-    static class Utils
+    internal static class Utils
     {
         public static string ReplaceFirst(this string text, string search, string replace)
         {
@@ -54,7 +54,7 @@ namespace Il2Cpp_Modding_Codegen
                     // We don't want to actually check the equivalence of these, we want to check to see if they mean the same thing.
                     // For example, if we have a T, we want to ensure that the Ts would match
                     // We need to ensure the name of both self and m are fixed to not have any ., use the last . and ignore generic parameters
-                    if (m.Name.Substring(self.Name.LastIndexOf('.') + 1) != sName)
+                    if (m.Name.Substring(m.Name.LastIndexOf('.') + 1) != sName)
                         goto cont;
                     var ret = m.ReturnType;
                     if (genericMapping.TryGetValue(ret.Name, out var r2))
