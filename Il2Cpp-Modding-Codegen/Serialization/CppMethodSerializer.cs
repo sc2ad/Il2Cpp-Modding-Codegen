@@ -21,7 +21,7 @@ namespace Il2Cpp_Modding_Codegen.Serialization
         private bool _isInterface;
         private bool _pureVirtual;
 
-        private HashSet<(TypeRef, string)> _signatures = new HashSet<(TypeRef, string)>();
+        private HashSet<(TypeRef, bool, string)> _signatures = new HashSet<(TypeRef, bool, string)>();
         private bool _ignoreSignatureMap;
         private HashSet<IMethod> _aborted = new HashSet<IMethod>();
 
@@ -162,12 +162,13 @@ namespace Il2Cpp_Modding_Codegen.Serialization
                 Resolved(method);
         }
 
-        private string WriteMethod(bool staticFunc, IMethod method, bool namespaceQualified)
+        private string WriteMethod(bool staticFunc, IMethod method, bool isHeader)
         {
             var ns = "";
             var preRetStr = "";
             var overrideStr = "";
             var impl = "";
+            var namespaceQualified = !isHeader;
             if (namespaceQualified)
                 ns = _declaringFullyQualified + "::";
             else
@@ -195,15 +196,13 @@ namespace Il2Cpp_Modding_Codegen.Serialization
             }
             // Handles i.e. ".ctor"
             if (!_nameMap.TryGetValue(method, out var namePair))
-            {
                 throw new InvalidOperationException($"Could not find method: {method} in _nameMap! Ensure it is PreSerialized first!");
-            }
             var nameStr = namePair.Item1;
 
             string paramString = method.Parameters.FormatParameters(_parameterMaps[method], FormatParameterMode.Names | FormatParameterMode.Types);
             var signature = $"{nameStr}({paramString})";
 
-            if (!_ignoreSignatureMap && !_signatures.Add((method.DeclaringType, signature)))
+            if (!_ignoreSignatureMap && !_signatures.Add((method.DeclaringType, isHeader, signature)))
             {
                 preRetStr = "// ABORTED: conflicts with another method. " + preRetStr;
                 _aborted.Add(method);
@@ -250,7 +249,7 @@ namespace Il2Cpp_Modding_Codegen.Serialization
                 if (method.ImplementedFrom != null)
                     writer.WriteComment("Implemented from: " + method.ImplementedFrom);
                 if (!writeContent)
-                    writer.WriteDeclaration(WriteMethod(staticFunc, method, false));
+                    writer.WriteDeclaration(WriteMethod(staticFunc, method, true));
             }
             else
             {
@@ -261,7 +260,7 @@ namespace Il2Cpp_Modding_Codegen.Serialization
             {
                 bool isStatic = method.Specifiers.IsStatic();
                 // Write the qualified name if not in the header
-                var methodStr = WriteMethod(isStatic, method, !_asHeader);
+                var methodStr = WriteMethod(isStatic, method, _asHeader);
                 if (methodStr.StartsWith("/"))
                 {
                     writer.WriteLine(methodStr);
