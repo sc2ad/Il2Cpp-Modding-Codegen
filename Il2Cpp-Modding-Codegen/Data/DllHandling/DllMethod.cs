@@ -139,10 +139,7 @@ namespace Il2Cpp_Modding_Codegen.Data.DllHandling
 
         public override string ToString()
         {
-            var s = $"// Offset: 0x{Offset:X}\n\t";
-            s += $"{ReturnType} {Name}({Parameters.FormatParameters()}) ";
-            s += "{}";
-            return s;
+            return $"{ReturnType} {Name}({Parameters.FormatParameters()})";
         }
     }
 }
