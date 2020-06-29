@@ -51,7 +51,7 @@ namespace Il2Cpp_Modding_Codegen.Serialization
                 //   it overrides ([return type] is incomplete)`
                 return CppTypeContext.NeedAs.Definition;
             return CppTypeContext.NeedAs.Declaration;
-        } 
+        }
 
         private void ResolveName(IMethod method)
         {
@@ -82,7 +82,7 @@ namespace Il2Cpp_Modding_Codegen.Serialization
             if (_nameMap.TryGetValue(method, out var p))
                 if (p.Item2)
                 {
-                    Console.WriteLine($"Already have a name for method: {method.Name}, {p.Item1}");
+                    //Console.WriteLine($"Already have a name for method: {method.Name}, {p.Item1}");
                     return;
                 }
 
@@ -194,7 +194,8 @@ namespace Il2Cpp_Modding_Codegen.Serialization
                     retStr = "std::optional<" + retStr + ">";
             }
             // Handles i.e. ".ctor"
-            if (!_nameMap.TryGetValue(method, out var namePair)) {
+            if (!_nameMap.TryGetValue(method, out var namePair))
+            {
                 throw new InvalidOperationException($"Could not find method: {method} in _nameMap! Ensure it is PreSerialized first!");
             }
             var nameStr = namePair.Item1;

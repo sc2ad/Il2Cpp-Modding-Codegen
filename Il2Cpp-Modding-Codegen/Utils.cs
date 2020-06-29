@@ -41,6 +41,11 @@ namespace Il2Cpp_Modding_Codegen
             return map;
         }
 
+        private static bool QuickEquals(TypeReference r1, TypeReference r2)
+        {
+            return r1?.FullName == r2?.FullName;
+        }
+
         // Returns all methods with the same name and parameters as `self` in any base type or interface of `type`.
         private static HashSet<MethodDefinition> FindIn(this MethodDefinition self, TypeDefinition type, Dictionary<string, TypeReference> genericMapping)
         {
@@ -60,7 +65,7 @@ namespace Il2Cpp_Modding_Codegen
                     if (genericMapping.TryGetValue(ret.Name, out var r2))
                         ret = r2;
                     // If ret == self.ReturnType, we have a match
-                    if (!ret.Equals(self.ReturnType))
+                    if (!QuickEquals(ret, self.ReturnType))
                         goto cont;
                     if (m.Parameters.Count != self.Parameters.Count)
                         goto cont;
@@ -70,7 +75,7 @@ namespace Il2Cpp_Modding_Codegen
                         if (genericMapping.TryGetValue(m.Parameters[i].ParameterType.Name, out var a))
                             arg = a;
                         // If arg == self.Parameters[i].ParameterType, we have a match
-                        if (arg.Equals(self.Parameters[i].ParameterType))
+                        if (!QuickEquals(arg, self.Parameters[i].ParameterType))
                             goto cont;
                     }
                     matches.Add(m);

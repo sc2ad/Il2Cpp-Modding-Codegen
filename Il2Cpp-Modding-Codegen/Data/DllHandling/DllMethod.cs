@@ -60,13 +60,20 @@ namespace Il2Cpp_Modding_Codegen.Data.DllHandling
             // Il2CppName is the MethodDefinition Name (hopefully we don't need to convert it for il2cpp, but we might)
             Il2CppName = m.Name;
             Name = m.Name;
+            Parameters.AddRange(m.Parameters.Select(p => new Parameter(p)));
+            Specifiers.AddRange(DllSpecifierHelpers.From(m));
+            // This is not necessary: m.GenericParameters.Any(param => !m.DeclaringType.GenericParameters.Contains(param));
+            Generic = m.HasGenericParameters;
 
             var baseMethods = m.GetBaseMethods();
             if (baseMethods.Count > 0)
                 HidesBase = true;
             MethodDefinition baseMethod = m.GetBaseMethod();
-            if (baseMethod == m && baseMethods.Count == 1)
-                baseMethod = baseMethods.Single();
+            if (baseMethod == m && baseMethods.Count > 0)
+            {
+                // If we have multiple baseMethods, we need to get the latest one (first in the map) that matches parameters, return type as ourselves
+                baseMethod = baseMethods.First();
+            }
             if (baseMethod != m)
                 BaseMethod = From(baseMethod);
 
@@ -79,7 +86,7 @@ namespace Il2Cpp_Modding_Codegen.Data.DllHandling
                 var iface = FindInterface(m.DeclaringType, typeStr);
                 ImplementedFrom = DllTypeRef.From(iface);
                 var tName = Name.Substring(idxDot + 1);
-                baseMethod = iface.Resolve().Methods.Where(im => im.Name == tName).Single();
+                baseMethod = iface.Resolve().Methods.Where(im => im.Name == tName && m.Parameters.Count == im.Parameters.Count).Single();
                 BaseMethod = From(baseMethod);
             }
 
@@ -132,10 +139,6 @@ namespace Il2Cpp_Modding_Codegen.Data.DllHandling
                     }
                 }
             }
-            Parameters.AddRange(m.Parameters.Select(p => new Parameter(p)));
-            Specifiers.AddRange(DllSpecifierHelpers.From(m));
-            // This is not necessary: m.GenericParameters.Any(param => !m.DeclaringType.GenericParameters.Contains(param));
-            Generic = m.HasGenericParameters;
         }
 
         public override string ToString()
