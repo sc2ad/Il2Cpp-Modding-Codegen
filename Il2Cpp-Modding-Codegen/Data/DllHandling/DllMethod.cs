@@ -29,31 +29,14 @@ namespace Il2Cpp_Modding_Codegen.Data.DllHandling
 
         private static Dictionary<MethodDefinition, DllMethod> cache = new Dictionary<MethodDefinition, DllMethod>();
 
-        TypeReference FindInterface(TypeReference type, string find)
-        {
-            if (type is null) return null;
-            var typeStr = Regex.Replace(type.ToString(), @"`\d+", "").Replace('/', '.');
-            if (typeStr == find)
-                return type;
-
-            var def = type.Resolve();
-            if (def is null) return null;
-            foreach (var iface in def.Interfaces)
-            {
-                var ret = FindInterface(iface.InterfaceType, find);
-                if (ret != null) return ret;
-            }
-            return FindInterface(def.BaseType, find);
-        }
-
-        public static DllMethod From(MethodDefinition def)
+        public static DllMethod From(MethodDefinition def, ref HashSet<MethodDefinition> mappedBaseMethods)
         {
             if (cache.TryGetValue(def, out var m))
                 return m;
-            return new DllMethod(def);
+            return new DllMethod(def, ref mappedBaseMethods);
         }
 
-        private DllMethod(MethodDefinition m)
+        private DllMethod(MethodDefinition m, ref HashSet<MethodDefinition> mappedBaseMethods)
         {
             cache.Add(m, this);
             This = m;
@@ -65,31 +48,44 @@ namespace Il2Cpp_Modding_Codegen.Data.DllHandling
             // This is not necessary: m.GenericParameters.Any(param => !m.DeclaringType.GenericParameters.Contains(param));
             Generic = m.HasGenericParameters;
 
-            var baseMethods = m.GetBaseMethods();
-            if (baseMethods.Count > 0)
-                HidesBase = true;
-            MethodDefinition baseMethod = m.GetBaseMethod();
-            if (baseMethod == m && baseMethods.Count > 0)
-            {
-                // If we have multiple baseMethods, we need to get the latest one (first in the map) that matches parameters, return type as ourselves
-                baseMethod = baseMethods.First();
-            }
-            if (baseMethod != m)
-                BaseMethod = From(baseMethod);
-
             // This may not always be the case, we could have a special name in which case we have to do some sorcery
             // Grab the special name, grab the type from the special name
             int idxDot = Name.LastIndexOf('.');
             if (idxDot >= 2)
             {
-                var typeStr = Name.Substring(0, idxDot);
-                var iface = FindInterface(m.DeclaringType, typeStr);
+                // Call a utilities function for converting a special name method to a proper base method
+                var baseMethod = m.GetSpecialNameBaseMethod(out var iface, idxDot);
+                if (!mappedBaseMethods.Add(baseMethod))
+                    throw new InvalidOperationException($"Base method: {baseMethod} has already been overriden!");
+                BaseMethod = From(baseMethod, ref mappedBaseMethods);
                 ImplementedFrom = DllTypeRef.From(iface);
-                var tName = Name.Substring(idxDot + 1);
-                baseMethod = iface.Resolve().Methods.Where(im => im.Name == tName && m.Parameters.Count == im.Parameters.Count).Single();
-                BaseMethod = From(baseMethod);
             }
-
+            else
+            {
+                var baseMethod = m.GetBaseMethod();
+                if (baseMethod == m)
+                {
+                    var baseMethods = m.GetBaseMethods();
+                    if (baseMethods.Count > 0)
+                        HidesBase = true;
+                    // We need to check here SPECIFICALLY for a method in our declaring type that shares the same name as us, since we could have the same BaseMethod as it.
+                    // If either ourselves or a method of the same safe name (after . prefixes) exists, we need to ensure that only the one with the dots gets the base method
+                    // It correctly describes.
+                    // Basically, we need to take all our specially named methods on our type that have already been defined and remove them from our current list of baseMethods.
+                    // We should only ever have baseMethods of methods that are of methods that we haven't already used yet.
+                    if (baseMethods.Count > 0)
+                        foreach (var baseM in mappedBaseMethods)
+                            baseMethods.Remove(baseM);
+                    if (baseMethods.Count > 0)
+                        baseMethod = baseMethods.First();
+                }
+                if (baseMethod != m)
+                {
+                    if (!mappedBaseMethods.Add(baseMethod))
+                        throw new InvalidOperationException($"Base method: {baseMethod} has already been overriden!");
+                    BaseMethod = From(baseMethod, ref mappedBaseMethods);
+                }
+            }
             if (BaseMethod != null)
             {
                 // TODO: This may not be true for generic methods. Should ensure validity for IEnumerator<T> methods
