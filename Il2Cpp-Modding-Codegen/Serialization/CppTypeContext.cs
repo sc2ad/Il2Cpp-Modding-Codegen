@@ -323,20 +323,24 @@ namespace Il2Cpp_Modding_Codegen.Serialization
                     string declaringGenericParams = "";
                     if (genericMap.TryGetValue(declType, out var declaringGenerics))
                     {
-                        // Write out the generics defined in this type
-                        declaringGenericParams += "<";
-                        bool first = true;
-                        foreach (var g in declaringGenerics)
+                        // If we are thisType AND we DO NOT want generics, we should not write any generics.
+                        // Otherwise, we write out the generics defined in this type.
+                        if (!isThisType || generics)
                         {
-                            if (!first)
-                                declaringGenericParams += ", ";
-                            if (data.IsGenericInstance)
-                                declaringGenericParams += GetCppName(argMapping[g], true, true);
-                            else
-                                declaringGenericParams += GetCppName(g, true, true);
-                            first = false;
+                            declaringGenericParams += "<";
+                            bool first = true;
+                            foreach (var g in declaringGenerics)
+                            {
+                                if (!first)
+                                    declaringGenericParams += ", ";
+                                if (data.IsGenericInstance)
+                                    declaringGenericParams += GetCppName(argMapping[g], true, true);
+                                else
+                                    declaringGenericParams += GetCppName(g, true, true);
+                                first = false;
+                            }
+                            declaringGenericParams += ">";
                         }
-                        declaringGenericParams += ">";
                     }
 
                     var temp = declType.GetName() + declaringGenericParams;
