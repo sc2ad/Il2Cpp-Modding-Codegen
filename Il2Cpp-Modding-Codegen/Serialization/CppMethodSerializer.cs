@@ -249,7 +249,7 @@ namespace Il2Cpp_Modding_Codegen.Serialization
                 if (method.ImplementedFrom != null)
                     writer.WriteComment("Implemented from: " + method.ImplementedFrom);
                 if (method.BaseMethod != null)
-                    writer.WriteComment("Base method: " + method.BaseMethod.ReturnType + " " + method.BaseMethod.DeclaringType.Name + "." + method.BaseMethod.Name + "()");
+                    writer.WriteComment("Base method: " + method.BaseMethod.ReturnType + " " + method.BaseMethod.DeclaringType.Name + "::" + method.BaseMethod.Name + "()");
                 if (!writeContent)
                     writer.WriteDeclaration(WriteMethod(staticFunc, method, true));
             }
