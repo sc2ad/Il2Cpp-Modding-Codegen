@@ -25,7 +25,7 @@ namespace Il2Cpp_Modding_Codegen.Serialization
 
         private void AliasNestedTemplates(CppStreamWriter writer, CppTypeContext context)
         {
-            if (context.DeclaringContext != null && context.LocalType.This.IsGeneric)
+            if (context.DeclaringContext != null && context.DeclaringContext.LocalType.This.IsGeneric)
             {
                 var templateLine = context.GetTemplateLine(false);
                 if (string.IsNullOrEmpty(templateLine))
