@@ -15,6 +15,7 @@ namespace Il2Cpp_Modding_Codegen.Serialization
         private struct State
         {
             internal string type;
+            internal string declaring;
             internal List<string> parentNames;
         }
 
@@ -43,6 +44,7 @@ namespace Il2Cpp_Modding_Codegen.Serialization
             State s = new State
             {
                 type = resolved,
+                declaring = null,
                 parentNames = new List<string>()
             };
             if (string.IsNullOrEmpty(s.type))
@@ -50,6 +52,7 @@ namespace Il2Cpp_Modding_Codegen.Serialization
                 Console.WriteLine($"{type.This.Name} -> {s.type}");
                 throw new Exception("GetNameFromReference gave empty typeName");
             }
+
             if (type.Parent != null)
             {
                 // System::ValueType should be the 1 type where we want to extend System::Object without the Il2CppObject fields
@@ -59,6 +62,13 @@ namespace Il2Cpp_Modding_Codegen.Serialization
                     // TODO: just use type.Parent's QualifiedTypeName instead?
                     s.parentNames.Add(context.GetCppName(type.Parent, true, true, CppTypeContext.NeedAs.Definition, CppTypeContext.ForceAsType.Literal));
             }
+
+            if (type.This.DeclaringType != null && type.This.DeclaringType.IsGeneric)
+            {
+                s.declaring = context.GetCppName(type.This.DeclaringType, false, true, CppTypeContext.NeedAs.Definition);
+                s.parentNames.Add("::il2cpp_utils::il2cpp_type_check::NestedType");
+            }
+
             foreach (var @interface in type.ImplementingInterfaces)
                 s.parentNames.Add("virtual " + context.GetCppName(@interface, true, true, CppTypeContext.NeedAs.Definition, CppTypeContext.ForceAsType.Literal));
             map.Add(type.This, s);
@@ -165,6 +175,8 @@ namespace Il2Cpp_Modding_Codegen.Serialization
             writer.WriteDefinition(type.Type.TypeName() + " " + typeName + s);
             if (type.Fields.Count > 0 || type.Methods.Count > 0 || type.NestedTypes.Count > 0)
                 writer.WriteLine("public:");
+            if (state.declaring != null)
+                writer.WriteLine($"using declaring_type = {state.declaring};");
             writer.Flush();
         }
 

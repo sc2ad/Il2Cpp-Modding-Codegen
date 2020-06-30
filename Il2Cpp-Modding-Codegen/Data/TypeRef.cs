@@ -78,11 +78,11 @@ namespace Il2Cpp_Modding_Codegen.Data
 
         public (string, string) GetIl2CppName()
         {
-            var name = GetName();
+            var name = Name;
             var dt = this;
             while (dt.DeclaringType != null)
             {
-                name = dt.DeclaringType.GetName() + "/" + name;
+                name = dt.DeclaringType.Name + "/" + name;
                 dt = dt.DeclaringType;
             }
             // Namespace obtained from final declaring type

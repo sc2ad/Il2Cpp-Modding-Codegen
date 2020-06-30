@@ -45,11 +45,11 @@ namespace Il2Cpp_Modding_Codegen.Serialization
         /// <returns></returns>
         private CppTypeContext.NeedAs NeedTypesAs(IMethod method, bool returnType = false)
         {
-            if (NeedDefinitionInHeader(method)) return CppTypeContext.NeedAs.BestMatch;
             if (returnType && _pureVirtual && method.HidesBase)
                 // Prevents `error: return type of virtual function [name] is not covariant with the return type of the function
                 //   it overrides ([return type] is incomplete)`
                 return CppTypeContext.NeedAs.Definition;
+            if (NeedDefinitionInHeader(method)) return CppTypeContext.NeedAs.BestMatch;
             return CppTypeContext.NeedAs.Declaration;
         }
 
