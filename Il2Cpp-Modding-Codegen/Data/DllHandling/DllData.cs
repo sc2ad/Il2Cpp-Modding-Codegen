@@ -117,13 +117,20 @@ namespace Il2Cpp_Modding_Codegen.Data.DllHandling
                 if (def != null)
                 {
                     ret = new DllTypeData(def, _config);
-                    if (!ret.This.Equals(typeRef))
-                        // Resolve should never be called on pointers or arrays!
-                        throw new Exception($"{typeRef} resolves to a different type ({ret.This})!");
-                    else if (!_types.ContainsKey(ret.This))
+                    //if (!ret.This.Equals(typeRef))
+                    //{
+                    //    // Resolve should never be called on pointers or arrays!
+                    //    Console.Error.WriteLine($"{typeRef} resolves to a different type ({ret.This})!");
+                    //    TypeRef.PrintEqual(typeRef, ret.This);
+                    //}
+
+                    if (!_types.ContainsKey(ret.This))
                         Console.Error.WriteLine($"Too late to add {def} to Types!");
                     else
+                    {
                         Console.Error.WriteLine($"{typeRef} already existed in _types?! Matching item: {_types[ret.This].This}");
+                        ret = _types[ret.This];
+                    }
                 }
                 else
                     throw new InvalidOperationException($"Non-generic-parameter {typeRef} cannot be resolved!");

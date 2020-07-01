@@ -168,7 +168,10 @@ namespace Il2Cpp_Modding_Codegen.Data
 
         public override string ToString()
         {
-            return GetNamespace() + "::" + GetName();
+            var ret = GetNamespace() + "::" + GetName();
+            if (IsGeneric)
+                ret += "<" + string.Join(", ", Generics) + ">";
+            return ret;
         }
 
         [ObsoleteAttribute("The argument should be a TypeRef!")]

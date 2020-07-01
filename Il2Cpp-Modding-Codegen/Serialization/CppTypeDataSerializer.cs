@@ -37,7 +37,7 @@ namespace Il2Cpp_Modding_Codegen.Serialization
         public void Resolve(CppTypeContext context, ITypeData type)
         {
             // Asking for ourselves as a definition will simply make things easier when resolving ourselves.
-            var resolved = _config.SafeName(context.GetCppName(type.This, false, false, CppTypeContext.NeedAs.Definition, CppTypeContext.ForceAsType.Literal));
+            var resolved = "::" + _config.SafeName(context.GetCppName(type.This, true, false, CppTypeContext.NeedAs.Definition, CppTypeContext.ForceAsType.Literal));
             if (resolved is null)
                 throw new InvalidOperationException($"Could not resolve provided type: {type.This}!");
 

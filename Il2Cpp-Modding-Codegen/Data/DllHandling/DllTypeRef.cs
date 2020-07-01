@@ -109,7 +109,10 @@ namespace Il2Cpp_Modding_Codegen.Data.DllHandling
         // For better comments
         public override string ToString()
         {
-            return This.ToString();
+            var ret = This.ToString();
+            if (IsGeneric)
+                ret += "<" + string.Join(", ", Generics) + ">";
+            return ret;
         }
     }
 }
