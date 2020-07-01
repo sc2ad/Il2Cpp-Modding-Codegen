@@ -1,4 +1,4 @@
-﻿using Il2Cpp_Modding_Codegen.Config;
+using Il2Cpp_Modding_Codegen.Config;
 using Il2Cpp_Modding_Codegen.Data;
 using Il2Cpp_Modding_Codegen.Data.DllHandling;
 using System;
@@ -139,7 +139,7 @@ namespace Il2Cpp_Modding_Codegen.Serialization
             var needAs = NeedTypesAs(method);
             // We need to forward declare everything used in methods (return types and parameters)
             // If we are writing the definition, we MUST define it
-            var resolvedReturn = _config.SafeName(context.GetCppName(method.ReturnType, true, needAs: NeedTypesAs(method, true)));
+            var resolvedReturn = context.GetCppName(method.ReturnType, true, needAs: NeedTypesAs(method, true));
             if (resolvedReturn is null)
                 // If we fail to resolve the return type, we will simply add a null item to our dictionary.
                 // However, we should not call Resolved(method)
@@ -149,7 +149,7 @@ namespace Il2Cpp_Modding_Codegen.Serialization
             foreach (var p in method.Parameters)
             {
                 // If this is not a header, we MUST define it
-                var s = _config.SafeName(context.GetCppName(p.Type, true, needAs: needAs));
+                var s = context.GetCppName(p.Type, true, needAs: needAs);
                 if (s is null)
                     // If we fail to resolve a parameter, we will simply add a (null, p.Flags) item to our mapping.
                     // However, we should not call Resolved(method)
@@ -199,7 +199,7 @@ namespace Il2Cpp_Modding_Codegen.Serialization
                 throw new InvalidOperationException($"Could not find method: {method} in _nameMap! Ensure it is PreSerialized first!");
             var nameStr = namePair.Item1;
 
-            string paramString = method.Parameters.FormatParameters(_parameterMaps[method], FormatParameterMode.Names | FormatParameterMode.Types);
+            string paramString = method.Parameters.FormatParameters(_config.IllegalNames, _parameterMaps[method], FormatParameterMode.Names | FormatParameterMode.Types);
             var signature = $"{nameStr}({paramString})";
 
             if (!_ignoreSignatureMap && !_signatures.Add((method.DeclaringType, isHeader, signature)))
@@ -301,7 +301,7 @@ namespace Il2Cpp_Modding_Codegen.Serialization
                     // TODO: Check to ensure this works with non-generic methods in a generic type
                     s += $"\"{method.DeclaringType.Namespace}\", \"{method.DeclaringType.Name}\", ";
                 }
-                var paramString = method.Parameters.FormatParameters(_parameterMaps[method], FormatParameterMode.Names);
+                var paramString = method.Parameters.FormatParameters(_config.IllegalNames, _parameterMaps[method], FormatParameterMode.Names);
                 if (!string.IsNullOrEmpty(paramString))
                     paramString = ", " + paramString;
                 // Macro string should use Il2CppName (of course, without _, $ replacement)

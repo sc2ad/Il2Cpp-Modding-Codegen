@@ -92,7 +92,7 @@ namespace Il2Cpp_Modding_Codegen.Data
             return s;
         }
 
-        public static string FormatParameters(this List<Parameter> parameters, List<(string, ParameterFlags)> resolvedNames = null, FormatParameterMode mode = FormatParameterMode.Normal, bool csharp = false)
+        public static string FormatParameters(this List<Parameter> parameters, HashSet<string> illegalNames = null, List<(string, ParameterFlags)> resolvedNames = null, FormatParameterMode mode = FormatParameterMode.Normal, bool csharp = false)
         {
             var s = "";
             for (int i = 0; i < parameters.Count; i++)
@@ -100,11 +100,11 @@ namespace Il2Cpp_Modding_Codegen.Data
                 var nameStr = "";
                 if (mode != FormatParameterMode.Types)
                 {
-                    nameStr = $"{parameters[i].Name}";
+                    nameStr = parameters[i].Name;
                     if (mode.HasFlag(FormatParameterMode.Names) && string.IsNullOrWhiteSpace(nameStr))
-                    {
                         nameStr = $"param_{i}";
-                    }
+                    while (illegalNames?.Contains(nameStr) is true)
+                        nameStr = "_" + nameStr;
                 }
                 nameStr = nameStr.Replace('<', '$').Replace('>', '$');
                 if (mode == FormatParameterMode.Names)
