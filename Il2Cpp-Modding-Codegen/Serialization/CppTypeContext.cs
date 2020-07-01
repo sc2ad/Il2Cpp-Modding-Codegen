@@ -25,6 +25,7 @@ namespace Il2Cpp_Modding_Codegen.Serialization
         }
 
         public HashSet<TypeRef> Declarations { get; } = new HashSet<TypeRef>();
+        public HashSet<TypeRef> DeclarationsToMake { get; } = new HashSet<TypeRef>();
         public HashSet<TypeRef> Definitions { get; } = new HashSet<TypeRef>();
         public HashSet<TypeRef> DefinitionsToGet { get; } = new HashSet<TypeRef>();
         public CppTypeContext DeclaringContext { get; private set; }
@@ -152,7 +153,7 @@ namespace Il2Cpp_Modding_Codegen.Serialization
             Contract.Requires(nested.InPlace);
             Contract.Requires(this == RootContext);
 
-            foreach (var dec in nested.Declarations.Except(nested.LocalType.NestedTypes.Select(t => t.This)).Except(Definitions))
+            foreach (var dec in nested.DeclarationsToMake.Except(nested.LocalType.NestedTypes.Select(t => t.This)).Except(Definitions))
                 AddDeclaration(dec, null);
             foreach (var def in nested.DefinitionsToGet.Except(Definitions))
                 AddDefinition(def);
@@ -181,7 +182,7 @@ namespace Il2Cpp_Modding_Codegen.Serialization
             Contract.Ensures(DeclaringContext != null);
         }
 
-        private bool HasInNestedHierarchy(CppTypeContext context)
+        internal bool HasInNestedHierarchy(CppTypeContext context)
         {
             if (context.DeclaringContext is null) return false;
             else if (context.DeclaringContext == this) return true;
@@ -196,7 +197,8 @@ namespace Il2Cpp_Modding_Codegen.Serialization
             if (resolved is null)
                 throw new UnresolvedTypeException(LocalType.This, def);
             // Remove anything that is already declared, we only need to define it
-            Declarations.Remove(def);
+            if (!DeclarationsToMake.Remove(def))
+                Declarations.Remove(def);
 
             // When we add a definition, we add it to our DefinitionsToGet
             // However, if the type we are looking for is a nested type with a declaring type that we share:
@@ -219,7 +221,7 @@ namespace Il2Cpp_Modding_Codegen.Serialization
             Contract.Requires(def.DeclaringType != null);
             Contract.Requires(resolved != null);
             Contract.Requires(resolved.This.DeclaringType.Equals(LocalType));
-            Declarations.Add(def);
+            DeclarationsToMake.Add(def);
         }
 
         private void AddDeclaration(TypeRef def, ITypeData resolved)
@@ -235,24 +237,14 @@ namespace Il2Cpp_Modding_Codegen.Serialization
                 throw new UnresolvedTypeException(LocalType.This, def);
 
             if (resolved?.This.DeclaringType != null && !Definitions.Contains(resolved?.This.DeclaringType))
-                // If def's declaring type is not defined, we cannot declare def. Define it instead
-                AddDefinition(def, resolved);
+            {
+                // If def's declaring type is not defined, we cannot declare def. Define def's declaring type instead.
+                AddDefinition(resolved?.This.DeclaringType);
+                Declarations.Add(def);
+            }
             else if (resolved != null)
                 // Otherwise, we can safely add it to declarations
-                Declarations.Add(def);
-        }
-
-        private void MatchGenericParamToArg(TypeRef genParam, ref TypeRef genArg)
-        {
-            //if (genParam.IsCovariant) {
-            //    if (genArg.IsGenericParameter)
-            //    {
-            //        if (!genArg.IsCovariant)
-            //            genArg.IsCovariant = true;
-            //    }
-            //    else if (genArg.IsPointer() || genArg.IsArray() || genArg.Resolve(_types).Info.TypeFlags.HasFlag(TypeFlags.ReferenceType))
-            //        genArg = genArg.MakePointer();
-            //}
+                DeclarationsToMake.Add(def);
         }
 
         /// <summary>
@@ -265,7 +257,7 @@ namespace Il2Cpp_Modding_Codegen.Serialization
             if (_genericTypes.Contains(data))
                 return data.Name;
 
-            if (!data.Equals(LocalType.This))
+            if (forceAsType != ForceAsType.Literal || !data.Equals(LocalType.This))
             {
                 // If the TypeRef is a primitive, we need to convert it to a C++ name upfront.
                 var primitiveName = ConvertPrimitive(data, forceAsType, needAs);
@@ -305,12 +297,7 @@ namespace Il2Cpp_Modding_Codegen.Serialization
                 {
                     argMapping = new Dictionary<TypeRef, TypeRef>(TypeRef.fastComparer);
                     for (int i = 0; i < count; i++)
-                    {
-                        var genParam = genericParams[i];
-                        var genArg = genericArgs[i];
-                        MatchGenericParamToArg(genParam, ref genArg);
-                        argMapping.Add(genParam, genArg);
-                    }
+                        argMapping.Add(genericParams[i], genericArgs[i]);
                 }
                 // Get full generic map of declaring type --> list of generic parameters declared in that type
                 var genericMap = resolved.This.GetGenericMap(true);
@@ -364,8 +351,6 @@ namespace Il2Cpp_Modding_Codegen.Serialization
                     name = resolved.This.GetNamespace() + "::";
                 name += data.Name;
                 name = name.Replace('`', '_').Replace('<', '$').Replace('>', '$');
-                var genericParams = data.Generics;
-                if (data.IsGenericInstance) genericParams = data.Resolve(_types).This.Generics;
                 if (generics && data.Generics.Count > 0)
                 {
                     name += "<";
@@ -378,16 +363,11 @@ namespace Il2Cpp_Modding_Codegen.Serialization
                         else
                             first = false;
                         if (data.IsGenericTemplate)
-                        {
                             // If this is a generic template, use literal names for our generic parameters
                             name += g.Name;
-                        }
                         else if (data.IsGenericInstance)
-                        {
-                            MatchGenericParamToArg(genericParams[i], ref g);
                             // If this is a generic instance, call each of the generic's GetCppName
-                            name += GetCppName(g, qualified, true, needAs);
-                        }
+                            name += GetCppName(g, qualified, true);
                     }
                     name += ">";
                 }
@@ -449,54 +429,56 @@ namespace Il2Cpp_Modding_Codegen.Serialization
             return resolved;
         }
 
+        // We only need a declaration for the element type (if we aren't needed as a definition)
+        private NeedAs NeedAsForPrimitiveEtype(NeedAs needAs) => needAs == NeedAs.Definition ? needAs : NeedAs.Declaration;
+
         private string ConvertPrimitive(TypeRef def, ForceAsType forceAs, NeedAs needAs)
         {
-            var name = def.Name.ToLower();
-            if (name == "void*" || (def.Name == "Void" && def.IsPointer()))
-                return "void*";
-            else if (def.IsVoid())
-                return "void";
             string s = null;
             if (def.IsArray())
             {
-                // Technically, we only need to add a declaration for the array (if it isn't needed as a definition)
-                // however, we will add it as a definition, because it's annoying to create a new generic ITypeData for it.
                 // We should ensure we aren't attemping to force it to something it shouldn't be, so it should still be ForceAsType.None
-                var eName = GetCppName(def.ElementType, true, true, needAs);
+                var eName = GetCppName(def.ElementType, true, true, NeedAsForPrimitiveEtype(needAs));
                 s = $"Array<{eName}>";
             }
             else if (def.IsPointer())
             {
-                s = GetCppName(def.ElementType, true, true, needAs) + "*";
+                s = GetCppName(def.ElementType, true, true, NeedAsForPrimitiveEtype(needAs)) + "*";
             }
-            else if (name == "object")
-                s = "Il2CppObject";
-            else if (name == "string")
-                s = "Il2CppString";
-            else if (name == "char")
-                s = "Il2CppChar";
-            else if (def.Name == "bool" || def.Name == "Boolean")
-                s = "bool";
-            else if (name == "byte")
-                s = "int8_t";
-            else if (name == "sbyte")
-                s = "uint8_t";
-            else if (def.Name == "short" || def.Name == "Int16")
-                s = "int16_t";
-            else if (def.Name == "ushort" || def.Name == "UInt16")
-                s = "uint16_t";
-            else if (def.Name == "int" || def.Name == "Int32")
-                s = "int";
-            else if (def.Name == "uint" || def.Name == "UInt32")
-                s = "uint";
-            else if (def.Name == "long" || def.Name == "Int64")
-                s = "int64_t";
-            else if (def.Name == "ulong" || def.Name == "UInt64")
-                s = "uint64_t";
-            else if (def.Name == "float" || def.Name == "Single")
-                s = "float";
-            else if (name == "double")
-                s = "double";
+            else if (string.IsNullOrEmpty(def.Namespace) || def.Namespace == "System")
+            {
+                var name = def.Name.ToLower();
+                if (name == "void")
+                    s = "void";
+                else if (name == "object")
+                    s = "Il2CppObject";
+                else if (name == "string")
+                    s = "Il2CppString";
+                else if (name == "char")
+                    s = "Il2CppChar";
+                else if (def.Name == "bool" || def.Name == "Boolean")
+                    s = "bool";
+                else if (name == "byte")
+                    s = "int8_t";
+                else if (name == "sbyte")
+                    s = "uint8_t";
+                else if (def.Name == "short" || def.Name == "Int16")
+                    s = "int16_t";
+                else if (def.Name == "ushort" || def.Name == "UInt16")
+                    s = "uint16_t";
+                else if (def.Name == "int" || def.Name == "Int32")
+                    s = "int";
+                else if (def.Name == "uint" || def.Name == "UInt32")
+                    s = "uint";
+                else if (def.Name == "long" || def.Name == "Int64")
+                    s = "int64_t";
+                else if (def.Name == "ulong" || def.Name == "UInt64")
+                    s = "uint64_t";
+                else if (def.Name == "float" || def.Name == "Single")
+                    s = "float";
+                else if (name == "double")
+                    s = "double";
+            }
             if (s is null)
                 return null;
             if (s.StartsWith("Il2Cpp") || s.StartsWith("Array<"))

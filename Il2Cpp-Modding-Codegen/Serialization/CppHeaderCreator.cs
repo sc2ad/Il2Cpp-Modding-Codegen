@@ -30,7 +30,8 @@ namespace Il2Cpp_Modding_Codegen.Serialization
             // For Name and Namespace here, we DO want all the `, /, etc
             if (!type.This.IsGeneric)
             {
-                string fullName = context.GetCppName(context.LocalType.This, true, true, CppTypeContext.NeedAs.Definition);
+                string fullName = context.GetCppName(context.LocalType.This, true, true, CppTypeContext.NeedAs.Definition, CppTypeContext.ForceAsType.Literal);
+                if (context.LocalType.Info.TypeFlags.HasFlag(TypeFlags.ReferenceType)) fullName += "*";
                 writer.WriteLine($"DEFINE_IL2CPP_ARG_TYPE({fullName}, \"{ns}\", \"{il2cppName}\");");
             }
             else if (type.This.DeclaringType is null || !type.This.DeclaringType.IsGeneric)

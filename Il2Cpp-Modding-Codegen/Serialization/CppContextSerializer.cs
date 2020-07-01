@@ -50,6 +50,7 @@ namespace Il2Cpp_Modding_Codegen.Serialization
                 typeSerializer.Resolve(context, context.LocalType);
                 _typeSerializers.Add(context, typeSerializer);
             }
+            // Attempts to change context's set's before this point will fail!
 
             // Recursively Resolve our nested types. However, we may go out of order. We may need to double check to ensure correct resolution, among other things.
             foreach (var nested in context.NestedContexts)
@@ -67,7 +68,8 @@ namespace Il2Cpp_Modding_Codegen.Serialization
                 // Handle definitions in new sets so we don't lie to our future includers
                 includes.Add(context);
                 defs = new HashSet<TypeRef>(context.Definitions);
-                defsToGet = new HashSet<TypeRef>(context.Declarations);
+                defsToGet = new HashSet<TypeRef>(context.DeclarationsToMake);
+                defsToGet.UnionWith(context.Declarations);
             }
 
             foreach (var td in defsToGet)
@@ -82,6 +84,7 @@ namespace Il2Cpp_Modding_Codegen.Serialization
                 {
                     includes.Add(value);
                     AddIncludeDefinitions(context, defs, value.Definitions, asHeader);
+                    // No need to inherit declarations, since our own declarations should be all the types we need?
                 }
                 else
                     throw new UnresolvedTypeException(context.LocalType.This, td);
@@ -91,8 +94,8 @@ namespace Il2Cpp_Modding_Codegen.Serialization
             if (asHeader)
             {
                 // Remove ourselves from our required declarations (faster than checked for each addition)
-                context.Declarations.Remove(context.LocalType.This);
-                foreach (var td in context.Declarations)
+                context.DeclarationsToMake.Remove(context.LocalType.This);
+                foreach (var td in context.DeclarationsToMake)
                 {
                     // Stratify by namespace
                     var ns = td.GetNamespace();
@@ -162,22 +165,16 @@ namespace Il2Cpp_Modding_Codegen.Serialization
                 writer.WriteComment("Including type: " + include.LocalType.This);
                 // Using the HeaderFileName property of the include here will automatically use the lowest non-InPlace type
                 var incl = include.HeaderFileName;
-                if (!includesWritten.Contains(incl))
-                {
+                if (includesWritten.Add(incl))
                     writer.WriteInclude(incl);
-                    includesWritten.Add(incl);
-                }
                 else
                     writer.WriteComment("Already included the same include: " + incl);
             }
             if (context.LocalType.This.Namespace == "System" && context.LocalType.This.Name == "ValueType")
             {
                 // Special case for System.ValueType
-                if (!includesWritten.Contains("System/Object.hpp"))
-                {
+                if (includesWritten.Add("System/Object.hpp"))
                     writer.WriteInclude("System/Object.hpp");
-                    includesWritten.Add("System/Object.hpp");
-                }
             }
             // Overall il2cpp-utils include
             if (asHeader)
@@ -197,36 +194,33 @@ namespace Il2Cpp_Modding_Codegen.Serialization
         {
             // Write forward declarations
             writer.WriteComment("Begin forward declares");
-            var completedFds = new HashSet<TypeRef>();
             foreach (var byNamespace in declares)
             {
                 writer.WriteComment("Forward declaring namespace: " + byNamespace.Key);
                 writer.WriteDefinition("namespace " + byNamespace.Key);
                 foreach (var t in byNamespace.Value)
                 {
-                    var typeData = t.Resolve(_collection);
-                    if (typeData is null)
+                    var resolved = t.Resolve(_collection);
+                    if (resolved is null)
                         throw new UnresolvedTypeException(context.LocalType.This, t);
-                    var resolved = typeData.This;
-                    if (context.Definitions.Contains(resolved))
+                    var typeRef = resolved.This;
+                    if (resolved != context.LocalType && context.Definitions.Contains(typeRef))
                     {
                         // Write a comment saying "we have already included this"
-                        writer.WriteComment("Skipping declaration: " + resolved.Name + " because it is already included!");
+                        writer.WriteComment("Skipping declaration: " + typeRef.Name + " because it is already included!");
                         continue;
                     }
-                    if (completedFds.Contains(resolved))
-                        // If we have completed this reference already, continue.
-                        continue;
-                    if (resolved.DeclaringType != null)
-                        if (!resolved.DeclaringType.Equals(context.LocalType.This))
+                    if (typeRef.DeclaringType != null)
+                    {
+                        if (!context.HasInNestedHierarchy(CppDataSerializer.TypeToContext[resolved]))
                             // TODO: move this error to Resolve or earlier
                             // If there are any nested types in declarations, the declaring type must be defined.
                             // If the declaration is a nested type that exists in the local type, then we will serialize it within the type itself.
                             // Thus, if this ever happens, it should not be a declaration.
-                            throw new InvalidOperationException($"Type: {resolved} (declaring type: {resolved.DeclaringType} cannot be declared by {context.LocalType.This} because it is a nested type! It should be defined instead!");
-                        else
-                            continue;  // don't namespace declare our own types
-                    WriteForwardDeclaration(writer, typeData);
+                            throw new InvalidOperationException($"Type: {typeRef} (declaring type: {typeRef.DeclaringType} cannot be declared by {context.LocalType.This} because it is a nested type! It should be defined instead!");
+                        continue;  // don't namespace declare our own types
+                    }
+                    WriteForwardDeclaration(writer, resolved);
                 }
                 // Close namespace after all types in the same namespace have been FD'd
                 writer.CloseDefinition();
@@ -300,6 +294,7 @@ namespace Il2Cpp_Modding_Codegen.Serialization
                     writer.WriteComment("Type namespace: " + context.LocalType.This.Namespace);
                     writer.WriteDefinition("namespace " + context.TypeNamespace);
                 }
+
                 typeSerializer.WriteInitialTypeDefinition(writer, context.LocalType, context.InPlace);
 
                 // Now, we must also write all of the nested contexts of this particular context object that have InPlace = true
