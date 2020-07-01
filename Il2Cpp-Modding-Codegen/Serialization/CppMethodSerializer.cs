@@ -1,11 +1,7 @@
-using Il2Cpp_Modding_Codegen.Config;
+﻿using Il2Cpp_Modding_Codegen.Config;
 using Il2Cpp_Modding_Codegen.Data;
-using Il2Cpp_Modding_Codegen.Data.DllHandling;
 using System;
-using System.CodeDom.Compiler;
 using System.Collections.Generic;
-using System.ComponentModel.Design.Serialization;
-using System.IO;
 
 namespace Il2Cpp_Modding_Codegen.Serialization
 {
@@ -144,6 +140,9 @@ namespace Il2Cpp_Modding_Codegen.Serialization
                 // If we fail to resolve the return type, we will simply add a null item to our dictionary.
                 // However, we should not call Resolved(method)
                 success = false;
+            if (_resolvedReturns.ContainsKey(method))
+                // If this is ignored, we will still (at least) fail on _parameterMaps.Add
+                throw new InvalidOperationException("Method has already been preserialized! Don't preserialize it again! Method: " + method);
             _resolvedReturns.Add(method, resolvedReturn);
             var parameterMap = new List<(string, ParameterFlags)>();
             foreach (var p in method.Parameters)

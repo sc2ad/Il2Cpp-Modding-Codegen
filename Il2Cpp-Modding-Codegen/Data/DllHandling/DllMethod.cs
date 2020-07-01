@@ -27,10 +27,15 @@ namespace Il2Cpp_Modding_Codegen.Data.DllHandling
         public List<Parameter> Parameters { get; } = new List<Parameter>();
         public bool Generic { get; }
 
-        private static Dictionary<MethodDefinition, DllMethod> cache = new Dictionary<MethodDefinition, DllMethod>();
+        // Use the specific hash comparer to ensure validity!
+        private static readonly DllMethodDefinitionHash comparer = new DllMethodDefinitionHash();
+
+        private static readonly Dictionary<MethodDefinition, DllMethod> cache = new Dictionary<MethodDefinition, DllMethod>(comparer);
 
         public static DllMethod From(MethodDefinition def, ref HashSet<MethodDefinition> mappedBaseMethods)
         {
+            // Note that TryGetValue is now significantly slower due to hash collisions and equality checks being expensive.
+            // Before, it was simply pointers.
             if (cache.TryGetValue(def, out var m))
                 return m;
             return new DllMethod(def, ref mappedBaseMethods);
