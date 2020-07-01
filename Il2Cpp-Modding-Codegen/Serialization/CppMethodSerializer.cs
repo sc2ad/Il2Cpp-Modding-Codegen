@@ -139,7 +139,7 @@ namespace Il2Cpp_Modding_Codegen.Serialization
             var needAs = NeedTypesAs(method);
             // We need to forward declare everything used in methods (return types and parameters)
             // If we are writing the definition, we MUST define it
-            var resolvedReturn = context.GetCppName(method.ReturnType, true, needAs: NeedTypesAs(method, true));
+            var resolvedReturn = _config.SafeName(context.GetCppName(method.ReturnType, true, needAs: NeedTypesAs(method, true)));
             if (resolvedReturn is null)
                 // If we fail to resolve the return type, we will simply add a null item to our dictionary.
                 // However, we should not call Resolved(method)
@@ -149,7 +149,7 @@ namespace Il2Cpp_Modding_Codegen.Serialization
             foreach (var p in method.Parameters)
             {
                 // If this is not a header, we MUST define it
-                var s = context.GetCppName(p.Type, true, needAs: needAs);
+                var s = _config.SafeName(context.GetCppName(p.Type, true, needAs: needAs));
                 if (s is null)
                     // If we fail to resolve a parameter, we will simply add a (null, p.Flags) item to our mapping.
                     // However, we should not call Resolved(method)

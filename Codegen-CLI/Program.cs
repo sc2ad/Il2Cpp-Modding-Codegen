@@ -4,6 +4,7 @@ using Il2Cpp_Modding_Codegen.Data;
 using Il2Cpp_Modding_Codegen.Parsers;
 using Il2Cpp_Modding_Codegen.Serialization;
 using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 
@@ -55,8 +56,7 @@ namespace Codegen_CLI
             Console.WriteLine("Type the name of an output style (or don't for Normal) then press enter to serialize:");
             var input = Console.ReadLine();
             // TODO: strip non-alphabetic characters out of input before parsing it
-            OutputStyle style;
-            if (Enum.TryParse(input, true, out style))
+            if (Enum.TryParse(input, true, out OutputStyle style))
             {
                 Console.WriteLine($"Parsed style '{style}'");
             }
@@ -64,6 +64,19 @@ namespace Codegen_CLI
             Console.WriteLine("Creating serializer...");
             var config = new SerializationConfig
             {
+                // from https://en.cppreference.com/w/cpp/keyword
+                IllegalNames = new HashSet<string> {
+                    "alignas", "alignof", "and", "and_eq", "asm", "atomic_cancel", "atomic_commit", "atomic_noexcept", "auto",
+                    "bitand", "bitor", "bool", "break", "case", "catch", "char", "char8_t", "char16_t", "char32_t", "class",
+                    "compl", "concept", "const", "consteval", "constexpr", "constinit", "const_cast", "continue", "co_await",
+                    "co_return", "co_yield", "decltype", "default", "delete", "do", "double", "dynamic_cast", "else", "enum",
+                    "explicit", "export", "extern", "false", "float", "for", "friend", "goto", "if", "inline", "int", "long",
+                    "mutable", "namespace", "new", "noexcept", "not", "not_eq", "nullptr", "operator", "or", "or_eq",
+                    "private", "protected", "public", "reflexpr", "register", "reinterpret_cast", "requires", "return",
+                    "short", "signed", "sizeof", "static", "static_assert", "static_cast", "struct", "switch", "synchronized",
+                    "template", "this", "thread_local", "throw", "true", "try", "typedef", "typeid", "typename", "union",
+                    "unsigned", "using", "virtual", "void", "volatile", "wchar_t", "while", "xor", "xor_eq"
+                },
                 OutputDirectory = Path.Combine(Environment.CurrentDirectory, "output"),
                 OutputHeaderDirectory = "include",
                 OutputSourceDirectory = "src",

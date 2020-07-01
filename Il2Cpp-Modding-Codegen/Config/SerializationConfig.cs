@@ -11,6 +11,12 @@ namespace Il2Cpp_Modding_Codegen.Config
         public string OutputSourceDirectory { get; set; }
 
         /// <summary>
+        /// A set of illegal method, field, or type names that must be renamed.
+        /// The renaming approach is to simply prefix with a _ until it is no longer within this set.
+        /// </summary>
+        public HashSet<string> IllegalNames { get; set; }
+
+        /// <summary>
         /// How to output the created methods
         /// </summary>
         public OutputStyle OutputStyle { get; set; }
@@ -44,14 +50,29 @@ namespace Il2Cpp_Modding_Codegen.Config
         /// How to handle generics
         /// </summary>
         public GenericHandling GenericHandling { get; set; }
+
         /// <summary>
         /// To display progress using <see cref="PrintSerializationProgressFrequency"/> while serializing
         /// </summary>
         public bool PrintSerializationProgress { get; set; }
+
         /// <summary>
         /// Frequency to display progress. Only used if <see cref="PrintSerializationProgress"/> is true
         /// </summary>
         public int PrintSerializationProgressFrequency { get; set; }
+
+        /// <summary>
+        /// Returns a name that is definitely not within IllegalNames
+        /// </summary>
+        /// <param name="name"></param>
+        /// <returns></returns>
+        public string SafeName(string name)
+        {
+            if (!string.IsNullOrEmpty(name))
+                while (IllegalNames?.Contains(name) is true)
+                    name = "_" + name;
+            return name;
+        }
     }
 
     public struct ExceptionHandling

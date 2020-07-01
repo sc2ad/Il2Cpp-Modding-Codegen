@@ -37,7 +37,7 @@ namespace Il2Cpp_Modding_Codegen.Serialization
         public void Resolve(CppTypeContext context, ITypeData type)
         {
             // Asking for ourselves as a definition will simply make things easier when resolving ourselves.
-            var resolved = context.GetCppName(type.This, false, false, CppTypeContext.NeedAs.Definition, CppTypeContext.ForceAsType.Literal);
+            var resolved = _config.SafeName(context.GetCppName(type.This, false, false, CppTypeContext.NeedAs.Definition, CppTypeContext.ForceAsType.Literal));
             if (resolved is null)
                 throw new InvalidOperationException($"Could not resolve provided type: {type.This}!");
 
@@ -60,21 +60,21 @@ namespace Il2Cpp_Modding_Codegen.Serialization
                     s.parentNames.Add("System::Object");
                 else
                     // TODO: just use type.Parent's QualifiedTypeName instead?
-                    s.parentNames.Add(context.GetCppName(type.Parent, true, true, CppTypeContext.NeedAs.Definition, CppTypeContext.ForceAsType.Literal));
+                    s.parentNames.Add(_config.SafeName(context.GetCppName(type.Parent, true, true, CppTypeContext.NeedAs.Definition, CppTypeContext.ForceAsType.Literal)));
             }
 
             if (type.This.DeclaringType != null && type.This.DeclaringType.IsGeneric)
             {
-                s.declaring = context.GetCppName(type.This.DeclaringType, false, true, CppTypeContext.NeedAs.Definition);
+                s.declaring = _config.SafeName(context.GetCppName(type.This.DeclaringType, false, true, CppTypeContext.NeedAs.Definition));
                 s.parentNames.Add("::il2cpp_utils::il2cpp_type_check::NestedType");
             }
 
             foreach (var @interface in type.ImplementingInterfaces)
-                s.parentNames.Add("virtual " + context.GetCppName(@interface, true, true, CppTypeContext.NeedAs.Definition, CppTypeContext.ForceAsType.Literal));
+                s.parentNames.Add("virtual " + _config.SafeName(context.GetCppName(@interface, true, true, CppTypeContext.NeedAs.Definition, CppTypeContext.ForceAsType.Literal)));
             map.Add(type.This, s);
 
             if (fieldSerializer is null)
-                fieldSerializer = new CppFieldSerializer();
+                fieldSerializer = new CppFieldSerializer(_config);
 
             if (type.Type != TypeEnum.Interface)
             {
