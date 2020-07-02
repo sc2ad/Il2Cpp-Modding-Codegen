@@ -23,6 +23,13 @@ namespace Il2Cpp_Modding_Codegen.Serialization
         public static IReadOnlyDictionary<ITypeData, CppTypeContext> TypeToContext { get => _map; }
 
         /// <summary>
+        /// This event is called after all types are PreSerialized, but BEFORE any definitions or declarations are resolved to includes.
+        /// This allows for any delegates of this type to modify each type's context's definitions or declarations before they are considered complete.
+        /// This is called for each type that is registered in <see cref="_map"/>, which is each type that is not skipped due to config.
+        /// </summary>
+        public event Action<CppDataSerializer, ITypeData, CppTypeContext> ContextsComplete;
+
+        /// <summary>
         /// Creates a C++ Serializer with the given type context, which is a wrapper for a list of all types to serialize
         /// </summary>
         /// <param name="types"></param>
@@ -80,12 +87,18 @@ namespace Il2Cpp_Modding_Codegen.Serialization
                 // Therefore, when we resolve include locations, we must ensure we are not a nested type before returning our include path
                 // (otherwise returning our declaring type's include path)
             }
+            // Perform any post context creation for all pairs in _map
             foreach (var pair in _map)
+            {
+                ContextsComplete?.Invoke(this, pair.Key, pair.Value);
+            }
+            // Resolve all definitions and declarations for each context in _map
+            foreach (var context in _map.Values)
             {
                 // We need to ensure that all of our definitions and declarations are resolved for our given type in both contexts.
                 // We do this by calling CppContextSerializer.Resolve(pair.Key, _map)
-                _contextSerializer.Resolve(pair.Value, _map, true);
-                _contextSerializer.Resolve(pair.Value, _map, false);
+                _contextSerializer.Resolve(context, _map, true);
+                _contextSerializer.Resolve(context, _map, false);
             }
         }
 

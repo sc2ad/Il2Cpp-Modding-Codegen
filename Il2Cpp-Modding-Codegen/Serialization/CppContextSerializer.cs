@@ -20,15 +20,32 @@ namespace Il2Cpp_Modding_Codegen.Serialization
         private Dictionary<CppTypeContext, (HashSet<CppTypeContext>, Dictionary<string, HashSet<TypeRef>>)> _headerContextMap = new Dictionary<CppTypeContext, (HashSet<CppTypeContext>, Dictionary<string, HashSet<TypeRef>>)>();
         private Dictionary<CppTypeContext, (HashSet<CppTypeContext>, Dictionary<string, HashSet<TypeRef>>)> _sourceContextMap = new Dictionary<CppTypeContext, (HashSet<CppTypeContext>, Dictionary<string, HashSet<TypeRef>>)>();
         private SerializationConfig _config;
+
         // Hold a type serializer to use for type serialization
         // We want to split up the type serialization into steps, managing nested types ourselves, instead of letting it do it.
         // Map contexts to CppTypeDataSerializers, one to one.
         private Dictionary<CppTypeContext, CppTypeDataSerializer> _typeSerializers = new Dictionary<CppTypeContext, CppTypeDataSerializer>();
 
+        /// <summary>
+        /// This event is invoked whenever a definition is defined at least twice in a single <see cref="CppTypeContext"/>
+        /// This is usually due to including something that (indirectly or directly) ends up including the original type.
+        /// Called with: this, current <see cref="CppTypeContext"/>, offending <see cref="TypeRef"/>
+        /// </summary>
+        public event Action<CppContextSerializer, CppTypeContext, TypeRef> DuplicateDefinition;
+
         public CppContextSerializer(SerializationConfig config, ITypeCollection collection)
         {
             _config = config;
             _collection = collection;
+            // TODO: Configurable:
+            DuplicateDefinition += ForwardToTypeDataSerializer;
+        }
+
+        private void ForwardToTypeDataSerializer(CppContextSerializer self, CppTypeContext context, TypeRef offendingType)
+        {
+            Console.Error.WriteLine($"Cannot add definition: {offendingType} to context: {context.LocalType.This} because it is the same type!\nDefinitions to get: ({string.Join(", ", context.DefinitionsToGet.Select(d => d.GetQualifiedName()))})");
+            Console.Error.WriteLine("Forwarding to CppTypeDataSerializer!");
+            _typeSerializers[context].DuplicateDefinition(context, offendingType);
         }
 
         /// <summary>
@@ -75,15 +92,18 @@ namespace Il2Cpp_Modding_Codegen.Serialization
             foreach (var td in defsToGet)
             {
                 if (context.Definitions.Contains(td))
+                {
                     // If we have the definition already in our context, continue.
                     // This could be because it is literally ourselves, a nested type, or we included something
+                    Console.WriteLine($"Duplicate definition: {td} in context: {context.LocalType.This}");
                     continue;
+                }
                 var type = td.Resolve(_collection);
                 // Add the resolved context's HeaderFileName to includes
                 if (map.TryGetValue(type, out var value))
                 {
                     includes.Add(value);
-                    AddIncludeDefinitions(context, defs, value.Definitions, asHeader);
+                    AddIncludeDefinitions(context, defs, value, asHeader, ref includes);
                     // No need to inherit declarations, since our own declarations should be all the types we need?
                 }
                 else
@@ -108,16 +128,26 @@ namespace Il2Cpp_Modding_Codegen.Serialization
             _contextMap.Add(context, (includes, forwardDeclares));
         }
 
-        private void AddIncludeDefinitions(CppTypeContext context, HashSet<TypeRef> defs, HashSet<TypeRef> newDefs, bool asHeader)
+        private void AddIncludeDefinitions(CppTypeContext context, HashSet<TypeRef> defs, CppTypeContext newContext, bool asHeader, ref HashSet<CppTypeContext> includesOfType)
         {
-            foreach (var newDef in newDefs)
+            foreach (var newDef in newContext.Definitions)
             {
                 if (asHeader)
                 {
                     if (newDef.Equals(context.LocalType.This))
+                    {
                         // Cannot include something that includes us!
-                        Console.Error.WriteLine($"Cannot add definition: {newDef} to context: {context.LocalType.This} because it is the same type!\nDefinitions to get: ({string.Join(", ", context.DefinitionsToGet.Select(d => d.GetQualifiedName()))})");
-                    // TODO: Add a warning for including something that defines/includes our own nested type (i.e. a type that has us in its DeclaringContext chain)
+                        // Invoke our DuplicateDefinition callback
+                        // Optimally, we don't actually remove the problematic type from our includes
+                        // Instead, we actually want to completely recalculate them AFTER the methods have been templated and hope that it doesn't exist.
+                        // Not to mention that the cycle issue ocurring HERE is actually problematic-- we want to call DuplicateDefinition on the FIRST type
+                        // that leads us down a recursive include chain. In fact, it should probably be one of our OWN includes.
+                        // Ideally, this means that for a given type, if we find a cycle, we need to remove an include that our type was performing in order to fix it.
+                        // TODO: Basically read this
+                        includesOfType.Remove(newContext);
+                        DuplicateDefinition?.Invoke(this, context, newDef);
+                        // TODO: Add a warning for including something that defines/includes our own nested type (i.e. a type that has us in its DeclaringContext chain)
+                    }
                 }
 
                 // Always add the definition (if we don't throw)

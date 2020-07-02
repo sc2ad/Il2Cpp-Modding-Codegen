@@ -4,6 +4,7 @@ using Il2Cpp_Modding_Codegen.Serialization;
 using System;
 using System.CodeDom.Compiler;
 using System.Collections.Generic;
+using System.Diagnostics.Contracts;
 using System.IO;
 using System.Linq;
 using System.Text;
@@ -101,6 +102,21 @@ namespace Il2Cpp_Modding_Codegen.Serialization
                 methodSerializer = new CppMethodSerializer(_config);
             foreach (var m in type.Methods)
                 methodSerializer?.PreSerialize(context, m);
+        }
+
+        public void DuplicateDefinition(CppTypeContext self, TypeRef offendingType)
+        {
+            // If we ever have a duplicate definition, this should be called.
+            // Here, we need to check to see if we failed because of a field, method, or both
+            foreach (var f in self.LocalType.Fields)
+                if (f.Type.Equals(offendingType))
+                    // If it was a field at all, we throw (this is unsolvable)
+                    throw new InvalidOperationException($"Cannot fix duplicate definition for offending type: {offendingType}, it is used as field: {f} in: {self.LocalType.This}");
+            foreach (var m in self.LocalType.Methods)
+                // If it was simply a method, we iterate over all methods and attempt to template them
+                // However, if we cannot fix it, this function will return false, informing us that we have failed.
+                if (!methodSerializer.FixBadDefinition(offendingType, m))
+                    throw new InvalidOperationException($"Cannot fix duplicate definition for offending type: {offendingType}, it is used in an unfixable method: {m}");
         }
 
         // Should be provided a file, with all references resolved:

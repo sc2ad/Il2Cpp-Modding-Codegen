@@ -2,6 +2,8 @@
 using Il2Cpp_Modding_Codegen.Data;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.Contracts;
+using System.Linq;
 
 namespace Il2Cpp_Modding_Codegen.Serialization
 {
@@ -11,8 +13,19 @@ namespace Il2Cpp_Modding_Codegen.Serialization
         private bool _asHeader;
         private SerializationConfig _config;
 
-        private Dictionary<IMethod, string> _resolvedReturns = new Dictionary<IMethod, string>();
-        private Dictionary<IMethod, List<(string, ParameterFlags)>> _parameterMaps = new Dictionary<IMethod, List<(string, ParameterFlags)>>();
+        private Dictionary<IMethod, MethodContainer> _resolvedReturns = new Dictionary<IMethod, MethodContainer>();
+        private Dictionary<IMethod, List<(MethodContainer container, ParameterFlags flags)>> _parameterMaps = new Dictionary<IMethod, List<(MethodContainer container, ParameterFlags flags)>>();
+
+        /// <summary>
+        /// This dictionary maps from method to a list of generic arguments.
+        /// These generic arguments are only ever used as replacements for types that should not be included/defined within our context.
+        /// Thus, we only read these generic arguments and use them for our template<class ...> string when we populate it.
+        /// If there is no value for a given <see cref="IMethod"/>, we simply avoid writing a template string at all.
+        /// If we are not a header, we write template<> instead.
+        /// This is populated only when <see cref="FixBadDefinition(CppTypeContext, TypeRef, IMethod)"/> is called.
+        /// </summary>
+        private Dictionary<IMethod, SortedSet<string>> _genericArgs = new Dictionary<IMethod, SortedSet<string>>();
+
         private string _declaringFullyQualified;
         private bool _isInterface;
         private bool _pureVirtual;
@@ -120,6 +133,63 @@ namespace Il2Cpp_Modding_Codegen.Serialization
             }
         }
 
+        public void PreResolve(CppTypeContext context, IMethod method)
+        {
+            // If p.Type is a nested type AND it is a nested type that we need as a definition, (AND it is a type that we recursively include)
+            // Then we need to remap it to a different name, instead of using p.Type, assuming we are writing it in the header, we need to use it as T1, T2, ...
+            // This renaming to generic types is something that should only happen for TYPE names, and only if we aren't writing the content of the method.
+            // TODO: Need to figure out what to do in the case where we write the body of a method, but it uses a nested type that is recursively included
+            // We can't actually tell if we are recursively including something until Serialize happens. Perhaps this is best done during the serialization step?
+            // However, if we do this during Serialize, we can't remove definitions or declarations that have otherwise already happened.
+            // The whole goal of doing nested types in this way is to avoid defining any types that would (via some means) redefine ourselves.
+            // Ideally, we only perform this process when we are certain there is an include cycle, but that's actually really hard to do without another pass.
+            // If we DID do another pass, we could easily check, fixup definitions, and THEN serialize...
+        }
+
+        public bool FixBadDefinition(TypeRef offendingType, IMethod method)
+        {
+            // This method should be relatively straightforward:
+            // First, check if we have a cycle with a nested type AND we don't want to write our content of our method (throw if we are a template type, for example)
+            // Then, given this particular method, compute how many of our parameters are actually in a cycle (fun part!)
+            // For each of those, create a template type, T1 --> TN that maps to it, ONLY IF WE ARE A HEADER!
+            // Then, set some flags such that we write the following:
+            // template<class T1, class T2, ...> ADJUSTED_RETURN original_name(ADJUSTED_PARAMETERS original_names);
+            // And in .cpp:
+            // template<>
+            // original_return original_name(original_parameters original_names) { ... }
+            Contract.Requires(_resolvedReturns.ContainsKey(method));
+            Contract.Requires(_parameterMaps.ContainsKey(method));
+            Contract.Requires(_parameterMaps[method].Count == method.Parameters.Count);
+
+            if (NeedDefinitionInHeader(method))
+                // Can't template a definition in a header.
+                return false;
+
+            // Use existing genericParameters if it already exists (a single method could have multiple offending types!)
+            if (!_genericArgs.TryGetValue(method, out var genericParameters))
+                genericParameters = new SortedSet<string>();
+            // Ideally, all I should have to do here is iterate over my method, see if any params or return types match offending type, and template it if so
+            if (method.ReturnType.Equals(offendingType))
+            {
+                var newName = "R";
+                _resolvedReturns[method].Template(newName);
+                genericParameters.Add(newName);
+            }
+            for (int i = 0; i < method.Parameters.Count; i++)
+            {
+                if (method.Parameters[i].Type.Equals(offendingType))
+                {
+                    var newName = "T" + i;
+                    _parameterMaps[method][i].container.Template(newName);
+                    genericParameters.Add(newName);
+                }
+            }
+            if (genericParameters.Count > 0)
+                // Only add to dictionary if we actually HAVE the offending type somewhere.
+                _genericArgs.Add(method, genericParameters);
+            return true;
+        }
+
         public override void PreSerialize(CppTypeContext context, IMethod method)
         {
             if (method.Generic)
@@ -143,17 +213,16 @@ namespace Il2Cpp_Modding_Codegen.Serialization
             if (_resolvedReturns.ContainsKey(method))
                 // If this is ignored, we will still (at least) fail on _parameterMaps.Add
                 throw new InvalidOperationException("Method has already been preserialized! Don't preserialize it again! Method: " + method);
-            _resolvedReturns.Add(method, resolvedReturn);
-            var parameterMap = new List<(string, ParameterFlags)>();
+            _resolvedReturns.Add(method, new MethodContainer(resolvedReturn));
+            var parameterMap = new List<(MethodContainer, ParameterFlags)>();
             foreach (var p in method.Parameters)
             {
-                // If this is not a header, we MUST define it
                 var s = context.GetCppName(p.Type, true, needAs: needAs);
                 if (s is null)
                     // If we fail to resolve a parameter, we will simply add a (null, p.Flags) item to our mapping.
                     // However, we should not call Resolved(method)
                     success = false;
-                parameterMap.Add((s, p.Flags));
+                parameterMap.Add((new MethodContainer(s), p.Flags));
             }
             _parameterMaps.Add(method, parameterMap);
             ResolveName(method);
@@ -187,7 +256,7 @@ namespace Il2Cpp_Modding_Codegen.Serialization
             }
             // Returns an optional
             // TODO: Should be configurable
-            var retStr = _resolvedReturns[method];
+            var retStr = _resolvedReturns[method].TypeName(isHeader);
             if (!method.ReturnType.IsVoid())
             {
                 if (_config.OutputStyle == OutputStyle.Normal)
@@ -198,7 +267,7 @@ namespace Il2Cpp_Modding_Codegen.Serialization
                 throw new InvalidOperationException($"Could not find method: {method} in _nameMap! Ensure it is PreSerialized first!");
             var nameStr = namePair.Item1;
 
-            string paramString = method.Parameters.FormatParameters(_config.IllegalNames, _parameterMaps[method], FormatParameterMode.Names | FormatParameterMode.Types);
+            string paramString = method.Parameters.FormatParameters(_config.IllegalNames, _parameterMaps[method], FormatParameterMode.Names | FormatParameterMode.Types, header: isHeader);
             var signature = $"{nameStr}({paramString})";
 
             if (!_ignoreSignatureMap && !_signatures.Add((method.DeclaringType, isHeader, signature)))
@@ -220,7 +289,7 @@ namespace Il2Cpp_Modding_Codegen.Serialization
                 return;
             if (_resolvedReturns[method] == null)
                 throw new UnresolvedTypeException(method.DeclaringType, method.ReturnType);
-            var val = _parameterMaps[method].FindIndex(s => s.Item1 is null);
+            var val = _parameterMaps[method].FindIndex(s => s.container.TypeName(asHeader) is null);
             if (val != -1)
                 throw new UnresolvedTypeException(method.DeclaringType, method.Parameters[val].Type);
             // Blacklist and IgnoredMethods should still use method.Name, not method.Il2CppName
@@ -243,14 +312,18 @@ namespace Il2Cpp_Modding_Codegen.Serialization
                 }
                 // Method comment should also use the Il2CppName whenever possible
                 methodComment += $"{method.ReturnType} {method.Il2CppName}({method.Parameters.FormatParameters(csharp: true)})";
-                methodComment += $" // Offset: 0x{method.Offset:X}";
                 writer.WriteComment(methodComment);
+                writer.WriteComment($"Offset: 0x{method.Offset:X}");
                 if (method.ImplementedFrom != null)
                     writer.WriteComment("Implemented from: " + method.ImplementedFrom);
                 if (method.BaseMethod != null)
                     writer.WriteComment($"Base method: {method.BaseMethod.ReturnType} {method.BaseMethod.DeclaringType.Name}::{method.BaseMethod.Name}({method.Parameters.FormatParameters(csharp: true)})");
                 if (!writeContent)
+                {
+                    if (_genericArgs.TryGetValue(method, out var types))
+                        writer.WriteLine($"template<{string.Join(", ", types.Select(s => "class " + s))}>");
                     writer.WriteDeclaration(WriteMethod(staticFunc, method, true));
+                }
             }
             else
             {
@@ -268,6 +341,8 @@ namespace Il2Cpp_Modding_Codegen.Serialization
                     writer.Flush();
                     return;
                 }
+                if (_genericArgs.ContainsKey(method))
+                    writer.WriteLine("template<>");
                 writer.WriteDefinition(methodStr);
 
                 var s = "";
