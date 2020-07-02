@@ -146,7 +146,6 @@ namespace Il2Cpp_Modding_Codegen.Serialization
                         // TODO: Basically read this
                         includesOfType.Remove(newContext);
                         DuplicateDefinition?.Invoke(this, context, newDef);
-                        // TODO: Add a warning for including something that defines/includes our own nested type (i.e. a type that has us in its DeclaringContext chain)
                     }
                     else if (context.HasInNestedHierarchy(newDef))
                         // Cannot include something that claims to define our nested type!
