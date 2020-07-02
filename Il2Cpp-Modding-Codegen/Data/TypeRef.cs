@@ -122,6 +122,14 @@ namespace Il2Cpp_Modding_Codegen.Data
             return genericsDefined.Distinct(fastComparer);
         }
 
+        internal bool ContainsOrEquals(TypeRef other)
+        {
+            if (Equals(other)) return true;
+            if (ElementType != null && ElementType.ContainsOrEquals(other)) return true;
+            if (DeclaringType != null && DeclaringType.ContainsOrEquals(other)) return true;
+            return false;
+        }
+
         /// <summary>
         /// Returns a mapping of <see cref="TypeRef"/> to generics explicitly defined by that <see cref="TypeRef"/>
         /// </summary>

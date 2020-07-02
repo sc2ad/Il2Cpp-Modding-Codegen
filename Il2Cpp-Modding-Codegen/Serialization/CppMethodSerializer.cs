@@ -13,8 +13,8 @@ namespace Il2Cpp_Modding_Codegen.Serialization
         private bool _asHeader;
         private SerializationConfig _config;
 
-        private Dictionary<IMethod, MethodContainer> _resolvedReturns = new Dictionary<IMethod, MethodContainer>();
-        private Dictionary<IMethod, List<(MethodContainer container, ParameterFlags flags)>> _parameterMaps = new Dictionary<IMethod, List<(MethodContainer container, ParameterFlags flags)>>();
+        private Dictionary<IMethod, MethodTypeContainer> _resolvedReturns = new Dictionary<IMethod, MethodTypeContainer>();
+        private Dictionary<IMethod, List<(MethodTypeContainer container, ParameterFlags flags)>> _parameterMaps = new Dictionary<IMethod, List<(MethodTypeContainer container, ParameterFlags flags)>>();
 
         /// <summary>
         /// This dictionary maps from method to a list of generic arguments.
@@ -146,7 +146,7 @@ namespace Il2Cpp_Modding_Codegen.Serialization
             // If we DID do another pass, we could easily check, fixup definitions, and THEN serialize...
         }
 
-        public bool FixBadDefinition(TypeRef offendingType, IMethod method)
+        public bool FixBadDefinition(TypeRef offendingType, IMethod method, out int found)
         {
             // This method should be relatively straightforward:
             // First, check if we have a cycle with a nested type AND we don't want to write our content of our method (throw if we are a template type, for example)
@@ -161,6 +161,7 @@ namespace Il2Cpp_Modding_Codegen.Serialization
             Contract.Requires(_parameterMaps.ContainsKey(method));
             Contract.Requires(_parameterMaps[method].Count == method.Parameters.Count);
 
+            found = 0;
             if (NeedDefinitionInHeader(method))
                 // Can't template a definition in a header.
                 return false;
@@ -169,7 +170,7 @@ namespace Il2Cpp_Modding_Codegen.Serialization
             if (!_genericArgs.TryGetValue(method, out var genericParameters))
                 genericParameters = new SortedSet<string>();
             // Ideally, all I should have to do here is iterate over my method, see if any params or return types match offending type, and template it if so
-            if (method.ReturnType.Equals(offendingType))
+            if (method.ReturnType.ContainsOrEquals(offendingType))
             {
                 var newName = "R";
                 _resolvedReturns[method].Template(newName);
@@ -177,13 +178,15 @@ namespace Il2Cpp_Modding_Codegen.Serialization
             }
             for (int i = 0; i < method.Parameters.Count; i++)
             {
-                if (method.Parameters[i].Type.Equals(offendingType))
+                if (method.Parameters[i].Type.ContainsOrEquals(offendingType))
                 {
                     var newName = "T" + i;
                     _parameterMaps[method][i].container.Template(newName);
                     genericParameters.Add(newName);
                 }
             }
+
+            found = genericParameters.Count;
             if (genericParameters.Count > 0)
                 // Only add to dictionary if we actually HAVE the offending type somewhere.
                 _genericArgs.Add(method, genericParameters);
@@ -213,8 +216,8 @@ namespace Il2Cpp_Modding_Codegen.Serialization
             if (_resolvedReturns.ContainsKey(method))
                 // If this is ignored, we will still (at least) fail on _parameterMaps.Add
                 throw new InvalidOperationException("Method has already been preserialized! Don't preserialize it again! Method: " + method);
-            _resolvedReturns.Add(method, new MethodContainer(resolvedReturn));
-            var parameterMap = new List<(MethodContainer, ParameterFlags)>();
+            _resolvedReturns.Add(method, new MethodTypeContainer(resolvedReturn));
+            var parameterMap = new List<(MethodTypeContainer, ParameterFlags)>();
             foreach (var p in method.Parameters)
             {
                 var s = context.GetCppName(p.Type, true, needAs: needAs);
@@ -222,7 +225,7 @@ namespace Il2Cpp_Modding_Codegen.Serialization
                     // If we fail to resolve a parameter, we will simply add a (null, p.Flags) item to our mapping.
                     // However, we should not call Resolved(method)
                     success = false;
-                parameterMap.Add((new MethodContainer(s), p.Flags));
+                parameterMap.Add((new MethodTypeContainer(s), p.Flags));
             }
             _parameterMaps.Add(method, parameterMap);
             ResolveName(method);

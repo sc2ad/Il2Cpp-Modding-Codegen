@@ -75,7 +75,7 @@ namespace Il2Cpp_Modding_Codegen.Data
 
     public static class ParameterExtensions
     {
-        public static string PrintParameter(this (MethodContainer container, ParameterFlags flags) param, bool header, bool csharp = false)
+        public static string PrintParameter(this (MethodTypeContainer container, ParameterFlags flags) param, bool header, bool csharp = false)
         {
             var s = param.container.TypeName(header);
             if (csharp)
@@ -92,7 +92,7 @@ namespace Il2Cpp_Modding_Codegen.Data
             return s;
         }
 
-        public static string FormatParameters(this List<Parameter> parameters, HashSet<string> illegalNames = null, List<(MethodContainer, ParameterFlags)> resolvedNames = null, FormatParameterMode mode = FormatParameterMode.Normal, bool header = false, bool csharp = false)
+        public static string FormatParameters(this List<Parameter> parameters, HashSet<string> illegalNames = null, List<(MethodTypeContainer, ParameterFlags)> resolvedNames = null, FormatParameterMode mode = FormatParameterMode.Normal, bool header = false, bool csharp = false)
         {
             var s = "";
             for (int i = 0; i < parameters.Count; i++)

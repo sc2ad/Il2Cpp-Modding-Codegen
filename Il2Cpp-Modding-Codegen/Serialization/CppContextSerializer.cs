@@ -43,7 +43,6 @@ namespace Il2Cpp_Modding_Codegen.Serialization
 
         private void ForwardToTypeDataSerializer(CppContextSerializer self, CppTypeContext context, TypeRef offendingType)
         {
-            Console.Error.WriteLine($"Cannot add definition: {offendingType} to context: {context.LocalType.This} because it is the same type!\nDefinitions to get: ({string.Join(", ", context.DefinitionsToGet.Select(d => d.GetQualifiedName()))})");
             Console.Error.WriteLine("Forwarding to CppTypeDataSerializer!");
             _typeSerializers[context].DuplicateDefinition(context, offendingType);
         }
@@ -55,8 +54,11 @@ namespace Il2Cpp_Modding_Codegen.Serialization
         /// <param name="data"></param>
         /// <param name="context"></param>
         /// <param name="map"></param>
-        public void Resolve(CppTypeContext context, Dictionary<ITypeData, CppTypeContext> map, bool asHeader)
+        private void Resolve(CppTypeContext context, Dictionary<ITypeData, CppTypeContext> map,
+            bool asHeader, HashSet<CppTypeContext> stack)
         {
+            if (stack.Contains(context)) return;
+            stack.Add(context);
             var _contextMap = asHeader ? _headerContextMap : _sourceContextMap;
             if (_contextMap.ContainsKey(context)) return;
 
@@ -71,43 +73,47 @@ namespace Il2Cpp_Modding_Codegen.Serialization
 
             // Recursively Resolve our nested types. However, we may go out of order. We may need to double check to ensure correct resolution, among other things.
             foreach (var nested in context.NestedContexts)
-                Resolve(nested, map, asHeader);
+                Resolve(nested, map, asHeader, stack);
 
             if (asHeader)
                 context.AbsorbInPlaceNeeds();
 
             var includes = new HashSet<CppTypeContext>();
 
+            // create (replaceable) aliases to the context collections
             var defs = context.Definitions;
             var defsToGet = context.DefinitionsToGet;
             if (!asHeader)
             {
-                // Handle definitions in new sets so we don't lie to our future includers
+                // Handle cpp file definitions in new sets so we don't lie to our future includers
                 includes.Add(context);
                 defs = new HashSet<TypeRef>(context.Definitions);
                 defsToGet = new HashSet<TypeRef>(context.DeclarationsToMake);
                 defsToGet.UnionWith(context.Declarations);
             }
 
-            foreach (var td in defsToGet)
+            // Make a copy of defsToGet, preprocessed as much as possible before the loop
+            var typesToInclude = defsToGet.Where(td => !context.Definitions.Contains(td)).ToList();
+            // Call Resolve recursively on each type we want to include
+            foreach (var td in typesToInclude)
             {
-                if (context.Definitions.Contains(td))
-                {
-                    // If we have the definition already in our context, continue.
-                    // This could be because it is literally ourselves, a nested type, or we included something
-                    //Console.WriteLine($"Duplicate definition: {td} in context: {context.LocalType.This}");
-                    continue;
-                }
-                var type = td.Resolve(_collection);
+                var resolved = td.Resolve(_collection);
                 // Add the resolved context's HeaderFileName to includes
-                if (map.TryGetValue(type, out var value))
-                {
-                    includes.Add(value);
-                    AddIncludeDefinitions(context, defs, value, asHeader, ref includes);
-                    // No need to inherit declarations, since our own declarations should be all the types we need?
-                }
+                if (map.TryGetValue(resolved, out var value))
+                    // this may change defsToGet (if it makes us in-place, our DeclaringType will move from defsToGet to defs)
+                    Resolve(value, map, asHeader, stack);
                 else
                     throw new UnresolvedTypeException(context.LocalType.This, td);
+            }
+            // Now loop through the original and attempt to include what remains in it
+            foreach (var td in defsToGet)
+            {
+                if (context.Definitions.Contains(td)) continue;
+                var resolved = td.Resolve(_collection);
+                var value = map[resolved];  // any error should have fired in previous loop
+                if (!AddIncludeDefinitions(context, defs, value, asHeader, includes))
+                    DuplicateDefinition?.Invoke(this, context, td);
+                // No need to inherit declarations, since our own declarations should be all the types we need?
             }
 
             var forwardDeclares = new Dictionary<string, HashSet<TypeRef>>();
@@ -128,11 +134,21 @@ namespace Il2Cpp_Modding_Codegen.Serialization
             _contextMap.Add(context, (includes, forwardDeclares));
         }
 
-        private void AddIncludeDefinitions(CppTypeContext context, HashSet<TypeRef> defs, CppTypeContext newContext, bool asHeader, ref HashSet<CppTypeContext> includesOfType)
+        public void Resolve(CppTypeContext context, Dictionary<ITypeData, CppTypeContext> map, bool asHeader)
         {
-            foreach (var newDef in newContext.Definitions)
+            HashSet<CppTypeContext> stack = new HashSet<CppTypeContext>();
+            Resolve(context, map, asHeader, stack);
+        }
+
+        // Returns whether the include is valid/has been made.
+        private bool AddIncludeDefinitions(CppTypeContext context, HashSet<TypeRef> defs, CppTypeContext newContext, bool asHeader, HashSet<CppTypeContext> includesOfType)
+        {
+            if (newContext != context && includesOfType.Contains(newContext)) return true;
+
+            bool allGood = true;
+            if (asHeader)
             {
-                if (asHeader)
+                foreach (var newDef in newContext.Definitions)
                 {
                     if (newDef.Equals(context.LocalType.This))
                     {
@@ -144,17 +160,24 @@ namespace Il2Cpp_Modding_Codegen.Serialization
                         // that leads us down a recursive include chain. In fact, it should probably be one of our OWN includes.
                         // Ideally, this means that for a given type, if we find a cycle, we need to remove an include that our type was performing in order to fix it.
                         // TODO: Basically read this
-                        includesOfType.Remove(newContext);
-                        DuplicateDefinition?.Invoke(this, context, newDef);
+                        allGood = false;
+                        Console.Error.WriteLine($"Cannot add definition: {newDef} from context {newContext.LocalType.This} to context: {context.LocalType.This} because it is the same type!\nDefinitions to get: ({string.Join(", ", context.DefinitionsToGet.Select(d => d.GetQualifiedName()))})");
+                        // DuplicateDefinition?.Invoke(this, context, newDef);
                     }
                     else if (context.HasInNestedHierarchy(newDef))
+                    {
+                        allGood = false;
                         // Cannot include something that claims to define our nested type!
-                        Console.Error.WriteLine($"Cannot add definition: {newDef} to context: {context.LocalType.This} because it is a nested type of the context!\nDefinitions to get: ({string.Join(", ", context.DefinitionsToGet.Select(d => d.GetQualifiedName()))})");
+                        Console.Error.WriteLine($"Cannot add definition: {newDef} from context {newContext.LocalType.This} to context: {context.LocalType.This} because it is a nested type of the context!\nDefinitions to get: ({string.Join(", ", context.DefinitionsToGet.Select(d => d.GetQualifiedName()))})");
+                    }
                 }
-
-                // Always add the definition (if we don't throw)
-                defs.Add(newDef);
             }
+            if (allGood)
+            {
+                defs.UnionWith(newContext.Definitions);
+                includesOfType.Add(newContext);
+            }
+            return allGood;
         }
 
         private void WriteForwardDeclaration(CppStreamWriter writer, ITypeData typeData)

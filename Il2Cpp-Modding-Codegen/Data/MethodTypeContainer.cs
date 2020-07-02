@@ -4,12 +4,12 @@ using System.Text;
 
 namespace Il2Cpp_Modding_Codegen.Data
 {
-    public class MethodContainer
+    public class MethodTypeContainer
     {
         private string typeName;
         private string templatedName;
 
-        internal MethodContainer(string t)
+        internal MethodTypeContainer(string t)
         {
             typeName = t;
         }
