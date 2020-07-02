@@ -154,49 +154,47 @@ namespace Il2Cpp_Modding_Codegen.Serialization
             writer.WriteDeclaration(typeData.Type.TypeName() + " " + resolved.GetName());
         }
 
-        private void WriteIncludes(CppStreamWriter writer, CppTypeContext context, HashSet<CppTypeContext> defs, bool asHeader)
+        private void WriteIncludes(CppStreamWriter writer, CppTypeContext context, IEnumerable<CppTypeContext> defs,
+            bool forHeader, bool forPart2 = false, bool asPart2 = true)
         {
             // Write includes
             var includesWritten = new HashSet<string>();
             writer.WriteComment("Begin includes");
-            if (context.NeedPrimitives)
+            if (!forHeader || !forPart2)
             {
-                // Primitives include
-                writer.WriteInclude("utils/typedefs.h");
-                includesWritten.Add("utils/typedefs.h");
-            }
-            if (_config.OutputStyle == OutputStyle.Normal)
-            {
-                // Optional include
-                writer.WriteLine("#include <optional>");
-                includesWritten.Add("optional");
+                if (context.NeedPrimitives)
+                {
+                    // Primitives include
+                    writer.WriteInclude("utils/typedefs.h");
+                    includesWritten.Add("utils/typedefs.h");
+                }
+                if (_config.OutputStyle == OutputStyle.Normal)
+                {
+                    // Optional include
+                    writer.WriteLine("#include <optional>");
+                    includesWritten.Add("optional");
+                }
+                // Overall il2cpp-utils include
+                if (forHeader)
+                {
+                    writer.WriteInclude("utils/il2cpp-utils.hpp");
+                    includesWritten.Add("utils/il2cpp-utils.hpp");
+                }
+                else
+                {
+                    writer.WriteInclude("utils/utils.h");
+                    includesWritten.Add("utils/utils.h");
+                }
             }
             foreach (var include in defs)
             {
                 writer.WriteComment("Including type: " + include.LocalType.This);
                 // Using the HeaderFileName property of the include here will automatically use the lowest non-InPlace type
-                var incl = include.HeaderFileName;
+                var incl = asPart2 ? include.HeaderFileName : include.Part1HeaderFileName;
                 if (includesWritten.Add(incl))
                     writer.WriteInclude(incl);
                 else
                     writer.WriteComment("Already included the same include: " + incl);
-            }
-            if (context.LocalType.This.Namespace == "System" && context.LocalType.This.Name == "ValueType")
-            {
-                // Special case for System.ValueType
-                if (includesWritten.Add("System/Object.hpp"))
-                    writer.WriteInclude("System/Object.hpp");
-            }
-            // Overall il2cpp-utils include
-            if (asHeader)
-            {
-                writer.WriteInclude("utils/il2cpp-utils.hpp");
-                includesWritten.Add("utils/il2cpp-utils.hpp");
-            }
-            else
-            {
-                writer.WriteInclude("utils/utils.h");
-                includesWritten.Add("utils/utils.h");
             }
             writer.WriteComment("Completed includes");
         }
@@ -280,17 +278,49 @@ namespace Il2Cpp_Modding_Codegen.Serialization
             writer.WriteDeclaration(typeStr + " " + nested.LocalType.This.GetName());
         }
 
-        public void Serialize(CppStreamWriter writer, CppTypeContext context, bool asHeader)
+        private Dictionary<CppTypeContext, IEnumerable<CppTypeContext>> _midClassIncludes = new Dictionary<CppTypeContext, IEnumerable<CppTypeContext>>();
+
+        public void Serialize(CppStreamWriter writer, CppTypeContext context, bool asHeader, bool part2)
         {
             var contextMap = asHeader ? _headerContextMap : _sourceContextMap;
             if (!contextMap.TryGetValue(context, out var defsAndDeclares))
                 throw new InvalidOperationException("Must resolve context before attempting to serialize it! context: " + context);
 
             // Only write includes, declares for non-headers or if the type is InPlace = false, or has no declaring type
-            if (!asHeader || !context.InPlace || context.DeclaringContext is null)
-            {
+            if (!asHeader)
                 WriteIncludes(writer, context, defsAndDeclares.Item1, asHeader);
-                if (asHeader) WriteDeclarations(writer, context, defsAndDeclares.Item2);
+            else if (context.IsRootContext)
+            {
+                if (!part2)
+                {
+                    var includes = defsAndDeclares.Item1;
+                    if (includes != null && includes.Count > 0)
+                    {
+                        var includesByPreDef = includes.ToLookup(
+                            c => _typeSerializers[context].DefinitionsToGetPreContents.Contains(c.LocalType.This)
+                        );
+                        // Include the complete types necessary to begin our own part 2
+                        WriteIncludes(writer, context, includesByPreDef[true], asHeader);
+                        // Include the part 1's of all other includes
+                        if (includesByPreDef.Contains(false))
+                        {
+                            _midClassIncludes.Add(context, includesByPreDef[false]);
+                            writer.WriteComment("midClassIncludes: ");
+                            WriteIncludes(writer, context, _midClassIncludes[context], asHeader, asPart2: false);
+                        }
+                    }
+                    else
+                        WriteIncludes(writer, context, Enumerable.Empty<CppTypeContext>(), asHeader);
+                    // Write the declarations
+                    WriteDeclarations(writer, context, defsAndDeclares.Item2);
+                }
+                else
+                    writer.WriteInclude(context.Part1HeaderFileName);
+            }
+            if (asHeader && !part2)
+            {
+                writer.Flush();
+                return;
             }
 
             // We need to start by actually WRITING our type here. This includes the first portion of our writing, including the header.
@@ -308,7 +338,6 @@ namespace Il2Cpp_Modding_Codegen.Serialization
                 //    // Write namespace
                 //    writer.WriteComment("Type namespace: " + context.LocalType.This.Namespace);
                 //    writer.WriteDefinition("namespace " + context.TypeNamespace);
-                //    writer.CloseDefinition();
                 //}
 
                 typeSerializer.WriteInitialTypeDefinition(writer, context.LocalType, context.InPlace);
@@ -322,11 +351,16 @@ namespace Il2Cpp_Modding_Codegen.Serialization
                     // Regardless of if the nested context is InPlace or not, we can declare it within ourselves
                     AddNestedDeclare(writer, nested);
                 }
+
+                if (context.IsRootContext && _midClassIncludes.ContainsKey(context))
+                    // Write complete includes for these this time
+                    WriteIncludes(writer, context, _midClassIncludes[context], asHeader, forPart2: true);
+
                 // After all nested contexts are completely declared, we write our nested contexts that have InPlace = true, in the correct ordering.
                 foreach (var inPlace in context.NestedContexts.Where(nc => nc.InPlace))
                 {
                     // Indent, create nested type definition
-                    Serialize(writer, inPlace, true);
+                    Serialize(writer, inPlace, asHeader, part2);
                 }
             }
             // Fields may be converted to methods, so we handle writing these in non-header contexts just in case we need definitions of the methods

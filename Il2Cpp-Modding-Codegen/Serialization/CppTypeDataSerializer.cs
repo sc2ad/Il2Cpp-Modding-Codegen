@@ -26,6 +26,8 @@ namespace Il2Cpp_Modding_Codegen.Serialization
         private CppStaticFieldSerializer staticFieldSerializer;
         private CppMethodSerializer methodSerializer;
         private SerializationConfig _config;
+        private HashSet<TypeRef> _definitionsToGetPreContents = new HashSet<TypeRef>();
+        public IReadOnlyCollection<TypeRef> DefinitionsToGetPreContents { get => _definitionsToGetPreContents; }
 
         public CppTypeContext Context { get; private set; }
 
@@ -72,6 +74,7 @@ namespace Il2Cpp_Modding_Codegen.Serialization
             foreach (var @interface in type.ImplementingInterfaces)
                 s.parentNames.Add("virtual " + _config.SafeName(context.GetCppName(@interface, true, true, CppTypeContext.NeedAs.Definition, CppTypeContext.ForceAsType.Literal)));
             map.Add(type.This, s);
+            _definitionsToGetPreContents.UnionWith(context.DefinitionsToGet);
 
             if (fieldSerializer is null)
                 fieldSerializer = new CppFieldSerializer(_config);

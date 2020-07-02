@@ -42,7 +42,7 @@ namespace Il2Cpp_Modding_Codegen.Serialization
                 try
                 {
                     // Write SerializerContext and actual type
-                    _serializer.Serialize(writer, context, false);
+                    _serializer.Serialize(writer, context, false, true);
                 }
                 catch (UnresolvedTypeException e)
                 {

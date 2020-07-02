@@ -44,11 +44,12 @@ namespace Il2Cpp_Modding_Codegen.Serialization
                 DefineIl2CppArgTypes(writer, nested);
         }
 
-        public void Serialize(CppTypeContext context)
+        private void Serialize(CppTypeContext context, bool part2)
         {
             var data = context.LocalType;
-            var headerLocation = Path.Combine(_config.OutputDirectory, _config.OutputHeaderDirectory, context.HeaderFileName);
+            var headerLocation = Path.Combine(_config.OutputDirectory, _config.OutputHeaderDirectory, part2 ? context.HeaderFileName : context.Part1HeaderFileName);
             Directory.CreateDirectory(Path.GetDirectoryName(headerLocation));
+
             using (var ms = new MemoryStream())
             {
                 var rawWriter = new StreamWriter(ms);
@@ -58,12 +59,13 @@ namespace Il2Cpp_Modding_Codegen.Serialization
                 writer.WriteComment("Created by Sc2ad");
                 writer.WriteComment("=========================================================================");
                 writer.WriteLine("#pragma once");
-                // TODO: determine when/if we need this
-                writer.WriteLine("#pragma pack(push, 8)");
+                if (part2)
+                    // TODO: determine when/if we need this
+                    writer.WriteLine("#pragma pack(push, 8)");
                 // Write SerializerContext and actual type
                 try
                 {
-                    _serializer.Serialize(writer, context, true);
+                    _serializer.Serialize(writer, context, true, part2);
                 }
                 catch (UnresolvedTypeException e)
                 {
@@ -82,17 +84,21 @@ namespace Il2Cpp_Modding_Codegen.Serialization
                 // End the namespace
                 // writer.CloseDefinition();
 
-                if (data.This.Namespace == "System" && data.This.Name == "ValueType")
+                if (part2)
                 {
-                    writer.WriteLine("template<class T>");
-                    writer.WriteLine("struct is_value_type<T, typename std::enable_if_t<std::is_base_of_v<System::ValueType, T>>> : std::true_type{};");
+                    if (data.This.Namespace == "System" && data.This.Name == "ValueType")
+                    {
+                        writer.WriteLine("template<class T>");
+                        writer.WriteLine("struct is_value_type<T, typename std::enable_if_t<std::is_base_of_v<System::ValueType, T>>> : std::true_type{};");
+                    }
+
+                    DefineIl2CppArgTypes(writer, context);
+                    writer.Flush();
+
+                    writer.WriteLine("#pragma pack(pop)");
+                    writer.Flush();
                 }
 
-                DefineIl2CppArgTypes(writer, context);
-                writer.Flush();
-
-                writer.WriteLine("#pragma pack(pop)");
-                writer.Flush();
                 if (File.Exists(headerLocation))
                     throw new InvalidOperationException($"Was about to overwrite existing file: {headerLocation} with context: {context.LocalType.This}");
                 using (var fs = File.OpenWrite(headerLocation))
@@ -101,6 +107,15 @@ namespace Il2Cpp_Modding_Codegen.Serialization
                     rawWriter.BaseStream.CopyTo(fs);
                 }
             }
+        }
+
+        public void Serialize(CppTypeContext context)
+        {
+            var data = context.LocalType;
+            if (data.This.Namespace == "System" && data.This.Name == "Object")
+                Console.WriteLine("our target type!");
+            Serialize(context, false);
+            Serialize(context, true);
         }
     }
 }

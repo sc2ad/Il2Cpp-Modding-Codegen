@@ -44,8 +44,10 @@ namespace Il2Cpp_Modding_Codegen.Serialization
                 return _rootContext;
             }
         }
+        public bool IsRootContext { get => _rootContext == this; }
 
-        public string HeaderFileName { get => RootContext.LocalType.This.GetIncludeLocation() + ".hpp"; }
+        public string Part1HeaderFileName { get => RootContext.LocalType.This.GetIncludeLocation() + "A.hpp"; }
+        public string HeaderFileName { get => RootContext.LocalType.This.GetIncludeLocation() + "B.hpp"; }
 
         public string CppFileName { get => LocalType.This.GetIncludeLocation() + ".cpp"; }
 
