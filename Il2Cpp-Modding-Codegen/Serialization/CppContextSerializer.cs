@@ -37,8 +37,6 @@ namespace Il2Cpp_Modding_Codegen.Serialization
         {
             _config = config;
             _collection = collection;
-            // TODO: Configurable:
-            DuplicateDefinition += ForwardToTypeDataSerializer;
         }
 
         private void ForwardToTypeDataSerializer(CppContextSerializer self, CppTypeContext context, TypeRef offendingType)
@@ -112,7 +110,10 @@ namespace Il2Cpp_Modding_Codegen.Serialization
                 var resolved = td.Resolve(_collection);
                 var value = map[resolved];  // any error should have fired in previous loop
                 if (!AddIncludeDefinitions(context, defs, value, asHeader, includes))
+                {
+                    ForwardToTypeDataSerializer(this, context, td);
                     DuplicateDefinition?.Invoke(this, context, td);
+                }
                 // No need to inherit declarations, since our own declarations should be all the types we need?
             }
 
