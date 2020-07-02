@@ -27,5 +27,7 @@ namespace Il2Cpp_Modding_Codegen.Data
         {
             templatedName = newName;
         }
+
+        public override string ToString() => throw new NotSupportedException("Not implemented! Did you mean to use TypeName( ?");
     }
 }

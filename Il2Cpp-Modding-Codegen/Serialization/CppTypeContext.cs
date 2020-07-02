@@ -182,6 +182,12 @@ namespace Il2Cpp_Modding_Codegen.Serialization
             Contract.Ensures(DeclaringContext != null);
         }
 
+        internal bool HasInNestedHierarchy(TypeRef type) {
+            var resolved = type.Resolve(_types);
+            if (resolved == null) throw new UnresolvedTypeException(LocalType.This, type);
+            return HasInNestedHierarchy(resolved);
+        }
+        internal bool HasInNestedHierarchy(ITypeData resolved) => HasInNestedHierarchy(CppDataSerializer.TypeToContext[resolved]);
         internal bool HasInNestedHierarchy(CppTypeContext context)
         {
             if (context.DeclaringContext is null) return false;

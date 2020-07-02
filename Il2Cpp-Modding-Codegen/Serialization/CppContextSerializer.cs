@@ -148,6 +148,9 @@ namespace Il2Cpp_Modding_Codegen.Serialization
                         DuplicateDefinition?.Invoke(this, context, newDef);
                         // TODO: Add a warning for including something that defines/includes our own nested type (i.e. a type that has us in its DeclaringContext chain)
                     }
+                    else if (context.HasInNestedHierarchy(newDef))
+                        // Cannot include something that claims to define our nested type!
+                        Console.Error.WriteLine($"Cannot add definition: {newDef} to context: {context.LocalType.This} because it is a nested type of the context!\nDefinitions to get: ({string.Join(", ", context.DefinitionsToGet.Select(d => d.GetQualifiedName()))})");
                 }
 
                 // Always add the definition (if we don't throw)
@@ -242,7 +245,7 @@ namespace Il2Cpp_Modding_Codegen.Serialization
                     }
                     if (typeRef.DeclaringType != null)
                     {
-                        if (!context.HasInNestedHierarchy(CppDataSerializer.TypeToContext[resolved]))
+                        if (!context.HasInNestedHierarchy(resolved))
                             // TODO: move this error to Resolve or earlier
                             // If there are any nested types in declarations, the declaring type must be defined.
                             // If the declaration is a nested type that exists in the local type, then we will serialize it within the type itself.

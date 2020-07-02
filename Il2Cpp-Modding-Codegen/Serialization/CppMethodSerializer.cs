@@ -353,7 +353,7 @@ namespace Il2Cpp_Modding_Codegen.Serialization
                 if (!method.ReturnType.IsVoid())
                 {
                     s = "return ";
-                    innard = $"<{_resolvedReturns[method]}>";
+                    innard = $"<{_resolvedReturns[method].TypeName(asHeader)}>";
                     if (_config.OutputStyle != OutputStyle.CrashUnless) macro = "";
                 }
 
