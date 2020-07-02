@@ -95,7 +95,7 @@ namespace Il2Cpp_Modding_Codegen.Serialization
                 {
                     // If we have the definition already in our context, continue.
                     // This could be because it is literally ourselves, a nested type, or we included something
-                    Console.WriteLine($"Duplicate definition: {td} in context: {context.LocalType.This}");
+                    //Console.WriteLine($"Duplicate definition: {td} in context: {context.LocalType.This}");
                     continue;
                 }
                 var type = td.Resolve(_collection);
