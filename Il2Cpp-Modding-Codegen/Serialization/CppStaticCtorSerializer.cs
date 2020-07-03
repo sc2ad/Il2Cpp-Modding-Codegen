@@ -15,7 +15,7 @@ namespace Il2Cpp_Modding_Codegen.Serialization
         private Dictionary<IMethod, SortedSet<string>> _genericArgs = new Dictionary<IMethod, SortedSet<string>>();
 
         private string _declaringFullyQualified;
-        private string _thisTypeHeader;
+        private string _thisTypeName;
 
         private SerializationConfig _config;
 
@@ -81,7 +81,7 @@ namespace Il2Cpp_Modding_Codegen.Serialization
                 return;
             _declaringFullyQualified = context.QualifiedTypeName;
             // One that is qualified, the other that is not
-            _thisTypeHeader = context.GetCppName(method.DeclaringType, false, needAs: NeedAs.Definition, forceAsType: ForceAsType.Literal);
+            _thisTypeName = context.GetCppName(method.DeclaringType, false, needAs: NeedAs.Definition, forceAsType: ForceAsType.Literal);
             bool success = true;
             var needAs = NeedMethodAs(method);
             var parameterMap = new List<(MethodTypeContainer, ParameterFlags)>();
@@ -117,15 +117,17 @@ namespace Il2Cpp_Modding_Codegen.Serialization
                 if (_genericArgs.TryGetValue(method, out var genArgs))
                     writer.WriteLine($"template<{string.Join(", ", genArgs.Select(s => "class " + s))}>");
                 // TODO: Ensure name does not conflict with any existing methods!
-                writer.WriteDeclaration($"static {_thisTypeHeader}* New_ctor({paramString})");
+                writer.WriteDeclaration($"static {_thisTypeName}* New_ctor({paramString})");
             }
             else
             {
                 writer.WriteComment("New_ctor implementation");
-                writer.WriteDefinition($"{_declaringFullyQualified}* {_declaringFullyQualified}::New_ctor({paramString})");
+                var name = !asHeader ? _declaringFullyQualified : _thisTypeName;
+                var methodPrefix = !asHeader ? _declaringFullyQualified + "::" : "";
+                writer.WriteDefinition($"{name}* {methodPrefix}New_ctor({paramString})");
                 var namePair = method.DeclaringType.GetIl2CppName();
                 var newObject = $"il2cpp_functions::object_new(il2cpp_utils::GetClassFromName(\"{namePair.@namespace}\", \"{namePair.name}\"))";
-                writer.WriteDeclaration($"auto* tmp = reinterpret_cast<{_declaringFullyQualified}*>({newObject})");
+                writer.WriteDeclaration($"auto* tmp = reinterpret_cast<{name}*>({newObject})");
                 writer.WriteDeclaration($"tmp->_ctor({method.Parameters.FormatParameters(_config.IllegalNames, _parameterMaps[method], FormatParameterMode.Names, header: asHeader)})");
                 writer.WriteDeclaration("return tmp");
                 writer.CloseDefinition();
