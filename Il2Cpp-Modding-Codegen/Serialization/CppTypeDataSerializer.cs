@@ -26,7 +26,6 @@ namespace Il2Cpp_Modding_Codegen.Serialization
         private CppFieldSerializer fieldSerializer;
         private CppStaticFieldSerializer staticFieldSerializer;
         private CppMethodSerializer methodSerializer;
-        private CppStaticCtorSerializer specialCtorSerializer;
         private SerializationConfig _config;
 
         public CppTypeContext Context { get; private set; }
@@ -101,14 +100,8 @@ namespace Il2Cpp_Modding_Codegen.Serialization
             // then the methods
             if (methodSerializer is null)
                 methodSerializer = new CppMethodSerializer(_config);
-            if (specialCtorSerializer is null)
-                specialCtorSerializer = new CppStaticCtorSerializer(_config);
             foreach (var m in type.Methods)
-            {
                 methodSerializer.PreSerialize(context, m);
-                if (m.Name == "_ctor" || m.Name == ".ctor")
-                    specialCtorSerializer.PreSerialize(context, m);
-            }
         }
 
         public void DuplicateDefinition(CppTypeContext self, TypeRef offendingType)
@@ -128,11 +121,6 @@ namespace Il2Cpp_Modding_Codegen.Serialization
                     throw new InvalidOperationException($"Cannot fix duplicate definition for offending type: {offendingType}, it is used in an unfixable method: {m}");
                 else
                     total += found;
-                if (m.Name == "_ctor" || m.Name == ".ctor")
-                    if (!specialCtorSerializer.FixBadDefinition(offendingType, m, out found))
-                        throw new InvalidOperationException($"Cannot fix duplicate definition for offending type: {offendingType}, it is used in an unfixable method: {m}");
-                    else
-                        total += found;
             }
             if (total <= 0)
                 throw new InvalidOperationException($"Failed to find any occurrences of offendingType {offendingType} in {self.LocalType.This}!");
@@ -226,37 +214,12 @@ namespace Il2Cpp_Modding_Codegen.Serialization
 
         public void WriteMethods(CppStreamWriter writer, ITypeData type, bool asHeader)
         {
-            var ctors = new List<IMethod>();
             // Finally, we write the methods
             foreach (var m in type.Methods)
             {
-                if (m.Name == "_ctor" || m.Name == ".ctor")
-                    ctors.Add(m);
                 try
                 {
                     methodSerializer?.Serialize(writer, m, asHeader);
-                }
-                catch (UnresolvedTypeException e)
-                {
-                    if (_config.UnresolvedTypeExceptionHandling.MethodHandling == UnresolvedTypeExceptionHandling.DisplayInFile)
-                    {
-                        writer.WriteLine("/*");
-                        writer.WriteLine(e);
-                        writer.WriteLine("*/");
-                        writer.Flush();
-                    }
-                    else if (_config.UnresolvedTypeExceptionHandling.MethodHandling == UnresolvedTypeExceptionHandling.Elevate)
-                        throw;
-                }
-            }
-            // Add additional methods here
-            // For example, we would like to create a static New method for each _ctor method, which calls il2cpp_utils::New, calls the matching _ctor, and returns
-            // this type (as a pointer)
-            foreach (var c in ctors)
-            {
-                try
-                {
-                    specialCtorSerializer?.Serialize(writer, c, asHeader);
                 }
                 catch (UnresolvedTypeException e)
                 {

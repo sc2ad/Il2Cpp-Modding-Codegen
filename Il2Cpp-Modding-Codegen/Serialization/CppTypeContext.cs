@@ -112,6 +112,16 @@ namespace Il2Cpp_Modding_Codegen.Serialization
             TypeName = data.This.GetName();
         }
 
+        /// <summary>
+        /// Returns whether the given <see cref="TypeRef"/> is a generic template parameter within this context.
+        /// </summary>
+        /// <param name="type"></param>
+        /// <returns></returns>
+        public bool IsGenericParameter(TypeRef type)
+        {
+            return _genericTypes.Contains(type);
+        }
+
         public string GetTemplateLine(bool localOnly = true)
         {
             var s = "";
@@ -309,10 +319,8 @@ namespace Il2Cpp_Modding_Codegen.Serialization
         /// <returns>Null if the type has not been resolved (and is not a generic parameter or primitive)</returns>
         public string GetCppName(TypeRef data, bool qualified, bool generics = true, NeedAs needAs = NeedAs.BestMatch, ForceAsType forceAsType = ForceAsType.None)
         {
-            // If the TypeRef is a generic parameter, return its name
-            if (_genericTypes.Contains(data))
-                return data.Name;
-
+            // First we check if the type is a primitive type. If it is, we return the converted name.
+            // This must happen first because we can have T* and T[] which need to be converted correctly.
             if (forceAsType != ForceAsType.Literal || !data.Equals(LocalType.This))
             {
                 // If the TypeRef is a primitive, we need to convert it to a C++ name upfront.
@@ -320,6 +328,10 @@ namespace Il2Cpp_Modding_Codegen.Serialization
                 if (!string.IsNullOrEmpty(primitiveName))
                     return primitiveName;
             }
+
+            // If the TypeRef is a generic parameter, return its name
+            if (_genericTypes.Contains(data))
+                return data.Name;
 
             var resolved = ResolveAndStore(data, forceAsType, needAs);
             if (resolved is null)

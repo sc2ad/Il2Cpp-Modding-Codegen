@@ -27,6 +27,7 @@ namespace Il2Cpp_Modding_Codegen.Serialization
         private Dictionary<IMethod, SortedSet<string>> _genericArgs = new Dictionary<IMethod, SortedSet<string>>();
 
         private string _declaringFullyQualified;
+        private string _thisTypeName;
         private bool _isInterface;
         private bool _pureVirtual;
 
@@ -36,6 +37,8 @@ namespace Il2Cpp_Modding_Codegen.Serialization
 
         // Holds a mapping of IMethod to the name, as well as if the name has been specifically converted already.
         private static Dictionary<IMethod, (string, bool)> _nameMap = new Dictionary<IMethod, (string, bool)>();
+
+        private bool performedGenericRenames = false;
 
         public CppMethodSerializer(SerializationConfig config)
         {
@@ -133,6 +136,56 @@ namespace Il2Cpp_Modding_Codegen.Serialization
             }
         }
 
+        private void RenameGenericMethods(CppTypeContext context, IMethod method)
+        {
+            // We want to ONLY do this once, for all methods.
+            // That is because we don't want to end up renaming a bunch of methods multiple times, which is slow.
+            if (performedGenericRenames)
+                return;
+            // During preserialization, if we find that we have a generic method that matches the name of a non-generic method, we need to rename it forcibly.
+            // This is to avoid a possibility of generic methods being called with equivalent arguments as a non-generic method (not allowed in C++)
+            // Sadly, the best way I can think of to do this is to iterate over all methods that match names and check their returns/parameters.
+            // If there are 2 or more, rename all methods that have at least one generic template parameter using some static index, which is reset to 0 after.
+            // Renaming occurs by suffixing _i, and placing the name into the _nameMap with a "false".
+
+            var allMethods = context.LocalType.Methods.Where(m => !m.Generic);
+            // For each method in allMethods
+            // TODO: This is slow: O(N^2) where N is methods
+            var completedMethods = new HashSet<IMethod>();
+            foreach (var m in allMethods)
+            {
+                if (completedMethods.Contains(m))
+                    continue;
+                // Get the overloads
+                var overloads = allMethods.Where(am => am.Name == m.Name).ToList();
+                // If we have two or more, iterate over all of them
+                if (overloads.Count > 2)
+                {
+                    int genericRenameIdx = 0;
+                    foreach (var om in overloads)
+                    {
+                        // If the overload method in question has generic parameters for its return type or parameters
+                        // we suffix its rectified name with _i
+                        // TODO: This probably renames far more than it should
+                        if (context.IsGenericParameter(om.ReturnType) || om.Parameters.FirstOrDefault(p => context.IsGenericParameter(p.Type)) != null)
+                        {
+                            if (_nameMap.TryGetValue(om, out var pair))
+                            {
+                                if (pair.Item2)
+                                    continue;
+                            }
+                            // Only rename a method that has NOT been renamed!
+                            _nameMap[om] = (string.IsNullOrEmpty(pair.Item1) ? om.Name : pair.Item1 + "_" + genericRenameIdx, false);
+                            genericRenameIdx++;
+                        }
+                        completedMethods.Add(om);
+                        // Non generic methods don't need to be renamed at all.
+                    }
+                }
+            }
+            performedGenericRenames = true;
+        }
+
         public bool FixBadDefinition(TypeRef offendingType, IMethod method, out int found)
         {
             // This method should be relatively straightforward:
@@ -189,6 +242,7 @@ namespace Il2Cpp_Modding_Codegen.Serialization
             // Get the fully qualified name of the context
             bool success = true;
             _declaringFullyQualified = context.QualifiedTypeName;
+            _thisTypeName = context.GetCppName(method.DeclaringType, false, needAs: CppTypeContext.NeedAs.Definition, forceAsType: CppTypeContext.ForceAsType.Literal);
             var resolved = context.ResolveAndStore(method.DeclaringType, CppTypeContext.ForceAsType.Literal, CppTypeContext.NeedAs.Definition);
             _isInterface = resolved?.Type == TypeEnum.Interface;
             _pureVirtual = _isInterface && !method.DeclaringType.IsGeneric;
@@ -215,6 +269,7 @@ namespace Il2Cpp_Modding_Codegen.Serialization
                 parameterMap.Add((new MethodTypeContainer(s), p.Flags));
             }
             _parameterMaps.Add(method, parameterMap);
+            //RenameGenericMethods(context, method);
             ResolveName(method);
             if (success)
                 Resolved(method);
@@ -252,12 +307,20 @@ namespace Il2Cpp_Modding_Codegen.Serialization
                 if (_config.OutputStyle == OutputStyle.Normal)
                     retStr = "std::optional<" + retStr + ">";
             }
-            // Handles i.e. ".ctor"
             if (!_nameMap.TryGetValue(method, out var namePair))
                 throw new InvalidOperationException($"Could not find method: {method} in _nameMap! Ensure it is PreSerialized first!");
             var nameStr = namePair.Item1;
 
             string paramString = method.Parameters.FormatParameters(_config.IllegalNames, _parameterMaps[method], FormatParameterMode.Names | FormatParameterMode.Types, header: isHeader);
+
+            // Handles i.e. ".ctor"
+            if (IsCtor(method))
+            {
+                retStr = (!isHeader ? _declaringFullyQualified : _thisTypeName) + "*";
+                preRetStr = !namespaceQualified ? "static " : "";
+                nameStr = "New" + nameStr;
+            }
+
             var signature = $"{nameStr}({paramString})";
 
             if (!_ignoreSignatureMap && !_signatures.Add((method.DeclaringType, isHeader, signature)))
@@ -266,6 +329,49 @@ namespace Il2Cpp_Modding_Codegen.Serialization
                 _aborted.Add(method);
             }
             return $"{preRetStr}{retStr} {ns}{signature}{overrideStr}{impl}";
+        }
+
+        private void WriteCtor(CppStreamWriter writer, IMethod method, bool asHeader)
+        {
+            bool content = !asHeader || NeedDefinitionInHeader(method);
+            var paramString = method.Parameters.FormatParameters(_config.IllegalNames, _parameterMaps[method], FormatParameterMode.Names | FormatParameterMode.Types, header: asHeader);
+
+            if (!_nameMap.TryGetValue(method, out var methodNamePair))
+                throw new InvalidOperationException($"Could not find method: {method} in _nameMap! Ensure it is PreSerialized first!");
+            if (content)
+            {
+                var name = !asHeader ? _declaringFullyQualified : _thisTypeName;
+                var methodPrefix = !asHeader ? _declaringFullyQualified + "::" : "";
+                if (_genericArgs.ContainsKey(method))
+                    if (!asHeader)
+                        writer.WriteLine("template<>");
+                    else
+                        throw new InvalidOperationException("Cannot create specialization in a header!");
+                writer.WriteDefinition($"{name}* {methodPrefix}New{methodNamePair.Item1}({paramString})");
+                var namePair = method.DeclaringType.GetIl2CppName();
+                var paramNames = method.Parameters.FormatParameters(_config.IllegalNames, _parameterMaps[method], FormatParameterMode.Names, asHeader);
+                if (!string.IsNullOrEmpty(paramNames))
+                    // Prefix , for parameters to New
+                    paramNames = ", " + paramNames;
+                var newObject = $"il2cpp_utils::New(\"{namePair.@namespace}\", \"{namePair.name}\"{paramNames})";
+                // TODO: Make this configurable
+                writer.WriteDeclaration($"return static_cast<{name}*>(CRASH_UNLESS({newObject}))");
+                writer.CloseDefinition();
+            }
+            else
+            {
+                // Write declaration, with comments
+                writer.WriteComment($"Creates an object of type: {_declaringFullyQualified}* and calls the corresponding constructor.");
+                if (_genericArgs.TryGetValue(method, out var genArgs))
+                    writer.WriteLine($"template<{string.Join(", ", genArgs.Select(s => "class " + s))}>");
+                // TODO: Ensure name does not conflict with any existing methods!
+                writer.WriteDeclaration($"static {_thisTypeName}* New{methodNamePair.Item1}({paramString})");
+            }
+        }
+
+        private bool IsCtor(IMethod method)
+        {
+            return method.Name == "_ctor" || method.Name == ".ctor";
         }
 
         // Write the method here
@@ -331,50 +437,67 @@ namespace Il2Cpp_Modding_Codegen.Serialization
                     writer.Flush();
                     return;
                 }
+
                 if (_genericArgs.ContainsKey(method))
                     writer.WriteLine("template<>");
                 writer.WriteDefinition(methodStr);
 
-                var s = "";
-                var innard = "";
-                var macro = "RET_V_UNLESS(";
-                if (_config.OutputStyle == OutputStyle.CrashUnless)
-                    macro = "CRASH_UNLESS(";
-                if (!method.ReturnType.IsVoid())
+                if (IsCtor(method))
                 {
-                    s = "return ";
-                    innard = $"<{_resolvedReturns[method].TypeName(asHeader)}>";
-                    if (_config.OutputStyle != OutputStyle.CrashUnless) macro = "";
-                }
-
-                var macroEnd = string.IsNullOrEmpty(macro) ? "" : ")";
-                if (!string.IsNullOrEmpty(macro) && innard.Contains(","))
-                {
-                    macro += "(";
-                    macroEnd += ")";
-                }
-
-                // TODO: Replace with RET_NULLOPT_UNLESS or another equivalent (perhaps literally just the ret)
-                s += $"{macro}il2cpp_utils::RunMethod{innard}(";
-                if (!isStatic)
-                {
-                    s += "this, ";
+                    var typeName = !asHeader ? _declaringFullyQualified : _thisTypeName;
+                    var (@namespace, name) = method.DeclaringType.GetIl2CppName();
+                    var paramNames = method.Parameters.FormatParameters(_config.IllegalNames, _parameterMaps[method], FormatParameterMode.Names, asHeader);
+                    if (!string.IsNullOrEmpty(paramNames))
+                        // Prefix , for parameters to New
+                        paramNames = ", " + paramNames;
+                    var newObject = $"il2cpp_utils::New(\"{@namespace}\", \"{name}\"{paramNames})";
+                    // TODO: Make this configurable
+                    writer.WriteDeclaration($"return static_cast<{typeName}*>(CRASH_UNLESS({newObject}))");
+                    writer.CloseDefinition();
                 }
                 else
                 {
-                    // TODO: Check to ensure this works with non-generic methods in a generic type
-                    var namePair = method.DeclaringType.GetIl2CppName();
-                    s += $"\"{namePair.@namespace}\", \"{namePair.name}\", ";
+                    var s = "";
+                    var innard = "";
+                    var macro = "RET_V_UNLESS(";
+                    if (_config.OutputStyle == OutputStyle.CrashUnless)
+                        macro = "CRASH_UNLESS(";
+                    if (!method.ReturnType.IsVoid())
+                    {
+                        s = "return ";
+                        innard = $"<{_resolvedReturns[method].TypeName(asHeader)}>";
+                        if (_config.OutputStyle != OutputStyle.CrashUnless) macro = "";
+                    }
+
+                    var macroEnd = string.IsNullOrEmpty(macro) ? "" : ")";
+                    if (!string.IsNullOrEmpty(macro) && innard.Contains(","))
+                    {
+                        macro += "(";
+                        macroEnd += ")";
+                    }
+
+                    // TODO: Replace with RET_NULLOPT_UNLESS or another equivalent (perhaps literally just the ret)
+                    s += $"{macro}il2cpp_utils::RunMethod{innard}(";
+                    if (!isStatic)
+                    {
+                        s += "this, ";
+                    }
+                    else
+                    {
+                        // TODO: Check to ensure this works with non-generic methods in a generic type
+                        var namePair = method.DeclaringType.GetIl2CppName();
+                        s += $"\"{namePair.@namespace}\", \"{namePair.name}\", ";
+                    }
+                    var paramString = method.Parameters.FormatParameters(_config.IllegalNames, _parameterMaps[method], FormatParameterMode.Names);
+                    if (!string.IsNullOrEmpty(paramString))
+                        paramString = ", " + paramString;
+                    // Macro string should use Il2CppName (of course, without _, $ replacement)
+                    s += $"\"{method.Il2CppName}\"{paramString}){macroEnd};";
+                    // Write method with return
+                    writer.WriteLine(s);
+                    // Close method
+                    writer.CloseDefinition();
                 }
-                var paramString = method.Parameters.FormatParameters(_config.IllegalNames, _parameterMaps[method], FormatParameterMode.Names);
-                if (!string.IsNullOrEmpty(paramString))
-                    paramString = ", " + paramString;
-                // Macro string should use Il2CppName (of course, without _, $ replacement)
-                s += $"\"{method.Il2CppName}\"{paramString}){macroEnd};";
-                // Write method with return
-                writer.WriteLine(s);
-                // Close method
-                writer.CloseDefinition();
             }
             writer.Flush();
             Serialized(method);
