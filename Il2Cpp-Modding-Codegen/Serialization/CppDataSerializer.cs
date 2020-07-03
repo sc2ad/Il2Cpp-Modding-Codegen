@@ -44,11 +44,11 @@ namespace Il2Cpp_Modding_Codegen.Serialization
             var typeContext = new CppTypeContext(_collection, t);
             foreach (var nt in t.NestedTypes)
             {
-                // For each nested type, we create a context for it, and we add it to our current context.
+                // For each nested type, we create a context for it
                 var nestedContexts = CreateContext(nt);
-                typeContext.AddNestedContext(nt, nestedContexts);
-                // In addition, we set the nested context's declaring context to headerContext
+                // Order of these two functions matter, since after we set the declaring context, we can then call AddNestedContext and resolve InPlaces
                 nestedContexts.SetDeclaringContext(typeContext);
+                typeContext.AddNestedContext(nt, nestedContexts);
             }
             // Each type is always added to _map (with a non-null header and cpp context)
             _map.Add(t, typeContext);

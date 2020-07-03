@@ -163,6 +163,7 @@ namespace Il2Cpp_Modding_Codegen.Serialization
                 AddDefinition(def);
         }
 
+        // Must be called AFTER context.SetDeclaringContext(this)
         public void AddNestedContext(ITypeData type, CppTypeContext context)
         {
             Contract.Requires(type != null);
@@ -172,24 +173,19 @@ namespace Il2Cpp_Modding_Codegen.Serialization
             // TODO: Add a mapping from type --> context so we can search our immediate nesteds faster
             // atm, just add it because we can be lazy
             _nestedContexts.Add(context);
+            // If this context is a generic template, then we need to InPlace the new nested context.
+            if (LocalType.This.IsGenericTemplate)
+                InPlaceNestedType(context);
         }
 
+        // Must be called AFTER DeclaringContext.AddNestedContext(this)
         public void SetDeclaringContext(CppTypeContext context)
         {
             Contract.Requires(DeclaringContext is null);
             Contract.Requires(context != null);
             // Set our declaring context to be the one provided. Our original declaring context should always be null before-hand.
             // There shouldn't be too much sorcery here, instead, when we add definitions, we ensure we check our inheritance tree.
-            // If we find that the type we are looking for is under a declaring type that we share,
-            // we need to ensure that type (and all of its declaring types) are set to InPlace
             DeclaringContext = context;
-            while (context != null)
-            {
-                // If this DeclaringContext is a generic template, we need to be InPlace.
-                if (context.LocalType.This.IsGenericTemplate)
-                    InPlace = true;
-                context = context.DeclaringContext;
-            }
             Contract.Ensures(DeclaringContext != null);
         }
 
@@ -216,6 +212,38 @@ namespace Il2Cpp_Modding_Codegen.Serialization
             return HasInNestedHierarchy(context.DeclaringContext);
         }
 
+        /// <summary>
+        /// Given a nested context, somewhere within our same RootContext, InPlace it and all of its DeclaringContexts up until RootContext.
+        /// </summary>
+        /// <param name="defContext"></param>
+        private void InPlaceNestedType(CppTypeContext defContext)
+        {
+            Contract.Requires(RootContext.HasInNestedHierarchy(defContext));
+            // If the type we want is a type that is nested within ourselves, our declaring context... till RootContext
+            // Then we set InPlace to true.
+            while (defContext != RootContext)
+            {
+                if (!defContext.InPlace)
+                {
+                    defContext.InPlace = true;
+                    if (defContext.DeclaringContext != null)
+                    {
+                        foreach (var d in defContext.DeclaringContext.Definitions)
+                        {
+                            // Add each definition that exists in the declaring context to the InPlace nested context since they share definitions
+                            defContext.Definitions.Add(d);
+                            // Remove each definition that exists in the declaring context from the InPlace nested context since they share definitions
+                            defContext.DefinitionsToGet.Remove(d);
+                        }
+                    }
+                }
+                // Add the now InPlace type to our own Definitions
+                RootContext.Definitions.Add(defContext.LocalType.This);
+                // Go to the DeclaringContext of the type we just InPlace'd into ourselves, and continue inplacing DeclaringContexts until we hit ourselves.
+                defContext = defContext.DeclaringContext;
+            }
+        }
+
         private void AddDefinition(TypeRef def, ITypeData resolved = null)
         {
             if (Definitions.Contains(def)) return;
@@ -233,23 +261,12 @@ namespace Il2Cpp_Modding_Codegen.Serialization
             // However, if the type we are looking for is a nested type with a declaring type that we share:
             // We need to set the InPlace property for all declaring types of that desired type to true
             // (up until the DeclaringType is shared between them)
+
+            // If the definition I am adding shares the same RootContext as me, I need to InPlace nest it.
             if (!RootContext.HasInNestedHierarchy(resolved, out var defContext))
                 DefinitionsToGet.Add(def);
             else
-                while (defContext != RootContext)
-                {
-                    if (!defContext.InPlace)
-                    {
-                        defContext.InPlace = true;
-                        if (defContext.DeclaringContext != null)
-                        {
-                            defContext.DefinitionsToGet.Remove(defContext.DeclaringContext.LocalType.This);
-                            defContext.Definitions.Add(defContext.DeclaringContext.LocalType.This);
-                        }
-                    }
-                    Definitions.Add(defContext.LocalType.This);
-                    defContext = defContext.DeclaringContext;
-                }
+                InPlaceNestedType(defContext);
         }
 
         private void AddNestedDeclaration(TypeRef def, ITypeData resolved)
