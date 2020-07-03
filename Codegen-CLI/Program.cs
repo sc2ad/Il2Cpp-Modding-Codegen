@@ -77,6 +77,10 @@ namespace Codegen_CLI
                     "template", "this", "thread_local", "throw", "true", "try", "typedef", "typeid", "typename", "union",
                     "unsigned", "using", "virtual", "void", "volatile", "wchar_t", "while", "xor", "xor_eq"
                 },
+                IllegalMethodNames = new HashSet<string>
+                {
+                    "bzero", "Assert"
+                },
                 OutputDirectory = Path.Combine(Environment.CurrentDirectory, "output"),
                 OutputHeaderDirectory = "include",
                 OutputSourceDirectory = "src",

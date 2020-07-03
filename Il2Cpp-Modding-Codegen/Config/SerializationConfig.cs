@@ -17,6 +17,12 @@ namespace Il2Cpp_Modding_Codegen.Config
         public HashSet<string> IllegalNames { get; set; }
 
         /// <summary>
+        /// A set of illegal method names that must be renamed.
+        /// The renaming approach is to simply suffix with a _ until it is no longer within this set.
+        /// </summary>
+        public HashSet<string> IllegalMethodNames { get; set; }
+
+        /// <summary>
         /// How to output the created methods
         /// </summary>
         public OutputStyle OutputStyle { get; set; }
@@ -71,6 +77,14 @@ namespace Il2Cpp_Modding_Codegen.Config
             if (!string.IsNullOrEmpty(name))
                 while (IllegalNames?.Contains(name) is true)
                     name = "_" + name;
+            return name;
+        }
+
+        public string SafeMethodName(string name)
+        {
+            if (!string.IsNullOrEmpty(name))
+                while (IllegalNames?.Contains(name) is true || IllegalMethodNames?.Contains(name) is true)
+                    name += "_";
             return name;
         }
     }

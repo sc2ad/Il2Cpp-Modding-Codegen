@@ -115,7 +115,7 @@ namespace Il2Cpp_Modding_Codegen.Serialization
             else
                 // If the name is not a special name, set it to be the method name
                 name = method.Name;
-            name = name.Replace('<', '$').Replace('>', '$').Replace('.', '_');
+            name = _config.SafeMethodName(name).Replace('<', '$').Replace('>', '$').Replace('.', '_');
             // Iterate over all implementing and base methods and change their names accordingly
             var skips = new HashSet<IMethod>();
             // Chances are, for the first time a method is hit, it has a false for fullName.

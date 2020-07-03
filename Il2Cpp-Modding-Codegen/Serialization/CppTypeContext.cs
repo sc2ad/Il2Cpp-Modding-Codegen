@@ -183,10 +183,13 @@ namespace Il2Cpp_Modding_Codegen.Serialization
             // If we find that the type we are looking for is under a declaring type that we share,
             // we need to ensure that type (and all of its declaring types) are set to InPlace
             DeclaringContext = context;
-            if (context.LocalType.This.IsGenericTemplate)
-                InPlace = true;
-            if (context.InPlace)
-                InPlace = true;
+            while (context != null)
+            {
+                // If this DeclaringContext is a generic template, we need to be InPlace.
+                if (context.LocalType.This.IsGenericTemplate)
+                    InPlace = true;
+                context = context.DeclaringContext;
+            }
             Contract.Ensures(DeclaringContext != null);
         }
 
