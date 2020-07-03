@@ -53,7 +53,7 @@ namespace Il2Cpp_Modding_Codegen.Serialization
             {
                 fieldString += $"{spec} ";
             }
-            writer.WriteComment(field.Type + " " + field.Name);
+            writer.WriteComment(fieldString + field.Type + " " + field.Name);
             writer.WriteComment("Offset: 0x{field.Offset:X}");
             if (!field.Specifiers.IsStatic() && !field.Specifiers.IsConst())
                 writer.WriteFieldDeclaration(_resolvedTypeNames[field], SafeFieldName(field));
