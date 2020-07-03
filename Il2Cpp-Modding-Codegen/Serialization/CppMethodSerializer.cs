@@ -331,44 +331,6 @@ namespace Il2Cpp_Modding_Codegen.Serialization
             return $"{preRetStr}{retStr} {ns}{signature}{overrideStr}{impl}";
         }
 
-        private void WriteCtor(CppStreamWriter writer, IMethod method, bool asHeader)
-        {
-            bool content = !asHeader || NeedDefinitionInHeader(method);
-            var paramString = method.Parameters.FormatParameters(_config.IllegalNames, _parameterMaps[method], FormatParameterMode.Names | FormatParameterMode.Types, header: asHeader);
-
-            if (!_nameMap.TryGetValue(method, out var methodNamePair))
-                throw new InvalidOperationException($"Could not find method: {method} in _nameMap! Ensure it is PreSerialized first!");
-            if (content)
-            {
-                var name = !asHeader ? _declaringFullyQualified : _thisTypeName;
-                var methodPrefix = !asHeader ? _declaringFullyQualified + "::" : "";
-                if (_genericArgs.ContainsKey(method))
-                    if (!asHeader)
-                        writer.WriteLine("template<>");
-                    else
-                        throw new InvalidOperationException("Cannot create specialization in a header!");
-                writer.WriteDefinition($"{name}* {methodPrefix}New{methodNamePair.Item1}({paramString})");
-                var namePair = method.DeclaringType.GetIl2CppName();
-                var paramNames = method.Parameters.FormatParameters(_config.IllegalNames, _parameterMaps[method], FormatParameterMode.Names, asHeader);
-                if (!string.IsNullOrEmpty(paramNames))
-                    // Prefix , for parameters to New
-                    paramNames = ", " + paramNames;
-                var newObject = $"il2cpp_utils::New(\"{namePair.@namespace}\", \"{namePair.name}\"{paramNames})";
-                // TODO: Make this configurable
-                writer.WriteDeclaration($"return reinterpret_cast<{name}*>(CRASH_UNLESS({newObject}))");
-                writer.CloseDefinition();
-            }
-            else
-            {
-                // Write declaration, with comments
-                writer.WriteComment($"Creates an object of type: {_declaringFullyQualified}* and calls the corresponding constructor.");
-                if (_genericArgs.TryGetValue(method, out var genArgs))
-                    writer.WriteLine($"template<{string.Join(", ", genArgs.Select(s => "class " + s))}>");
-                // TODO: Ensure name does not conflict with any existing methods!
-                writer.WriteDeclaration($"static {_thisTypeName}* New{methodNamePair.Item1}({paramString})");
-            }
-        }
-
         private bool IsCtor(IMethod method)
         {
             return method.Name == "_ctor" || method.Name == ".ctor";
@@ -452,7 +414,7 @@ namespace Il2Cpp_Modding_Codegen.Serialization
                         paramNames = ", " + paramNames;
                     var newObject = $"il2cpp_utils::New(\"{@namespace}\", \"{name}\"{paramNames})";
                     // TODO: Make this configurable
-                    writer.WriteDeclaration($"return static_cast<{typeName}*>(CRASH_UNLESS({newObject}))");
+                    writer.WriteDeclaration($"return reinterpret_cast<{typeName}*>(CRASH_UNLESS({newObject}))");
                     writer.CloseDefinition();
                 }
                 else
