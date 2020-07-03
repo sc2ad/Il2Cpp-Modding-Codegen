@@ -63,7 +63,7 @@ namespace Il2Cpp_Modding_Codegen.Serialization
         public bool NeedPrimitives { get; private set; }
 
         // Holds generic types (ex: T1, T2, ...) defined by the type
-        private HashSet<TypeRef> _genericTypes = new HashSet<TypeRef>();
+        private HashSet<TypeRef> _genericTypes = new HashSet<TypeRef>(TypeRef.fastComparer);
 
         private List<CppTypeContext> _nestedContexts = new List<CppTypeContext>();
 
@@ -379,10 +379,16 @@ namespace Il2Cpp_Modding_Codegen.Serialization
                                 if (data.IsGenericInstance)
                                     declaringGenericParams += GetCppName(argMapping[g], true, true);
                                 else
+                                    // Here we need to ensure that we are actually getting this from the right place.
+                                    // When data is NOT a generic instance, that means that this type has a generic template type.
+                                    // If it is a generic parameter it should be gotten from declType
+                                    // Or, we need to forward all of the generic parameters our declaring types have onto ourselves, thus allowing for resolution.
                                     declaringGenericParams += GetCppName(g, true, true);
                                 first = false;
                             }
                             declaringGenericParams += ">";
+                            if (declaringGenericParams.Length == 2)
+                                Console.Error.WriteLine($"Attempted to write generic parameters, but actually wrote <>! for type being resolved: {data} type with generics: {declType}");
                         }
                     }
 
