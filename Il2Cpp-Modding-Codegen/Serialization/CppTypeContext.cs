@@ -26,6 +26,7 @@ namespace Il2Cpp_Modding_Codegen.Serialization
 
         // Declarations that should be made by our includes (DefinitionsToGet)
         public HashSet<TypeRef> Declarations { get; } = new HashSet<TypeRef>();
+
         public HashSet<TypeRef> DeclarationsToMake { get; } = new HashSet<TypeRef>();
         public HashSet<TypeRef> Definitions { get; } = new HashSet<TypeRef>();
         public HashSet<TypeRef> DefinitionsToGet { get; } = new HashSet<TypeRef>();
@@ -34,6 +35,7 @@ namespace Il2Cpp_Modding_Codegen.Serialization
         public IReadOnlyList<CppTypeContext> NestedContexts { get => _nestedContexts; }
 
         private CppTypeContext _rootContext;
+
         private CppTypeContext RootContext
         {
             get
@@ -181,6 +183,10 @@ namespace Il2Cpp_Modding_Codegen.Serialization
             // If we find that the type we are looking for is under a declaring type that we share,
             // we need to ensure that type (and all of its declaring types) are set to InPlace
             DeclaringContext = context;
+            if (context.LocalType.This.IsGenericTemplate)
+                InPlace = true;
+            if (context.InPlace)
+                InPlace = true;
             Contract.Ensures(DeclaringContext != null);
         }
 
@@ -192,6 +198,7 @@ namespace Il2Cpp_Modding_Codegen.Serialization
         }
 
         internal bool HasInNestedHierarchy(ITypeData resolved) => HasInNestedHierarchy(resolved, out var _);
+
         private bool HasInNestedHierarchy(ITypeData resolved, out CppTypeContext defContext)
         {
             if (CppDataSerializer.TypeToContext.TryGetValue(resolved, out defContext))
