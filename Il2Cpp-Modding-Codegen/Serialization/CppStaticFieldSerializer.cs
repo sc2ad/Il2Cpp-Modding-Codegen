@@ -112,7 +112,8 @@ namespace Il2Cpp_Modding_Codegen.Serialization
                     macro = "RET_V_UNLESS(";
 
                 s += $"{macro}il2cpp_utils::SetFieldValue(";
-                s += $"\"{field.DeclaringType.Namespace}\", \"{field.DeclaringType.Name}\", \"{field.Name}\", value));";
+                var namePair = field.DeclaringType.GetIl2CppName();
+                s += $"\"{namePair.Item1}\", \"{namePair.Item2}\", \"{field.Name}\", value));";
                 writer.WriteLine(s);
                 writer.CloseDefinition();
             }
