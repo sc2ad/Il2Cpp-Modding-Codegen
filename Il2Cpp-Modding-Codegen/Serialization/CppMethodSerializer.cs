@@ -408,8 +408,8 @@ namespace Il2Cpp_Modding_Codegen.Serialization
 
                 if (IsCtor(method))
                 {
-                    var typeName = !asHeader ? _declaringFullyQualified : _thisTypeName;
-                    typeName = typeName.EndsWith("*") ? typeName : typeName + "*";
+                    // Always use thisTypeName for the cast type, since we are already within the context of the type.
+                    var typeName = _thisTypeName.EndsWith("*") ? _thisTypeName : _thisTypeName + "*";
                     var (@namespace, name) = method.DeclaringType.GetIl2CppName();
                     var paramNames = method.Parameters.FormatParameters(_config.IllegalNames, _parameterMaps[method], FormatParameterMode.Names, asHeader);
                     if (!string.IsNullOrEmpty(paramNames))
