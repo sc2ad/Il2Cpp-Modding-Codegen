@@ -182,7 +182,7 @@ namespace Il2Cpp_Modding_Codegen.Data
             return ret;
         }
 
-        [ObsoleteAttribute("The argument should be a TypeRef!")]
+        [Obsolete("The argument should be a TypeRef!")]
 #pragma warning disable 809  // "obsolete method extends non-obsolete mehtod object.Equals(object)
         public override bool Equals(object obj)
 #pragma warning restore 809
