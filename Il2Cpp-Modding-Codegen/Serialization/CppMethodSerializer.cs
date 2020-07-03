@@ -133,19 +133,6 @@ namespace Il2Cpp_Modding_Codegen.Serialization
             }
         }
 
-        public void PreResolve(CppTypeContext context, IMethod method)
-        {
-            // If p.Type is a nested type AND it is a nested type that we need as a definition, (AND it is a type that we recursively include)
-            // Then we need to remap it to a different name, instead of using p.Type, assuming we are writing it in the header, we need to use it as T1, T2, ...
-            // This renaming to generic types is something that should only happen for TYPE names, and only if we aren't writing the content of the method.
-            // TODO: Need to figure out what to do in the case where we write the body of a method, but it uses a nested type that is recursively included
-            // We can't actually tell if we are recursively including something until Serialize happens. Perhaps this is best done during the serialization step?
-            // However, if we do this during Serialize, we can't remove definitions or declarations that have otherwise already happened.
-            // The whole goal of doing nested types in this way is to avoid defining any types that would (via some means) redefine ourselves.
-            // Ideally, we only perform this process when we are certain there is an include cycle, but that's actually really hard to do without another pass.
-            // If we DID do another pass, we could easily check, fixup definitions, and THEN serialize...
-        }
-
         public bool FixBadDefinition(TypeRef offendingType, IMethod method, out int found)
         {
             // This method should be relatively straightforward:
@@ -376,7 +363,8 @@ namespace Il2Cpp_Modding_Codegen.Serialization
                 else
                 {
                     // TODO: Check to ensure this works with non-generic methods in a generic type
-                    s += $"\"{method.DeclaringType.Namespace}\", \"{method.DeclaringType.Name}\", ";
+                    var namePair = method.DeclaringType.GetIl2CppName();
+                    s += $"\"{namePair.Item1}\", \"{namePair.Item2}\", ";
                 }
                 var paramString = method.Parameters.FormatParameters(_config.IllegalNames, _parameterMaps[method], FormatParameterMode.Names);
                 if (!string.IsNullOrEmpty(paramString))
