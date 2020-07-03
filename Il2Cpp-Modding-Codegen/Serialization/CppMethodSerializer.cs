@@ -355,7 +355,7 @@ namespace Il2Cpp_Modding_Codegen.Serialization
                     paramNames = ", " + paramNames;
                 var newObject = $"il2cpp_utils::New(\"{namePair.@namespace}\", \"{namePair.name}\"{paramNames})";
                 // TODO: Make this configurable
-                writer.WriteDeclaration($"return static_cast<{name}*>(CRASH_UNLESS({newObject}))");
+                writer.WriteDeclaration($"return reinterpret_cast<{name}*>(CRASH_UNLESS({newObject}))");
                 writer.CloseDefinition();
             }
             else
