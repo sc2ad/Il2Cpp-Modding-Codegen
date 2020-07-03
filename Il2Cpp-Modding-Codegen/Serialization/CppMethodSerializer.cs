@@ -364,7 +364,7 @@ namespace Il2Cpp_Modding_Codegen.Serialization
                 {
                     // TODO: Check to ensure this works with non-generic methods in a generic type
                     var namePair = method.DeclaringType.GetIl2CppName();
-                    s += $"\"{namePair.Item1}\", \"{namePair.Item2}\", ";
+                    s += $"\"{namePair.@namespace}\", \"{namePair.name}\", ";
                 }
                 var paramString = method.Parameters.FormatParameters(_config.IllegalNames, _parameterMaps[method], FormatParameterMode.Names);
                 if (!string.IsNullOrEmpty(paramString))

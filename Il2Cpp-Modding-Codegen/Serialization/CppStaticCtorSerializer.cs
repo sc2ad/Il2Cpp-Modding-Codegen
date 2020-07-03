@@ -124,7 +124,7 @@ namespace Il2Cpp_Modding_Codegen.Serialization
                 writer.WriteComment("New_ctor implementation");
                 writer.WriteDefinition($"{_declaringFullyQualified}* {_declaringFullyQualified}::New_ctor({paramString})");
                 var namePair = method.DeclaringType.GetIl2CppName();
-                var newObject = $"il2cpp_functions::object_new(il2cpp_utils::GetClassFromName(\"{namePair.Item1}\", \"{namePair.Item2}\"))";
+                var newObject = $"il2cpp_functions::object_new(il2cpp_utils::GetClassFromName(\"{namePair.@namespace}\", \"{namePair.name}\"))";
                 writer.WriteDeclaration($"auto* tmp = reinterpret_cast<{_declaringFullyQualified}*>({newObject})");
                 writer.WriteDeclaration($"tmp->_ctor({method.Parameters.FormatParameters(_config.IllegalNames, _parameterMaps[method], FormatParameterMode.Names, header: asHeader)})");
                 writer.WriteDeclaration("return tmp");
