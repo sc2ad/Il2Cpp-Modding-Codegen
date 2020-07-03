@@ -242,7 +242,7 @@ namespace Il2Cpp_Modding_Codegen.Serialization
             // Get the fully qualified name of the context
             bool success = true;
             _declaringFullyQualified = context.QualifiedTypeName;
-            _thisTypeName = context.GetCppName(method.DeclaringType, false, needAs: CppTypeContext.NeedAs.Definition, forceAsType: CppTypeContext.ForceAsType.Literal);
+            _thisTypeName = context.GetCppName(method.DeclaringType, false, needAs: CppTypeContext.NeedAs.Definition);
             var resolved = context.ResolveAndStore(method.DeclaringType, CppTypeContext.ForceAsType.Literal, CppTypeContext.NeedAs.Definition);
             _isInterface = resolved?.Type == TypeEnum.Interface;
             _pureVirtual = _isInterface && !method.DeclaringType.IsGeneric;
@@ -316,7 +316,9 @@ namespace Il2Cpp_Modding_Codegen.Serialization
             // Handles i.e. ".ctor"
             if (IsCtor(method))
             {
-                retStr = (!isHeader ? _declaringFullyQualified : _thisTypeName) + "*";
+                retStr = !isHeader ? _declaringFullyQualified : _thisTypeName;
+                // Force return type to be a pointer
+                retStr = retStr.EndsWith("*") ? retStr : retStr + "*";
                 preRetStr = !namespaceQualified ? "static " : "";
                 nameStr = "New" + nameStr;
             }
@@ -407,6 +409,7 @@ namespace Il2Cpp_Modding_Codegen.Serialization
                 if (IsCtor(method))
                 {
                     var typeName = !asHeader ? _declaringFullyQualified : _thisTypeName;
+                    typeName = typeName.EndsWith("*") ? typeName : typeName + "*";
                     var (@namespace, name) = method.DeclaringType.GetIl2CppName();
                     var paramNames = method.Parameters.FormatParameters(_config.IllegalNames, _parameterMaps[method], FormatParameterMode.Names, asHeader);
                     if (!string.IsNullOrEmpty(paramNames))
@@ -414,7 +417,7 @@ namespace Il2Cpp_Modding_Codegen.Serialization
                         paramNames = ", " + paramNames;
                     var newObject = $"il2cpp_utils::New(\"{@namespace}\", \"{name}\"{paramNames})";
                     // TODO: Make this configurable
-                    writer.WriteDeclaration($"return reinterpret_cast<{typeName}*>(CRASH_UNLESS({newObject}))");
+                    writer.WriteDeclaration($"return ({typeName})CRASH_UNLESS({newObject})");
                     writer.CloseDefinition();
                 }
                 else
