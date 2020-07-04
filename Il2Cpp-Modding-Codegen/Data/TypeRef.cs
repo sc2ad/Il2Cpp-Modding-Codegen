@@ -164,14 +164,33 @@ namespace Il2Cpp_Modding_Codegen.Data
             return genericMap;
         }
 
+        private const int MaxIncludeLength = 80;
+        private static int longFileCount = 0;
+
+        private string cachedInclude;
+
         internal string GetIncludeLocation()
         {
-            var fileName = string.Join("-", GetName().Split(Path.GetInvalidFileNameChars())).Replace('$', '-');
-            if (DeclaringType != null)
-                return DeclaringType.GetIncludeLocation() + "_" + fileName;
-            // Splits multiple namespaces into nested directories
-            var directory = string.Join("-", string.Join("/", GetNamespace().Split(new string[] { "::" }, StringSplitOptions.RemoveEmptyEntries)).Split(Path.GetInvalidPathChars()));
-            return directory + "/" + fileName;
+            if (string.IsNullOrEmpty(cachedInclude))
+            {
+                var fileName = string.Join("-", GetName().Split(Path.GetInvalidFileNameChars())).Replace('$', '-');
+                if (DeclaringType != null)
+                    return DeclaringType.GetIncludeLocation() + "_" + fileName;
+                // Splits multiple namespaces into nested directories
+                var directory = string.Join("-", string.Join("/", GetNamespace().Split(new string[] { "::" }, StringSplitOptions.RemoveEmptyEntries)).Split(Path.GetInvalidPathChars()));
+                var ret = directory + "/" + fileName;
+                // Guess for too long of a file path, chances are it can probably be longer, but at this point...
+                if (ret.Length >= MaxIncludeLength)
+                {
+                    ret = directory + "/" + "_" + longFileCount;
+                    longFileCount++;
+                    Console.WriteLine($"Changing filename: {directory}/{fileName} to: {ret}");
+                }
+                cachedInclude = ret;
+                if (cachedInclude.Length >= MaxIncludeLength)
+                    Console.Error.WriteLine("File too long: " + cachedInclude);
+            }
+            return cachedInclude;
         }
 
         public override string ToString()
