@@ -4,6 +4,7 @@ using System;
 using System.CodeDom.Compiler;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Net.Http.Headers;
 using System.Text;
 
@@ -106,6 +107,11 @@ namespace Il2Cpp_Modding_Codegen.Serialization
         {
             int i = 0;
             int count = _map.Count;
+            var mkSerializer = new AndroidMkSerializer(_config);
+            mkSerializer.WriteHeader(Path.Combine(_config.OutputDirectory, "Android.mk"));
+            var names = new List<string>();
+            var libs = new List<AndroidMkSerializer.Library>();
+            int currentPathLength = 0;
             foreach (var pair in _map)
             {
                 // We iterate over every type.
@@ -118,6 +124,7 @@ namespace Il2Cpp_Modding_Codegen.Serialization
                     {
                         Console.WriteLine($"{i} / {count}");
                     }
+
                 // Ensure that we are going to write everything in this context:
                 // Global context should have everything now, all names are also resolved!
                 // Now, we create the folders/files for the particular type we would like to create
@@ -129,9 +136,34 @@ namespace Il2Cpp_Modding_Codegen.Serialization
 
                 if (!pair.Value.InPlace || pair.Value.DeclaringContext == null)
                     new CppHeaderCreator(_config, _contextSerializer).Serialize(pair.Value);
+                var t = pair.Value.LocalType;
+                if (t.Type == TypeEnum.Interface || t.This.IsGeneric || (t.Methods.Count == 0 && t.Fields.Where(f => f.Specifiers.IsStatic()).Count() == 0))
+                {
+                    // Don't create C++ for types with no methods (including static fields), or if it is an interface, or if it is generic
+                    goto next;
+                }
+                // We need to split up the files into multiple pieces, which all build to static libraries and then build to a single shared library
+                var name = _config.OutputSourceDirectory + "/" + pair.Value.CppFileName;
+                if (currentPathLength + name.Length >= _config.SourceFileCharacterLimit)
+                {
+                    // If we are about to go over, use the names list to create a library and add it to libs.
+                    var newLib = new AndroidMkSerializer.Library { id = _config.Id + "_" + i, isSource = true, toBuild = names };
+                    mkSerializer.WriteStaticLibrary(newLib);
+                    libs.Add(newLib);
+                    currentPathLength = 0;
+                    names.Clear();
+                }
+                currentPathLength += name.Length;
+                names.Add(name);
                 new CppSourceCreator(_config, _contextSerializer).Serialize(pair.Value);
-                i++;
+                next: i++;
             }
+
+            // After all static libraries are created, aggregate them all and collpase them into a single Android.mk file.
+            // As a double check, doing a ctrl-f for any given id in the Android.mk should net two results: Where it is created and where it is aggregated.
+            Console.WriteLine("Beginning aggregation of libraries: " + libs.Count);
+            mkSerializer.AggregateStaticLibraries(libs);
+            mkSerializer.Close();
         }
     }
 }

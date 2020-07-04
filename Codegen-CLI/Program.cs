@@ -61,6 +61,13 @@ namespace Codegen_CLI
                 Console.WriteLine($"Parsed style '{style}'");
             }
 
+            var libIl2cpp = "C:/Program Files/Unity/Editor/Data/il2cpp/libil2cpp";
+            if (!Directory.Exists(libIl2cpp))
+            {
+                Console.WriteLine("Drag and drop your libil2cpp folder into this window then press enter:");
+                libIl2cpp = Console.ReadLine();
+            }
+
             Console.WriteLine("Creating serializer...");
             var config = new SerializationConfig
             {
@@ -93,7 +100,10 @@ namespace Codegen_CLI
                     TypeHandling = UnresolvedTypeExceptionHandling.DisplayInFile
                 },
                 PrintSerializationProgress = true,
-                PrintSerializationProgressFrequency = 1000
+                PrintSerializationProgressFrequency = 1000,
+                Id = "il2cpp_codegen",
+                Version = "0.1.0",
+                Libil2cpp = libIl2cpp
             };
 
             if (Directory.Exists(Path.Combine(config.OutputDirectory, config.OutputHeaderDirectory)))

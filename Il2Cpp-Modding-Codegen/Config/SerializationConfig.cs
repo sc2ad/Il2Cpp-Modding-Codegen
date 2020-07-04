@@ -11,6 +11,36 @@ namespace Il2Cpp_Modding_Codegen.Config
         public string OutputSourceDirectory { get; set; }
 
         /// <summary>
+        /// Id for the mod to use, also the resultant library name
+        /// </summary>
+        public string Id { get; set; }
+
+        /// <summary>
+        /// The (ideally SemVer) version of the library being created
+        /// </summary>
+        public string Version { get; set; }
+
+        /// <summary>
+        /// Libil2cpp path, necessary for proper building of Android.mk
+        /// </summary>
+        public string Libil2cpp { get; set; }
+
+        /// <summary>
+        /// The maximum amount of characters (not including additional characters added by make) for shared libraries
+        /// </summary>
+        public int SharedLibraryCharacterLimit { get; set; } = 7500;
+
+        /// <summary>
+        /// The maximum amount of characters (not including additional characters added by make) for source files
+        /// </summary>
+        public int SourceFileCharacterLimit { get; set; } = 7700;
+
+        /// <summary>
+        /// The maximum amount of characters (not including additional characters added by make) for static libraries
+        /// </summary>
+        public int StaticLibraryCharacterLimit { get; set; } = 7700;
+
+        /// <summary>
         /// A set of illegal method, field, or type names that must be renamed.
         /// The renaming approach is to simply prefix with a _ until it is no longer within this set.
         /// </summary>

@@ -164,7 +164,7 @@ namespace Il2Cpp_Modding_Codegen.Data
             return genericMap;
         }
 
-        private const int MaxIncludeLength = 80;
+        private const int MaxIncludeLength = -1;
         private static int longFileCount = 0;
 
         private string cachedInclude;
@@ -180,14 +180,14 @@ namespace Il2Cpp_Modding_Codegen.Data
                 var directory = string.Join("-", string.Join("/", GetNamespace().Split(new string[] { "::" }, StringSplitOptions.RemoveEmptyEntries)).Split(Path.GetInvalidPathChars()));
                 var ret = directory + "/" + fileName;
                 // Guess for too long of a file path, chances are it can probably be longer, but at this point...
-                if (ret.Length >= MaxIncludeLength)
+                if (MaxIncludeLength > 0 && ret.Length >= MaxIncludeLength)
                 {
                     ret = directory + "/" + "_" + longFileCount;
                     longFileCount++;
                     Console.WriteLine($"Changing filename: {directory}/{fileName} to: {ret}");
                 }
                 cachedInclude = ret;
-                if (cachedInclude.Length >= MaxIncludeLength)
+                if (MaxIncludeLength > 0 && cachedInclude.Length >= MaxIncludeLength)
                     Console.Error.WriteLine("File too long: " + cachedInclude);
             }
             return cachedInclude;

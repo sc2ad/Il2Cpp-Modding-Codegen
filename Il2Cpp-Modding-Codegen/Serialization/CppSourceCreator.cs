@@ -1,4 +1,4 @@
-﻿using Il2Cpp_Modding_Codegen.Config;
+using Il2Cpp_Modding_Codegen.Config;
 using Il2Cpp_Modding_Codegen.Data;
 using System;
 using System.CodeDom.Compiler;
@@ -22,13 +22,6 @@ namespace Il2Cpp_Modding_Codegen.Serialization
 
         public void Serialize(CppTypeContext context)
         {
-            var data = context.LocalType;
-            if (data.Type == TypeEnum.Interface || data.Methods.Count == 0 || data.This.IsGeneric)
-            {
-                // Don't create C++ for types with no methods, or if it is an interface, or if it is generic, or if context is a header
-                return;
-            }
-
             var sourceLocation = Path.Combine(_config.OutputDirectory, _config.OutputSourceDirectory, context.CppFileName);
             Directory.CreateDirectory(Path.GetDirectoryName(sourceLocation));
             using (var ms = new MemoryStream())
