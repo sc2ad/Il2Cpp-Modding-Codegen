@@ -163,7 +163,11 @@ namespace Il2Cpp_Modding_Codegen.Serialization
             // As a double check, doing a ctrl-f for any given id in the Android.mk should net two results: Where it is created and where it is aggregated.
             // Add one last lib for the final set of names to be built
             if (names.Count > 0)
-                libs.Add(new AndroidMkSerializer.Library { id = _config.Id + "_" + i, isSource = true, toBuild = names });
+            {
+                var newLib = new AndroidMkSerializer.Library { id = _config.Id + "_" + i, isSource = true, toBuild = names };
+                libs.Add(newLib);
+                mkSerializer.WriteStaticLibrary(newLib);
+            }
             Console.WriteLine("Beginning aggregation of libraries: " + libs.Count);
             mkSerializer.AggregateStaticLibraries(libs);
             mkSerializer.Close();
