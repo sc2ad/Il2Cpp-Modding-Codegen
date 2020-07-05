@@ -28,17 +28,17 @@ namespace Il2Cpp_Modding_Codegen.Config
         /// <summary>
         /// The maximum amount of characters (not including additional characters added by make) for shared libraries
         /// </summary>
-        public int SharedLibraryCharacterLimit { get; set; } = 7500;
+        public int SharedLibraryCharacterLimit { get; set; } = 4000;
 
         /// <summary>
         /// The maximum amount of characters (not including additional characters added by make) for source files
         /// </summary>
-        public int SourceFileCharacterLimit { get; set; } = 7700;
+        public int SourceFileCharacterLimit { get; set; } = 4500;
 
         /// <summary>
         /// The maximum amount of characters (not including additional characters added by make) for static libraries
         /// </summary>
-        public int StaticLibraryCharacterLimit { get; set; } = 7700;
+        public int StaticLibraryCharacterLimit { get; set; } = 5000;
 
         /// <summary>
         /// A set of illegal method, field, or type names that must be renamed.
