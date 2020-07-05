@@ -4,10 +4,11 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics.Contracts;
 using System.Linq;
+using System.Text.RegularExpressions;
 
 namespace Il2Cpp_Modding_Codegen
 {
-    static class Utils
+    internal static class Utils
     {
         public static string ReplaceFirst(this string text, string search, string replace)
         {
@@ -41,6 +42,11 @@ namespace Il2Cpp_Modding_Codegen
             return map;
         }
 
+        private static bool QuickEquals(TypeReference r1, TypeReference r2)
+        {
+            return r1?.FullName == r2?.FullName;
+        }
+
         // Returns all methods with the same name and parameters as `self` in any base type or interface of `type`.
         private static HashSet<MethodDefinition> FindIn(this MethodDefinition self, TypeDefinition type, Dictionary<string, TypeReference> genericMapping)
         {
@@ -54,13 +60,13 @@ namespace Il2Cpp_Modding_Codegen
                     // We don't want to actually check the equivalence of these, we want to check to see if they mean the same thing.
                     // For example, if we have a T, we want to ensure that the Ts would match
                     // We need to ensure the name of both self and m are fixed to not have any ., use the last . and ignore generic parameters
-                    if (m.Name.Substring(self.Name.LastIndexOf('.') + 1) != sName)
+                    if (m.Name.Substring(m.Name.LastIndexOf('.') + 1) != sName)
                         goto cont;
                     var ret = m.ReturnType;
                     if (genericMapping.TryGetValue(ret.Name, out var r2))
                         ret = r2;
                     // If ret == self.ReturnType, we have a match
-                    if (!ret.Equals(self.ReturnType))
+                    if (!QuickEquals(ret, self.ReturnType))
                         goto cont;
                     if (m.Parameters.Count != self.Parameters.Count)
                         goto cont;
@@ -70,7 +76,7 @@ namespace Il2Cpp_Modding_Codegen
                         if (genericMapping.TryGetValue(m.Parameters[i].ParameterType.Name, out var a))
                             arg = a;
                         // If arg == self.Parameters[i].ParameterType, we have a match
-                        if (arg.Equals(self.Parameters[i].ParameterType))
+                        if (!QuickEquals(arg, self.Parameters[i].ParameterType))
                             goto cont;
                     }
                     matches.Add(m);
@@ -88,8 +94,38 @@ namespace Il2Cpp_Modding_Codegen
             return matches;
         }
 
-        // Returns all methods with the same name, parameters, and return type as `self` in any base type or interface of `self.DeclaringType`.
-        // Unlike Mono.Cecil.Rocks.MethodDefinitionRocks.GetBaseMethod, will never return `self`.
+        private static TypeReference FindInterface(TypeReference type, string find)
+        {
+            if (type is null) return null;
+            var typeStr = Regex.Replace(type.ToString(), @"`\d+", "").Replace('/', '.');
+            if (typeStr == find)
+                return type;
+
+            var def = type.Resolve();
+            if (def is null) return null;
+            foreach (var iface in def.Interfaces)
+            {
+                var ret = FindInterface(iface.InterfaceType, find);
+                if (ret != null) return ret;
+            }
+            return FindInterface(def.BaseType, find);
+        }
+
+        public static MethodDefinition GetSpecialNameBaseMethod(this MethodDefinition self, out TypeReference iface, int idxDot = -1)
+        {
+            if (idxDot == -1)
+                idxDot = self.Name.LastIndexOf('.');
+            if (idxDot < 2)
+            {
+                iface = null;
+                return null;
+            }
+            var typeStr = self.Name.Substring(0, idxDot);
+            iface = FindInterface(self.DeclaringType, typeStr);
+            var tName = self.Name.Substring(idxDot + 1);
+            return iface.Resolve().Methods.Where(im => im.Name == tName && self.Parameters.Count == im.Parameters.Count).Single();
+        }
+
         /// <summary>
         /// Returns all methods with the same name, parameters, and return type as <paramref name="self"/> in any base type or interface of <see cref="MethodDefinition.DeclaringType"/>
         /// Returns an empty set if no matching methods are found. Does not include <paramref name="self"/> in the search.
@@ -99,7 +135,15 @@ namespace Il2Cpp_Modding_Codegen
         public static HashSet<MethodDefinition> GetBaseMethods(this MethodDefinition self)
         {
             Contract.Requires(self != null);
-            return self.FindIn(self.DeclaringType, self.DeclaringType.GetGenerics(self.DeclaringType.Resolve()));
+            // Whenever we call GetBaseMethods, we should explicitly exclude all base methods that are specifically defined by self.DeclaringType via special names already.
+            // We would ideally do this by compiling a list of special named methods, and for each of those, explicitly excluding them from our matches.
+            // However, this means that we need to be able to convert a special name to a base method, which means we need an extension method for it here.
+            // TODO: This list should be generated once and then cached.
+            var specialBaseMethods = self.DeclaringType.Methods.Select(m => m.GetSpecialNameBaseMethod(out var iface)).Where(md => md != null);
+            var matches = self.FindIn(self.DeclaringType, self.DeclaringType.GetGenerics(self.DeclaringType.Resolve()));
+            foreach (var sbm in specialBaseMethods)
+                matches.Remove(sbm);
+            return matches;
         }
     }
 }

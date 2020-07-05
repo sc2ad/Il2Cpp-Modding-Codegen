@@ -4,6 +4,7 @@ using Il2Cpp_Modding_Codegen.Serialization;
 using System;
 using System.CodeDom.Compiler;
 using System.Collections.Generic;
+using System.Diagnostics.Contracts;
 using System.IO;
 using System.Linq;
 using System.Text;
@@ -15,6 +16,7 @@ namespace Il2Cpp_Modding_Codegen.Serialization
         private struct State
         {
             internal string type;
+            internal string declaring;
             internal List<string> parentNames;
         }
 
@@ -36,13 +38,14 @@ namespace Il2Cpp_Modding_Codegen.Serialization
         public void Resolve(CppTypeContext context, ITypeData type)
         {
             // Asking for ourselves as a definition will simply make things easier when resolving ourselves.
-            var resolved = context.GetCppName(type.This, false, false, CppTypeContext.NeedAs.Definition, CppTypeContext.ForceAsType.Literal);
+            var resolved = _config.SafeName(context.GetCppName(type.This, false, false, CppTypeContext.NeedAs.Definition, CppTypeContext.ForceAsType.Literal));
             if (resolved is null)
                 throw new InvalidOperationException($"Could not resolve provided type: {type.This}!");
 
             State s = new State
             {
                 type = resolved,
+                declaring = null,
                 parentNames = new List<string>()
             };
             if (string.IsNullOrEmpty(s.type))
@@ -50,6 +53,7 @@ namespace Il2Cpp_Modding_Codegen.Serialization
                 Console.WriteLine($"{type.This.Name} -> {s.type}");
                 throw new Exception("GetNameFromReference gave empty typeName");
             }
+
             if (type.Parent != null)
             {
                 // System::ValueType should be the 1 type where we want to extend System::Object without the Il2CppObject fields
@@ -57,14 +61,21 @@ namespace Il2Cpp_Modding_Codegen.Serialization
                     s.parentNames.Add("System::Object");
                 else
                     // TODO: just use type.Parent's QualifiedTypeName instead?
-                    s.parentNames.Add(context.GetCppName(type.Parent, true, true, CppTypeContext.NeedAs.Definition, CppTypeContext.ForceAsType.Literal));
+                    s.parentNames.Add(_config.SafeName(context.GetCppName(type.Parent, true, true, CppTypeContext.NeedAs.Definition, CppTypeContext.ForceAsType.Literal)));
             }
+
+            if (type.This.DeclaringType != null && type.This.DeclaringType.IsGeneric)
+            {
+                s.declaring = _config.SafeName(context.GetCppName(type.This.DeclaringType, false, true, CppTypeContext.NeedAs.Definition));
+                s.parentNames.Add("::il2cpp_utils::il2cpp_type_check::NestedType");
+            }
+
             foreach (var @interface in type.ImplementingInterfaces)
-                s.parentNames.Add("virtual " + context.GetCppName(@interface, true, true, CppTypeContext.NeedAs.Definition, CppTypeContext.ForceAsType.Literal));
+                s.parentNames.Add("virtual " + _config.SafeName(context.GetCppName(@interface, true, true, CppTypeContext.NeedAs.Definition, CppTypeContext.ForceAsType.Literal)));
             map.Add(type.This, s);
 
             if (fieldSerializer is null)
-                fieldSerializer = new CppFieldSerializer();
+                fieldSerializer = new CppFieldSerializer(_config);
 
             if (type.Type != TypeEnum.Interface)
             {
@@ -90,12 +101,32 @@ namespace Il2Cpp_Modding_Codegen.Serialization
             if (methodSerializer is null)
                 methodSerializer = new CppMethodSerializer(_config);
             foreach (var m in type.Methods)
-                methodSerializer?.PreSerialize(context, m);
+                methodSerializer.PreSerialize(context, m);
         }
 
-        // Should be provided a file, with all references resolved:
-        // That means that everything is already either forward declared or included (with included files "to be built")
-        // That is the responsibility of our parent serializer, who is responsible for converting the context into that
+        public void DuplicateDefinition(CppTypeContext self, TypeRef offendingType)
+        {
+            int total = 0;
+            // If we ever have a duplicate definition, this should be called.
+            // Here, we need to check to see if we failed because of a field, method, or both
+            foreach (var f in self.LocalType.Fields)
+                if (f.Type.ContainsOrEquals(offendingType))
+                    // If it was a field at all, we throw (this is unsolvable)
+                    throw new InvalidOperationException($"Cannot fix duplicate definition for offending type: {offendingType}, it is used as field: {f} in: {self.LocalType.This}");
+            foreach (var m in self.LocalType.Methods)
+            {
+                // If it was simply a method, we iterate over all methods and attempt to template them
+                // However, if we cannot fix it, this function will return false, informing us that we have failed.
+                if (!methodSerializer.FixBadDefinition(offendingType, m, out var found))
+                    throw new InvalidOperationException($"Cannot fix duplicate definition for offending type: {offendingType}, it is used in an unfixable method: {m}");
+                else
+                    total += found;
+            }
+            if (total <= 0)
+                throw new InvalidOperationException($"Failed to find any occurrences of offendingType {offendingType} in {self.LocalType.This}!");
+            Console.WriteLine($"CppTypeDataSerializer has successfully replaced {total} occurrences of {offendingType} in {self.LocalType.This}!");
+        }
+
         /// <summary>
         /// Writes the declaration for the <see cref="ITypeData"/> type.
         /// Should only be called in contexts where the writer is operating on a header.
@@ -128,26 +159,6 @@ namespace Il2Cpp_Modding_Codegen.Serialization
 
             if (type.This.IsGenericTemplate)
             {
-                /*
-                // Even if we are a template, we need to write out our inherited declaring types
-                var generics = type.This.GetDeclaredGenerics(true);
-                if (isNested)
-                    generics = generics.Except(type.This.GetDeclaredGenerics(false), TypeRef.fastComparer);
-                var declaredGenerics = generics.ToList();
-                if (declaredGenerics.Count > 0)
-                {
-                    var templateStr = "template<";
-                    bool first = true;
-                    foreach (var genParam in declaredGenerics)
-                    {
-                        if (!first)
-                            templateStr += ", ";
-                        templateStr += "typename " + genParam.Name;
-                        first = false;
-                    }
-                    writer.WriteLine(templateStr + ">");
-                }
-                */
                 var genericStr = CppTypeContext.GetTemplateLine(type, isNested);
                 if (!string.IsNullOrEmpty(genericStr))
                     writer.WriteLine(genericStr);
@@ -165,6 +176,8 @@ namespace Il2Cpp_Modding_Codegen.Serialization
             writer.WriteDefinition(type.Type.TypeName() + " " + typeName + s);
             if (type.Fields.Count > 0 || type.Methods.Count > 0 || type.NestedTypes.Count > 0)
                 writer.WriteLine("public:");
+            if (state.declaring != null)
+                writer.WriteLine($"using declaring_type = {state.declaring};");
             writer.Flush();
         }
 

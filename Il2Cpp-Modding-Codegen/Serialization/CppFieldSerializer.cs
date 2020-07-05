@@ -1,4 +1,5 @@
-﻿using Il2Cpp_Modding_Codegen.Data;
+﻿using Il2Cpp_Modding_Codegen.Config;
+using Il2Cpp_Modding_Codegen.Data;
 using System;
 using System.CodeDom.Compiler;
 using System.Collections.Generic;
@@ -14,7 +15,12 @@ namespace Il2Cpp_Modding_Codegen.Serialization
 
         private Dictionary<IField, string> _resolvedTypeNames = new Dictionary<IField, string>();
 
-        public CppFieldSerializer() { }
+        private SerializationConfig _config;
+
+        public CppFieldSerializer(SerializationConfig config)
+        {
+            _config = config;
+        }
 
         // Resolve the field into context here
         public override void PreSerialize(CppTypeContext context, IField field)
@@ -33,6 +39,8 @@ namespace Il2Cpp_Modding_Codegen.Serialization
             _resolvedTypeNames.Add(field, resolvedType);
         }
 
+        private string SafeFieldName(IField field) => _config.SafeName(string.Join("$", field.Name.Split('<', '>')));
+
         // Write the field here
         public override void Serialize(CppStreamWriter writer, IField field, bool asHeader)
         {
@@ -45,10 +53,10 @@ namespace Il2Cpp_Modding_Codegen.Serialization
             {
                 fieldString += $"{spec} ";
             }
-            fieldString += $"{field.Type} {field.Name} // Offset: 0x{field.Offset:X}";
-            writer.WriteComment(fieldString);
+            writer.WriteComment(fieldString + field.Type + " " + field.Name);
+            writer.WriteComment($"Offset: 0x{field.Offset:X}");
             if (!field.Specifiers.IsStatic() && !field.Specifiers.IsConst())
-                writer.WriteFieldDeclaration(_resolvedTypeNames[field], string.Join("$", field.Name.Split('<', '>')));
+                writer.WriteFieldDeclaration(_resolvedTypeNames[field], SafeFieldName(field));
             writer.Flush();
             Serialized(field);
         }

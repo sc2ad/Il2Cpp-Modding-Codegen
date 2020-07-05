@@ -21,26 +21,7 @@ namespace Il2Cpp_Modding_Codegen.Serialization
             _serializer = serializer;
         }
 
-        private Dictionary<CppTypeContext, string> templateAliases = new Dictionary<CppTypeContext, string>();
-
-        private void AliasNestedTemplates(CppStreamWriter writer, CppTypeContext context)
-        {
-            if (context.DeclaringContext != null && context.LocalType.This.IsGeneric)
-            {
-                var templateLine = context.GetTemplateLine(false);
-                if (string.IsNullOrEmpty(templateLine))
-                    throw new Exception("context.GetTemplateLine(false) failed???");
-                writer.WriteLine(templateLine);
-                var typeStr = context.GetCppName(context.LocalType.This, false, true, CppTypeContext.NeedAs.Declaration, CppTypeContext.ForceAsType.Literal);
-                var alias = Regex.Replace(typeStr, @"<[^<>]*>", "").Replace("::", "_");
-                templateAliases.Add(context, alias);
-                writer.WriteLine($"using {alias} = typename {typeStr};");
-            }
-            foreach (var nested in context.NestedContexts.Where(n => n.InPlace))
-                AliasNestedTemplates(writer, nested);
-        }
-
-        // Outputs a DEFINE_IL2CPP_ARG_TYPE call for every type defined by this file
+        // Outputs a DEFINE_IL2CPP_ARG_TYPE call for all root or non-generic types defined by this file
         private void DefineIl2CppArgTypes(CppStreamWriter writer, CppTypeContext context)
         {
             var type = context.LocalType;
@@ -49,18 +30,14 @@ namespace Il2Cpp_Modding_Codegen.Serialization
             // For Name and Namespace here, we DO want all the `, /, etc
             if (!type.This.IsGeneric)
             {
-                string fullName = context.GetCppName(context.LocalType.This, true, true, CppTypeContext.NeedAs.Definition);
+                string fullName = context.GetCppName(context.LocalType.This, true, true, CppTypeContext.NeedAs.Definition, CppTypeContext.ForceAsType.Literal);
+                if (context.LocalType.Info.TypeFlags.HasFlag(TypeFlags.ReferenceType)) fullName += "*";
                 writer.WriteLine($"DEFINE_IL2CPP_ARG_TYPE({fullName}, \"{ns}\", \"{il2cppName}\");");
             }
-            else
+            else if (type.This.DeclaringType is null || !type.This.DeclaringType.IsGeneric)
             {
-                string templateName;
-                if (!templateAliases.TryGetValue(context, out templateName))
-                    templateName = context.GetCppName(context.LocalType.This, false, false, CppTypeContext.NeedAs.Declaration, CppTypeContext.ForceAsType.Literal);
-                templateName = context.LocalType.This.GetNamespace() + "::" + templateName;
-
+                string templateName = context.GetCppName(context.LocalType.This, true, false, CppTypeContext.NeedAs.Declaration, CppTypeContext.ForceAsType.Literal);
                 var structStr = context.LocalType.Info.TypeFlags.HasFlag(TypeFlags.ReferenceType) ? "CLASS" : "STRUCT";
-
                 writer.WriteLine($"DEFINE_IL2CPP_ARG_TYPE_GENERIC_{structStr}({templateName}, \"{ns}\", \"{il2cppName}\");");
             }
             foreach (var nested in context.NestedContexts.Where(n => n.InPlace))
@@ -102,7 +79,6 @@ namespace Il2Cpp_Modding_Codegen.Serialization
                     else if (_config.UnresolvedTypeExceptionHandling.TypeHandling == UnresolvedTypeExceptionHandling.Elevate)
                         throw new InvalidOperationException($"Cannot elevate {e} to a parent type- there is no parent type!");
                 }
-                AliasNestedTemplates(writer, context);
                 // End the namespace
                 writer.CloseDefinition();
 
