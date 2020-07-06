@@ -74,6 +74,16 @@ rwildcard =$(wildcard $1$2) $(foreach d,$(wildcard $1*),$(call rwildcard,$d/,$2)
             _stream.WriteLine("\n\r");
         }
 
+        public void WritePrebuiltSharedLibrary(string id, string src, string include)
+        {
+            _stream.WriteLine("# Writing prebuilt shared library: " + id);
+            _stream.WriteLine("include $(CLEAR_VARS)");
+            _stream.WriteLine($"LOCAL_MODULE := {id}");
+            _stream.WriteLine("LOCAL_SRC_FILES := " + src);
+            _stream.WriteLine("LOCAL_EXPORT_C_INCLUDES := " + include);
+            _stream.WriteLine("include $(PREBUILT_SHARED_LIBRARY)");
+        }
+
         public void WriteSharedLibrary(Library lib)
         {
             _stream.WriteLine("# Writing shared library: " + lib.id);
@@ -88,6 +98,24 @@ rwildcard =$(wildcard $1$2) $(foreach d,$(wildcard $1*),$(call rwildcard,$d/,$2)
             var prefix = lib.isSource ? "LOCAL_SRC_FILES" : "LOCAL_STATIC_LIBRARIES";
             foreach (var item in lib.toBuild)
                 _stream.WriteLine(prefix + " += " + item);
+            _stream.WriteLine("include $(BUILD_SHARED_LIBRARY)");
+        }
+
+        public void WriteSingleFile(Library lib)
+        {
+            _stream.WriteLine("# Writing single library: " + lib.id);
+            _stream.WriteLine("include $(CLEAR_VARS)");
+            _stream.WriteLine("LOCAL_SHORT_COMMANDS := true");
+            foreach (var l in lib.toBuild)
+                _stream.WriteLine("LOCAL_SHARED_LIBRARIES += " + l);
+            _stream.WriteLine($"LOCAL_MODULE := {lib.id}");
+            _stream.WriteLine("LOCAL_LDLIBS := -llog");
+            _stream.WriteLine($"LOCAL_CFLAGS += -DMOD_ID='\"{_config.Id}\"' -DVERSION='\"{_config.Version}\"' -DNEED_UNSAFE_CSHARP");
+            _stream.WriteLine($"LOCAL_CFLAGS += -I'{_config.Libil2cpp}' -I'./extern/beatsaber-hook/shared'");
+            _stream.WriteLine("LOCAL_C_INCLUDES := ./include ./src");
+            _stream.WriteLine("LOCAL_SRC_FILES += $(call rwildcard,src/,*.cpp)");
+            _stream.WriteLine("LOCAL_SRC_FILES += $(call rwildcard,extern/beatsaber-hook/shared/inline-hook/,*.cpp)");
+            _stream.WriteLine("LOCAL_SRC_FILES += $(call rwildcard,extern/beatsaber-hook/shared/inline-hook/,*.c)");
             _stream.WriteLine("include $(BUILD_SHARED_LIBRARY)");
         }
 

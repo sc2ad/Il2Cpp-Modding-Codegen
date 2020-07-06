@@ -26,6 +26,11 @@ namespace Il2Cpp_Modding_Codegen.Config
         public string Libil2cpp { get; set; }
 
         /// <summary>
+        /// To create multiple shared/static libraries or a single file
+        /// </summary>
+        public bool MultipleLibraries { get; set; } = false;
+
+        /// <summary>
         /// The maximum amount of characters (not including additional characters added by make) for shared libraries
         /// </summary>
         public int SharedLibraryCharacterLimit { get; set; } = 4000;

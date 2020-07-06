@@ -143,18 +143,21 @@ namespace Il2Cpp_Modding_Codegen.Serialization
                     goto next;
                 }
                 // We need to split up the files into multiple pieces, which all build to static libraries and then build to a single shared library
-                var name = _config.OutputSourceDirectory + "/" + pair.Value.CppFileName;
-                if (currentPathLength + name.Length >= _config.SourceFileCharacterLimit)
+                if (_config.MultipleLibraries)
                 {
-                    // If we are about to go over, use the names list to create a library and add it to libs.
-                    var newLib = new AndroidMkSerializer.Library { id = _config.Id + "_" + i, isSource = true, toBuild = names };
-                    mkSerializer.WriteStaticLibrary(newLib);
-                    libs.Add(newLib);
-                    currentPathLength = 0;
-                    names.Clear();
+                    var name = _config.OutputSourceDirectory + "/" + pair.Value.CppFileName;
+                    if (currentPathLength + name.Length >= _config.SourceFileCharacterLimit)
+                    {
+                        // If we are about to go over, use the names list to create a library and add it to libs.
+                        var newLib = new AndroidMkSerializer.Library { id = _config.Id + "_" + i, isSource = true, toBuild = names };
+                        mkSerializer.WriteStaticLibrary(newLib);
+                        libs.Add(newLib);
+                        currentPathLength = 0;
+                        names.Clear();
+                    }
+                    currentPathLength += name.Length;
+                    names.Add(name);
                 }
-                currentPathLength += name.Length;
-                names.Add(name);
                 new CppSourceCreator(_config, _contextSerializer).Serialize(pair.Value);
             next: i++;
             }
@@ -162,14 +165,23 @@ namespace Il2Cpp_Modding_Codegen.Serialization
             // After all static libraries are created, aggregate them all and collpase them into a single Android.mk file.
             // As a double check, doing a ctrl-f for any given id in the Android.mk should net two results: Where it is created and where it is aggregated.
             // Add one last lib for the final set of names to be built
-            if (names.Count > 0)
+            if (_config.MultipleLibraries)
             {
-                var newLib = new AndroidMkSerializer.Library { id = _config.Id + "_" + i, isSource = true, toBuild = names };
-                libs.Add(newLib);
-                mkSerializer.WriteStaticLibrary(newLib);
+                if (names.Count > 0)
+                {
+                    var newLib = new AndroidMkSerializer.Library { id = _config.Id + "_" + i, isSource = true, toBuild = names };
+                    libs.Add(newLib);
+                    mkSerializer.WriteStaticLibrary(newLib);
+                }
+                Console.WriteLine("Beginning aggregation of libraries: " + libs.Count);
+                mkSerializer.AggregateStaticLibraries(libs);
             }
-            Console.WriteLine("Beginning aggregation of libraries: " + libs.Count);
-            mkSerializer.AggregateStaticLibraries(libs);
+            else
+            {
+                mkSerializer.WritePrebuiltSharedLibrary("modloader", "./extern/beatsaber-hook/include/libs/libmodloader.so", "./extern/beatsaber-hook/include/");
+                mkSerializer.WritePrebuiltSharedLibrary("beatsaber-hook", "./include/libs/libbeatsaber-hook_0_2_1_UNSAFE.so", "./extern/beatsaber-hook/shared/");
+                mkSerializer.WriteSingleFile(new AndroidMkSerializer.Library { id = _config.Id, isSource = false, toBuild = new List<string> { "modloader", "beatsaber-hook" } });
+            }
             mkSerializer.Close();
         }
     }
