@@ -178,8 +178,9 @@ namespace Il2Cpp_Modding_Codegen.Serialization
             }
             else
             {
-                mkSerializer.WritePrebuiltSharedLibrary("modloader", "./extern/beatsaber-hook/include/libs/libmodloader.so", "./extern/beatsaber-hook/include/");
-                mkSerializer.WritePrebuiltSharedLibrary("beatsaber-hook", "./include/libs/libbeatsaber-hook_0_2_1_UNSAFE.so", "./extern/beatsaber-hook/shared/");
+                // Don't need to use modloader since this library is not a mod, it has no ModInfo that it uses!
+                // TODO: Configurable bs-hook version
+                mkSerializer.WritePrebuiltSharedLibrary("beatsaber-hook", "./include/libs/libbeatsaber-hook_0_2_1.so", "./extern/beatsaber-hook/shared/");
                 mkSerializer.WriteSingleFile(new AndroidMkSerializer.Library { id = _config.Id, isSource = false, toBuild = new List<string> { "modloader", "beatsaber-hook" } });
             }
             mkSerializer.Close();

@@ -71,7 +71,7 @@ rwildcard =$(wildcard $1$2) $(foreach d,$(wildcard $1*),$(call rwildcard,$d/,$2)
             foreach (var item in lib.toBuild)
                 _stream.WriteLine(prefix + " += " + item);
             _stream.WriteLine("include $(BUILD_STATIC_LIBRARY)");
-            _stream.WriteLine("\n\r");
+            _stream.WriteLine("\r\n");
         }
 
         public void WritePrebuiltSharedLibrary(string id, string src, string include)
@@ -82,6 +82,7 @@ rwildcard =$(wildcard $1$2) $(foreach d,$(wildcard $1*),$(call rwildcard,$d/,$2)
             _stream.WriteLine("LOCAL_SRC_FILES := " + src);
             _stream.WriteLine("LOCAL_EXPORT_C_INCLUDES := " + include);
             _stream.WriteLine("include $(PREBUILT_SHARED_LIBRARY)");
+            _stream.WriteLine("\r\n");
         }
 
         public void WriteSharedLibrary(Library lib)
