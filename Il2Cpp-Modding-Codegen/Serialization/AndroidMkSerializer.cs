@@ -110,13 +110,11 @@ rwildcard=$(wildcard $1$2) $(foreach d,$(wildcard $1*),$(call rwildcard,$d/,$2))
             _stream.WriteLine("# Writing single library: " + lib.id);
             _stream.WriteLine("include $(CLEAR_VARS)");
             _stream.WriteLine($"LOCAL_MODULE := {lib.id}");
-            _stream.WriteLine("LOCAL_SRC_FILES := $(call rwildcard,extern/beatsaber-hook/src/inline-hook/,*.cpp)");
-            _stream.WriteLine("LOCAL_SRC_FILES += $(call rwildcard,extern/beatsaber-hook/src/inline-hook/,*.c)");
             _stream.WriteLine("LOCAL_SRC_FILES += $(call rwildcard,./src,*.cpp)");
             _stream.WriteLine("LOCAL_CPP_FEATURES := rtti");
             _stream.WriteLine("LOCAL_C_INCLUDES := ./include ./src");
             _stream.WriteLine($"LOCAL_CFLAGS += -DMOD_ID='\"{_config.Id}\"' -DVERSION='\"{_config.Version}\"' -DNEED_UNSAFE_CSHARP");
-            _stream.WriteLine($"LOCAL_CFLAGS += -I'{_config.Libil2cpp}' -I'./extern/beatsaber-hook/shared'");
+            _stream.WriteLine($"LOCAL_CFLAGS += -I'{_config.Libil2cpp}'");
             foreach (var l in lib.toBuild)
                 _stream.WriteLine("LOCAL_SHARED_LIBRARIES += " + l);
             _stream.WriteLine("LOCAL_LDLIBS := -llog");
