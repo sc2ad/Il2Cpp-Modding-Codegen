@@ -28,8 +28,6 @@ namespace Il2Cpp_Modding_Codegen.Serialization
 
         private string _declaringFullyQualified;
         private string _thisTypeName;
-        private bool _isInterface;
-        private bool _pureVirtual;
 
         private HashSet<(TypeRef, bool, string)> _signatures = new HashSet<(TypeRef, bool, string)>();
         private bool _ignoreSignatureMap;
@@ -57,10 +55,6 @@ namespace Il2Cpp_Modding_Codegen.Serialization
         /// <returns></returns>
         private CppTypeContext.NeedAs NeedTypesAs(IMethod method, bool returnType = false)
         {
-            //if (returnType && _pureVirtual && method.HidesBase)
-            //    // Prevents `error: return type of virtual function [name] is not covariant with the return type of the function
-            //    //   it overrides ([return type] is incomplete)`
-            //    return CppTypeContext.NeedAs.Definition;
             if (NeedDefinitionInHeader(method)) return CppTypeContext.NeedAs.BestMatch;
             return CppTypeContext.NeedAs.Declaration;
         }
@@ -244,8 +238,6 @@ namespace Il2Cpp_Modding_Codegen.Serialization
             _declaringFullyQualified = context.QualifiedTypeName;
             _thisTypeName = context.GetCppName(method.DeclaringType, false, needAs: CppTypeContext.NeedAs.Definition);
             var resolved = context.ResolveAndStore(method.DeclaringType, CppTypeContext.ForceAsType.Literal, CppTypeContext.NeedAs.Definition);
-            _isInterface = resolved?.Type == TypeEnum.Interface;
-            _pureVirtual = _isInterface && !method.DeclaringType.IsGeneric;
             var needAs = NeedTypesAs(method);
             // We need to forward declare everything used in methods (return types and parameters)
             // If we are writing the definition, we MUST define it
@@ -293,12 +285,6 @@ namespace Il2Cpp_Modding_Codegen.Serialization
                 // and if you miss any override the compiler gives you warnings
                 //if (IsOverride(method))
                 //    overrideStr += " override";
-
-                //if (_pureVirtual)
-                //{
-                //    preRetStr += "virtual ";
-                //    impl += " = 0";
-                //}
             }
             // Returns an optional
             // TODO: Should be configurable

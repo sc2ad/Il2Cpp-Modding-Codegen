@@ -71,7 +71,7 @@ namespace Il2Cpp_Modding_Codegen.Serialization
             }
 
             foreach (var @interface in type.ImplementingInterfaces)
-                s.parentNames.Add("virtual " + _config.SafeName(context.GetCppName(@interface, true, true, CppTypeContext.NeedAs.Definition, CppTypeContext.ForceAsType.Literal)));
+                s.parentNames.Add(_config.SafeName(context.GetCppName(@interface, true, true, CppTypeContext.NeedAs.Definition, CppTypeContext.ForceAsType.Literal)));
             map.Add(type.This, s);
 
             if (fieldSerializer is null)
