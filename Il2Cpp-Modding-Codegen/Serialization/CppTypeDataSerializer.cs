@@ -83,17 +83,18 @@ namespace Il2Cpp_Modding_Codegen.Serialization
                 foreach (var f in type.Fields)
                     if (!f.Specifiers.IsStatic())
                         fieldSerializer.PreSerialize(context, f);
-                // then, the static fields
-                foreach (var f in type.Fields)
+            }
+
+            // then, the static fields
+            foreach (var f in type.Fields)
                 {
-                    // If the field is a static field, we want to create two methods, (get and set for the static field)
-                    // and make a call to GetFieldValue and SetFieldValue for those methods
-                    if (f.Specifiers.IsStatic())
-                    {
-                        if (staticFieldSerializer is null)
-                            staticFieldSerializer = new CppStaticFieldSerializer(_config);
-                        staticFieldSerializer.PreSerialize(context, f);
-                    }
+                // If the field is a static field, we want to create two methods, (get and set for the static field)
+                // and make a call to GetFieldValue and SetFieldValue for those methods
+                if (f.Specifiers.IsStatic())
+                {
+                    if (staticFieldSerializer is null)
+                        staticFieldSerializer = new CppStaticFieldSerializer(_config);
+                    staticFieldSerializer.PreSerialize(context, f);
                 }
             }
 
@@ -183,10 +184,6 @@ namespace Il2Cpp_Modding_Codegen.Serialization
 
         public void WriteFields(CppStreamWriter writer, ITypeData type, bool asHeader)
         {
-            if (type.Type == TypeEnum.Interface)
-                // Don't write fields for interfaces
-                return;
-            // Write fields if not an interface
             foreach (var f in type.Fields)
             {
                 try

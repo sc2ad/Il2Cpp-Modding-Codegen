@@ -105,7 +105,7 @@ namespace Il2Cpp_Modding_Codegen.Serialization
 
         public override void Serialize(CppStreamWriter writer, IParsedData data, bool _unused_)
         {
-            int i = 0;
+            int i = -1;
             int count = _map.Count;
             var mkSerializer = new AndroidMkSerializer(_config);
             mkSerializer.WriteHeader(Path.Combine(_config.OutputDirectory, "Android.mk"));
@@ -114,6 +114,7 @@ namespace Il2Cpp_Modding_Codegen.Serialization
             int currentPathLength = 0;
             foreach (var pair in _map)
             {
+                i++;
                 // We iterate over every type.
                 // Then, we check InPlace for each context object, and if it is InPlace, we don't write a header for it
                 // (we attempt to write a .cpp for it, if it is a template, this won't do anything)
@@ -137,11 +138,10 @@ namespace Il2Cpp_Modding_Codegen.Serialization
                 if (!pair.Value.InPlace || pair.Value.DeclaringContext == null)
                     new CppHeaderCreator(_config, _contextSerializer).Serialize(pair.Value);
                 var t = pair.Value.LocalType;
-                if (t.Type == TypeEnum.Interface || t.This.IsGeneric || (t.Methods.Count == 0 && t.Fields.Where(f => f.Specifiers.IsStatic()).Count() == 0))
-                {
+                if (/*t.Type == TypeEnum.Interface || */t.This.IsGeneric || (t.Methods.Count == 0 && t.Fields.Where(f => f.Specifiers.IsStatic()).Count() == 0))
                     // Don't create C++ for types with no methods (including static fields), or if it is an interface, or if it is generic
-                    goto next;
-                }
+                    continue;
+
                 // We need to split up the files into multiple pieces, which all build to static libraries and then build to a single shared library
                 if (_config.MultipleLibraries)
                 {
@@ -159,7 +159,6 @@ namespace Il2Cpp_Modding_Codegen.Serialization
                     names.Add(name);
                 }
                 new CppSourceCreator(_config, _contextSerializer).Serialize(pair.Value);
-            next: i++;
             }
 
             // After all static libraries are created, aggregate them all and collpase them into a single Android.mk file.
