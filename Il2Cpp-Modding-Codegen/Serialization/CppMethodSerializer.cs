@@ -235,7 +235,8 @@ namespace Il2Cpp_Modding_Codegen.Serialization
 
             // Get the fully qualified name of the context
             bool success = true;
-            _declaringFullyQualified = context.QualifiedTypeName;
+            // TODO: wrap all .cpp methods in a `namespace [X] {` ?
+            _declaringFullyQualified = context.QualifiedTypeName.TrimStart(':');
             _thisTypeName = context.GetCppName(method.DeclaringType, false, needAs: CppTypeContext.NeedAs.Definition);
             var resolved = context.ResolveAndStore(method.DeclaringType, CppTypeContext.ForceAsType.Literal, CppTypeContext.NeedAs.Definition);
             var needAs = NeedTypesAs(method);
@@ -402,16 +403,17 @@ namespace Il2Cpp_Modding_Codegen.Serialization
                     writer.WriteLine("template<>");
                 writer.WriteDefinition(methodStr);
 
+                var (@namespace, @class) = method.DeclaringType.GetIl2CppName();
                 if (IsCtor(method))
                 {
                     // Always use thisTypeName for the cast type, since we are already within the context of the type.
                     var typeName = _thisTypeName.EndsWith("*") ? _thisTypeName : _thisTypeName + "*";
-                    var (@namespace, name) = method.DeclaringType.GetIl2CppName();
+                    
                     var paramNames = method.Parameters.FormatParameters(_config.IllegalNames, _parameterMaps[method], FormatParameterMode.Names, asHeader);
                     if (!string.IsNullOrEmpty(paramNames))
                         // Prefix , for parameters to New
                         paramNames = ", " + paramNames;
-                    var newObject = $"il2cpp_utils::New(\"{@namespace}\", \"{name}\"{paramNames})";
+                    var newObject = $"il2cpp_utils::New(\"{@namespace}\", \"{@class}\"{paramNames})";
                     // TODO: Make this configurable
                     writer.WriteDeclaration($"return ({typeName})CRASH_UNLESS({newObject})");
                     writer.CloseDefinition();
@@ -446,8 +448,7 @@ namespace Il2Cpp_Modding_Codegen.Serialization
                     else
                     {
                         // TODO: Check to ensure this works with non-generic methods in a generic type
-                        var namePair = method.DeclaringType.GetIl2CppName();
-                        s += $"\"{namePair.@namespace}\", \"{namePair.name}\", ";
+                        s += $"\"{@namespace}\", \"{@class}\", ";
                     }
                     var paramString = method.Parameters.FormatParameters(_config.IllegalNames, _parameterMaps[method], FormatParameterMode.Names);
                     if (!string.IsNullOrEmpty(paramString))

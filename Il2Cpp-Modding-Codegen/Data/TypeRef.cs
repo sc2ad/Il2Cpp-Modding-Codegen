@@ -54,7 +54,7 @@ namespace Il2Cpp_Modding_Codegen.Data
 
         public abstract bool IsArray();
 
-        public string GetNamespace() => !string.IsNullOrEmpty(Namespace) ? Namespace.Replace(".", "::") : NoNamespace;
+        public string GetNamespace() => string.IsNullOrEmpty(Namespace) ? NoNamespace : Namespace.Replace(".", "::");
 
         public string GetName()
         {
@@ -76,7 +76,7 @@ namespace Il2Cpp_Modding_Codegen.Data
             return dt.GetNamespace() + "::" + name;
         }
 
-        public (string @namespace, string name) GetIl2CppName()
+        public (string, string) GetIl2CppName()
         {
             var name = Name;
             var dt = this;
@@ -86,7 +86,7 @@ namespace Il2Cpp_Modding_Codegen.Data
                 dt = dt.DeclaringType;
             }
             // Namespace obtained from final declaring type
-            return (dt.Namespace.Replace("::", "."), name);
+            return (dt.GetNamespace().Replace("::", "."), name);
         }
 
         // TODO: new method/param to easily allow for getting only the new generic templates that this TypeRef brings to the table?
@@ -122,11 +122,11 @@ namespace Il2Cpp_Modding_Codegen.Data
             return genericsDefined.Distinct(fastComparer);
         }
 
-        internal bool ContainsOrEquals(TypeRef other)
+        internal bool ContainsOrEquals(TypeRef offendingType)
         {
-            if (Equals(other)) return true;
-            if (ElementType != null && ElementType.ContainsOrEquals(other)) return true;
-            if (DeclaringType != null && DeclaringType.ContainsOrEquals(other)) return true;
+            if (Equals(offendingType)) return true;
+            if (ElementType != null && ElementType.ContainsOrEquals(offendingType)) return true;
+            if (DeclaringType != null && DeclaringType.ContainsOrEquals(offendingType)) return true;
             return false;
         }
 
@@ -164,33 +164,14 @@ namespace Il2Cpp_Modding_Codegen.Data
             return genericMap;
         }
 
-        private const int MaxIncludeLength = -1;
-        private static int longFileCount = 0;
-
-        private string cachedInclude;
-
         internal string GetIncludeLocation()
         {
-            if (string.IsNullOrEmpty(cachedInclude))
-            {
-                var fileName = string.Join("-", GetName().Split(Path.GetInvalidFileNameChars())).Replace('$', '-');
-                if (DeclaringType != null)
-                    return DeclaringType.GetIncludeLocation() + "_" + fileName;
-                // Splits multiple namespaces into nested directories
-                var directory = string.Join("-", string.Join("/", GetNamespace().Split(new string[] { "::" }, StringSplitOptions.RemoveEmptyEntries)).Split(Path.GetInvalidPathChars()));
-                var ret = directory + "/" + fileName;
-                // Guess for too long of a file path, chances are it can probably be longer, but at this point...
-                if (MaxIncludeLength > 0 && ret.Length >= MaxIncludeLength)
-                {
-                    ret = directory + "/" + "_" + longFileCount;
-                    longFileCount++;
-                    Console.WriteLine($"Changing filename: {directory}/{fileName} to: {ret}");
-                }
-                cachedInclude = ret;
-                if (MaxIncludeLength > 0 && cachedInclude.Length >= MaxIncludeLength)
-                    Console.Error.WriteLine("File too long: " + cachedInclude);
-            }
-            return cachedInclude;
+            var fileName = string.Join("-", GetName().Split(Path.GetInvalidFileNameChars())).Replace('$', '-');
+            if (DeclaringType != null)
+                return DeclaringType.GetIncludeLocation() + "_" + fileName;
+            // Splits multiple namespaces into nested directories
+            var directory = string.Join("-", string.Join("/", GetNamespace().Split(new string[] { "::" }, StringSplitOptions.RemoveEmptyEntries)).Split(Path.GetInvalidPathChars()));
+            return directory + "/" + fileName;
         }
 
         public override string ToString()
@@ -201,7 +182,7 @@ namespace Il2Cpp_Modding_Codegen.Data
             return ret;
         }
 
-        [Obsolete("The argument should be a TypeRef!")]
+        [ObsoleteAttribute("The argument should be a TypeRef!")]
 #pragma warning disable 809  // "obsolete method extends non-obsolete mehtod object.Equals(object)
         public override bool Equals(object obj)
 #pragma warning restore 809

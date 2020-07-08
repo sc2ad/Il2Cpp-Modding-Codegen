@@ -14,6 +14,7 @@ namespace Il2Cpp_Modding_Codegen.Serialization
         // When serialize is called, we simply write the field we have.
 
         private Dictionary<IField, string> _resolvedTypeNames = new Dictionary<IField, string>();
+        private Dictionary<IField, string> _safeFieldNames = new Dictionary<IField, string>();
 
         private SerializationConfig _config;
 
@@ -21,6 +22,8 @@ namespace Il2Cpp_Modding_Codegen.Serialization
         {
             _config = config;
         }
+
+        readonly char[] angleBrackets = { '<', '>' };
 
         // Resolve the field into context here
         public override void PreSerialize(CppTypeContext context, IField field)
@@ -37,9 +40,17 @@ namespace Il2Cpp_Modding_Codegen.Serialization
                 Resolved(field);
             // In order to ensure we get an UnresolvedTypeException when we serialize
             _resolvedTypeNames.Add(field, resolvedType);
+            string SafeFieldName()
+            {
+                var name = field.Name;
+                if (name.EndsWith("k__BackingField"))
+                    name = name.Split(angleBrackets, StringSplitOptions.RemoveEmptyEntries)[0];
+                name = string.Join("$", name.Split(angleBrackets)).Trim('_');
+                if (char.IsDigit(name[0])) name = "_" + name;
+                return _config.SafeName(name);
+            }
+            _safeFieldNames.Add(field, SafeFieldName());
         }
-
-        private string SafeFieldName(IField field) => _config.SafeName(string.Join("$", field.Name.Split('<', '>')));
 
         // Write the field here
         public override void Serialize(CppStreamWriter writer, IField field, bool asHeader)
@@ -56,7 +67,7 @@ namespace Il2Cpp_Modding_Codegen.Serialization
             writer.WriteComment(fieldString + field.Type + " " + field.Name);
             writer.WriteComment($"Offset: 0x{field.Offset:X}");
             if (!field.Specifiers.IsStatic() && !field.Specifiers.IsConst())
-                writer.WriteFieldDeclaration(_resolvedTypeNames[field], SafeFieldName(field));
+                writer.WriteFieldDeclaration(_resolvedTypeNames[field], _safeFieldNames[field]);
             writer.Flush();
             Serialized(field);
         }

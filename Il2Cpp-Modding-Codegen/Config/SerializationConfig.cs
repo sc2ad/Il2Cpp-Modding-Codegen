@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics.Contracts;
 using System.Text;
 
 namespace Il2Cpp_Modding_Codegen.Config
@@ -109,9 +110,9 @@ namespace Il2Cpp_Modding_Codegen.Config
         /// <returns></returns>
         public string SafeName(string name)
         {
-            if (!string.IsNullOrEmpty(name))
-                while (IllegalNames?.Contains(name) is true)
-                    name = "_" + name;
+            Contract.Requires(!string.IsNullOrEmpty(name));
+            while (IllegalNames?.Contains(name) is true)
+                name = "_" + name;
             return name;
         }
 
