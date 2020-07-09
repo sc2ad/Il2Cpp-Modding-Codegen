@@ -173,30 +173,21 @@ namespace Il2Cpp_Modding_Codegen.Serialization
                 AddDefinition(def);
         }
 
-        // Must be called AFTER context.SetDeclaringContext(this)
         public void AddNestedContext(ITypeData type, CppTypeContext context)
         {
             Contract.Requires(type != null);
             Contract.Requires(type.This.DeclaringType.Equals(LocalType.This));
             Contract.Requires(context != null);
+            Contract.Requires(context.DeclaringContext is null);
+            context.DeclaringContext = this;
             // Add the type, context pair to our immediately nested contexts
             // TODO: Add a mapping from type --> context so we can search our immediate nesteds faster
             // atm, just add it because we can be lazy
             _nestedContexts.Add(context);
             // If this context is a generic template, then we need to InPlace the new nested context.
             if (LocalType.This.IsGenericTemplate)
-                InPlaceNestedType(context);
-        }
-
-        // Must be called AFTER DeclaringContext.AddNestedContext(this)
-        public void SetDeclaringContext(CppTypeContext context)
-        {
-            Contract.Requires(DeclaringContext is null);
-            Contract.Requires(context != null);
-            // Set our declaring context to be the one provided. Our original declaring context should always be null before-hand.
-            // There shouldn't be too much sorcery here, instead, when we add definitions, we ensure we check our inheritance tree.
-            DeclaringContext = context;
-            Contract.Ensures(DeclaringContext != null);
+                MakeNestedInPlace(context);
+            Contract.Ensures(context.DeclaringContext == this);
         }
 
         internal bool HasInNestedHierarchy(TypeRef type)
@@ -226,7 +217,7 @@ namespace Il2Cpp_Modding_Codegen.Serialization
         /// Given a nested context, somewhere within our same RootContext, InPlace it and all of its DeclaringContexts up until RootContext.
         /// </summary>
         /// <param name="defContext"></param>
-        private void InPlaceNestedType(CppTypeContext defContext)
+        private void MakeNestedInPlace(CppTypeContext defContext)
         {
             Contract.Requires(RootContext.HasInNestedHierarchy(defContext));
             // If the type we want is a type that is nested within ourselves, our declaring context... till RootContext
@@ -249,7 +240,7 @@ namespace Il2Cpp_Modding_Codegen.Serialization
                 }
                 // Add the now InPlace type to our own Definitions
                 RootContext.Definitions.Add(defContext.LocalType.This);
-                // Go to the DeclaringContext of the type we just InPlace'd into ourselves, and continue inplacing DeclaringContexts until we hit ourselves.
+                // Go to the DeclaringContext of the type we just InPlace'd, and continue in-placing DeclaringContexts until we hit our root context.
                 defContext = defContext.DeclaringContext;
             }
         }
@@ -276,7 +267,7 @@ namespace Il2Cpp_Modding_Codegen.Serialization
             if (!RootContext.HasInNestedHierarchy(resolved, out var defContext))
                 DefinitionsToGet.Add(def);
             else
-                InPlaceNestedType(defContext);
+                MakeNestedInPlace(defContext);
         }
 
         private void AddNestedDeclaration(TypeRef def, ITypeData resolved)
@@ -423,7 +414,11 @@ namespace Il2Cpp_Modding_Codegen.Serialization
             {
                 if (qualified)
                     name = resolved.This.GetNamespace() + "::";
-                name += data.Name;
+                if (resolved.This.Namespace == "System" && data.Name == "Object" && LocalType.This.Namespace == "System"
+                    && (LocalType.This.Name == "Object" || LocalType.This.Name == "ValueType"))
+                    name += "_object";
+                else
+                    name += data.Name;
                 name = name.Replace('`', '_').Replace('<', '$').Replace('>', '$');
                 if (generics && data.Generics.Count > 0)
                 {
@@ -524,8 +519,8 @@ namespace Il2Cpp_Modding_Codegen.Serialization
                 var name = def.Name.ToLower();
                 if (name == "void")
                     s = "void";
-                else if (name == "object")
-                    s = "Il2CppObject";
+                //else if (name == "object")
+                //    s = "Il2CppObject";
                 else if (name == "string")
                     s = "Il2CppString";
                 else if (name == "char")

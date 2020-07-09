@@ -295,20 +295,6 @@ namespace Il2Cpp_Modding_Codegen.Serialization
             var typeStr = nested.LocalType.Type.TypeName();
             if (nested.LocalType.This.IsGenericTemplate)
             {
-                /*
-                var genericsDefined = nested.LocalType.This.GetDeclaredGenerics(false);
-                // If the type being resolved is generic, we must template it, iff we have generic parameters that aren't in genericsDefined
-                var generics = string.Empty;
-                bool first = true;
-                foreach (var g in nested.LocalType.This.GetDeclaredGenerics(true).Except(genericsDefined, TypeRef.fastComparer))
-                {
-                    if (!first)
-                        generics += ", ";
-                    else
-                        first = false;
-                    generics += "typename " + g.GetName();
-                }
-                */
                 var genericStr = nested.GetTemplateLine(true);
                 // Write the comment regardless
                 writer.WriteComment(comment + "<" + string.Join(", ", nested.LocalType.This.Generics.Select(tr => tr.Name)) + ">");

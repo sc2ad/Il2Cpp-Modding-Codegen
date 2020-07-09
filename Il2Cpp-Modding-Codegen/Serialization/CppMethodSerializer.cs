@@ -304,10 +304,7 @@ namespace Il2Cpp_Modding_Codegen.Serialization
             // Handles i.e. ".ctor"
             if (IsCtor(method))
             {
-                if (method.DeclaringType.Namespace == "System" && method.DeclaringType.Name == "Object")
-                    // Special case for System.Object, needs to always return ::Il2CppObject
-                    retStr = "::Il2CppObject*";
-                else if (method.DeclaringType.Namespace == "System" && method.DeclaringType.Name == "String")
+                if (method.DeclaringType.Namespace == "System" && method.DeclaringType.Name == "String")
                     // Special case for System.String, needs to always return ::Il2CppString
                     retStr = "::Il2CppString*";
                 else

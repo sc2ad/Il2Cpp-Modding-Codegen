@@ -7,7 +7,7 @@ namespace Il2Cpp_Modding_Codegen.Data.DumpHandling
 {
     public class DumpTypeRef : TypeRef
     {
-        public static readonly DumpTypeRef ObjectType = new DumpTypeRef("object");
+        public static readonly DumpTypeRef ObjectType = new DumpTypeRef("System", "Object");
         public override string Namespace { get; } = string.Empty;
         public override string Name { get; }
         public override bool IsGenericParameter => throw new NotImplementedException();
@@ -134,6 +134,7 @@ namespace Il2Cpp_Modding_Codegen.Data.DumpHandling
             }
         }
 
+        // TODO: if qualifiedName is "object", return ObjectType instead
         public DumpTypeRef(string qualifiedName) : this("", qualifiedName)
         {
         }

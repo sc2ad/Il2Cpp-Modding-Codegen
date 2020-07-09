@@ -79,6 +79,9 @@ namespace Il2Cpp_Modding_Codegen.Serialization
                     else if (_config.UnresolvedTypeExceptionHandling.TypeHandling == UnresolvedTypeExceptionHandling.Elevate)
                         throw new InvalidOperationException($"Cannot elevate {e} to a parent type- there is no parent type!");
                 }
+                bool isSystemObject = (data.This.Namespace == "System" && data.This.Name == "Object");
+                if (isSystemObject)
+                    writer.WriteLine("class Object : public _object, public ::Il2CppObject { };");
                 // End the namespace
                 writer.CloseDefinition();
 
@@ -88,7 +91,10 @@ namespace Il2Cpp_Modding_Codegen.Serialization
                     writer.WriteLine("struct is_value_type<T, typename std::enable_if_t<std::is_base_of_v<System::ValueType, T>>> : std::true_type{};");
                 }
 
-                DefineIl2CppArgTypes(writer, context);
+                if (!isSystemObject)
+                    DefineIl2CppArgTypes(writer, context);
+                else
+                    writer.WriteLine("DEFINE_IL2CPP_DEFAULT_TYPE(System::Object*, object);");
                 writer.Flush();
 
                 writer.WriteLine("#pragma pack(pop)");
