@@ -86,7 +86,7 @@ namespace Il2Cpp_Modding_Codegen.Data
                 dt = dt.DeclaringType;
             }
             // Namespace obtained from final declaring type
-            return (dt.GetNamespace().Replace("::", "."), name);
+            return (dt.Namespace.Replace("::", "."), name);
         }
 
         // TODO: new method/param to easily allow for getting only the new generic templates that this TypeRef brings to the table?
