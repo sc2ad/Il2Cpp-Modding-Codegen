@@ -313,11 +313,6 @@ namespace Il2Cpp_Modding_Codegen.Serialization
                 DeclarationsToMake.Add(def);
         }
 
-        public bool IsPrimitive(TypeRef data)
-        {
-            return !string.IsNullOrEmpty(ConvertPrimitive(data, ForceAsType.None, NeedAs.BestMatch));
-        }
-
         /// <summary>
         /// Gets the C++ fully qualified name for the TypeRef.
         /// </summary>
