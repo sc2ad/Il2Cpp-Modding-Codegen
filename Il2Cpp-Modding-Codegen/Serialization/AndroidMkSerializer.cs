@@ -119,7 +119,6 @@ rwildcard=$(wildcard $1$2) $(foreach d,$(wildcard $1*),$(call rwildcard,$d/,$2))
                 _stream.WriteLine("LOCAL_SHARED_LIBRARIES += " + l);
             _stream.WriteLine("LOCAL_LDLIBS := -llog");
             _stream.WriteLine("include $(BUILD_SHARED_LIBRARY)");
-            _stream.WriteLine("");
         }
 
         private static int aggregateIdx = 0;
