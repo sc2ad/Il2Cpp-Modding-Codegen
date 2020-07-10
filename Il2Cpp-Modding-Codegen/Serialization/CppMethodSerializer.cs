@@ -37,6 +37,7 @@ namespace Il2Cpp_Modding_Codegen.Serialization
         private static Dictionary<IMethod, (string, bool)> _nameMap = new Dictionary<IMethod, (string, bool)>();
 
         private bool performedGenericRenames = false;
+        private bool _declaringIsValueType;
 
         public CppMethodSerializer(SerializationConfig config)
         {
@@ -239,6 +240,8 @@ namespace Il2Cpp_Modding_Codegen.Serialization
             _declaringFullyQualified = context.QualifiedTypeName.TrimStart(':');
             _thisTypeName = context.GetCppName(method.DeclaringType, false, needAs: CppTypeContext.NeedAs.Definition);
             var resolved = context.ResolveAndStore(method.DeclaringType, CppTypeContext.ForceAsType.Literal, CppTypeContext.NeedAs.Definition);
+            _declaringIsValueType = resolved.Info.TypeFlags.HasFlag(TypeFlags.ValueType);
+
             var needAs = NeedTypesAs(method);
             // We need to forward declare everything used in methods (return types and parameters)
             // If we are writing the definition, we MUST define it
@@ -443,7 +446,7 @@ namespace Il2Cpp_Modding_Codegen.Serialization
                     s += $"{macro}il2cpp_utils::RunMethod{innard}(";
                     if (!isStatic)
                     {
-                        s += "this, ";
+                        s += (_declaringIsValueType ? "*" : "") + "this, ";
                     }
                     else
                     {

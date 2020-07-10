@@ -116,8 +116,17 @@ namespace Il2Cpp_Modding_Codegen.Config
             return name;
         }
 
+        public static Dictionary<string, int> specialMethodNames = new Dictionary<string, int>();
+
         public string SafeMethodName(string name)
         {
+            if (name.StartsWith("op_"))
+            {
+                if (specialMethodNames.ContainsKey(name))
+                    specialMethodNames[name]++;
+                else
+                    specialMethodNames.Add(name, 1);
+            }
             if (!string.IsNullOrEmpty(name))
                 while (IllegalNames?.Contains(name) is true || IllegalMethodNames?.Contains(name) is true)
                     name += "_";

@@ -7,6 +7,7 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
+using System.Linq;
 
 namespace Codegen_CLI
 {
@@ -137,6 +138,7 @@ namespace Codegen_CLI
             {
                 Console.WriteLine(e);
             }
+            Console.WriteLine(string.Join(", ", SerializationConfig.specialMethodNames));
             Console.ReadLine();
         }
     }
