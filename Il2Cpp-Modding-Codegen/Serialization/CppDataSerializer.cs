@@ -183,6 +183,10 @@ namespace Il2Cpp_Modding_Codegen.Serialization
                 mkSerializer.WriteSingleFile(new AndroidMkSerializer.Library { id = _config.Id, isSource = false, toBuild = new List<string> { "beatsaber-hook" } });
             }
             mkSerializer.Close();
+            // Write the Application.mk after
+            var appMkSerializer = new ApplicationMkSerializer();
+            appMkSerializer.Write(Path.Combine(_config.OutputDirectory, "Application.mk"));
+            appMkSerializer.Close();
         }
     }
 }
