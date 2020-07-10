@@ -373,7 +373,7 @@ namespace Il2Cpp_Modding_Codegen.Serialization
             typeSerializer.WriteFields(writer, context.LocalType, asHeader);
             // Write special ctors, if this is a header
             if (asHeader)
-                typeSerializer.WriteSpecialCtors(writer, context.LocalType, context.InPlace);
+                typeSerializer.WriteSpecialCtors(writer, context.LocalType, context.LocalType.This.DeclaringType != null);
             // Method declarations are written in the header, definitions written when the body is needed.
             typeSerializer.WriteMethods(writer, context.LocalType, asHeader);
             writer.Flush();

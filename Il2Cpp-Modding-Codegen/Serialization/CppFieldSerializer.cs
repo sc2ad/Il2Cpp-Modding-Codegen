@@ -78,11 +78,13 @@ namespace Il2Cpp_Modding_Codegen.Serialization
                     var defaultVal = "{}";
                     return typeName + " " + fieldName + "_ = " + defaultVal;
                 }));
-                signature += ") : ";
-                signature += string.Join(", ", _safeFieldNames.Select(pair =>
+                signature += ")";
+                string subConstructors = string.Join(", ", _safeFieldNames.Select(pair =>
                 {
                     return pair.Value + "{" + pair.Value + "_}";
                 }));
+                if (!string.IsNullOrEmpty(subConstructors))
+                    signature += " : " + subConstructors;
                 signature += " {}";
                 writer.WriteComment("Creating value type constructor for type: " + name);
                 writer.WriteLine(signature);
