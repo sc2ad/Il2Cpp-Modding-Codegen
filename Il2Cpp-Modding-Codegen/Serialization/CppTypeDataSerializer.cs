@@ -87,7 +87,7 @@ namespace Il2Cpp_Modding_Codegen.Serialization
 
             // then, the static fields
             foreach (var f in type.Fields)
-                {
+            {
                 // If the field is a static field, we want to create two methods, (get and set for the static field)
                 // and make a call to GetFieldValue and SetFieldValue for those methods
                 if (f.Specifiers.IsStatic())
@@ -211,6 +211,8 @@ namespace Il2Cpp_Modding_Codegen.Serialization
 
         public void WriteMethods(CppStreamWriter writer, ITypeData type, bool asHeader)
         {
+            // Write the special constructor
+            fieldSerializer?.WriteCtor(writer, type, map[type.This].type, asHeader);
             // Finally, we write the methods
             foreach (var m in type.Methods)
             {

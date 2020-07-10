@@ -4,6 +4,7 @@ using System;
 using System.CodeDom.Compiler;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Text;
 
 namespace Il2Cpp_Modding_Codegen.Serialization
@@ -15,6 +16,7 @@ namespace Il2Cpp_Modding_Codegen.Serialization
 
         private Dictionary<IField, string> _resolvedTypeNames = new Dictionary<IField, string>();
         private Dictionary<IField, string> _safeFieldNames = new Dictionary<IField, string>();
+        private Dictionary<IField, ITypeData> _resolvedTypes = new Dictionary<IField, ITypeData>();
 
         private SerializationConfig _config;
 
@@ -23,7 +25,7 @@ namespace Il2Cpp_Modding_Codegen.Serialization
             _config = config;
         }
 
-        readonly char[] angleBrackets = { '<', '>' };
+        private readonly char[] angleBrackets = { '<', '>' };
 
         // Resolve the field into context here
         public override void PreSerialize(CppTypeContext context, IField field)
@@ -36,6 +38,8 @@ namespace Il2Cpp_Modding_Codegen.Serialization
             // If it is not a pointer, then we need to include it
             // If it is a nested class, we need to deal with some stuff (maybe)
             var resolvedType = context.GetCppName(field.Type, true);
+            var t = context.ResolveAndStore(field.Type, CppTypeContext.ForceAsType.None);
+            _resolvedTypes.Add(field, t);
             if (!string.IsNullOrEmpty(resolvedType))
                 Resolved(field);
             // In order to ensure we get an UnresolvedTypeException when we serialize
@@ -50,6 +54,36 @@ namespace Il2Cpp_Modding_Codegen.Serialization
                 return _config.SafeName(name);
             }
             _safeFieldNames.Add(field, SafeFieldName());
+        }
+
+        public void WriteCtor(CppStreamWriter writer, ITypeData type, string name, bool asHeader)
+        {
+            // If the type we are writing is a value type, we would like to make a constructor that takes in each non-static, non-const field.
+            // This is to allow us to construct structs without having to provide initialization lists that are horribly long
+            if (type.Info.TypeFlags == TypeFlags.ValueType && asHeader)
+            {
+                var signature = name + "(";
+                signature += string.Join(", ", _resolvedTypeNames.Select(pair =>
+                {
+                    var typeName = pair.Value;
+                    var fieldName = _safeFieldNames[pair.Key];
+                    var fType = _resolvedTypes[pair.Key];
+                    var defaultVal = "0";
+                    if (fType.Info.TypeFlags == TypeFlags.ValueType)
+                        defaultVal = "{}";
+                    else if (typeName.EndsWith("*"))
+                        defaultVal = "nullptr";
+                    return typeName + " " + fieldName + "_ = " + defaultVal;
+                }));
+                signature += ") : ";
+                signature += string.Join(", ", _safeFieldNames.Select(pair =>
+                {
+                    return pair.Value + "{" + pair.Value + "_}";
+                }));
+                signature += "{}";
+                writer.WriteComment("Creating value type constructor for type: " + name);
+                writer.WriteLine(signature);
+            }
         }
 
         // Write the field here
