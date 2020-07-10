@@ -38,8 +38,11 @@ namespace Il2Cpp_Modding_Codegen.Serialization
             // If it is not a pointer, then we need to include it
             // If it is a nested class, we need to deal with some stuff (maybe)
             var resolvedType = context.GetCppName(field.Type, true);
-            var t = context.ResolveAndStore(field.Type, CppTypeContext.ForceAsType.None);
-            _resolvedTypes.Add(field, t);
+            if (!context.IsPrimitive(field.Type))
+            {
+                var t = context.ResolveAndStore(field.Type, CppTypeContext.ForceAsType.None);
+                _resolvedTypes.Add(field, t);
+            }
             if (!string.IsNullOrEmpty(resolvedType))
                 Resolved(field);
             // In order to ensure we get an UnresolvedTypeException when we serialize
@@ -56,6 +59,17 @@ namespace Il2Cpp_Modding_Codegen.Serialization
             _safeFieldNames.Add(field, SafeFieldName());
         }
 
+        private string PrimitiveDefault(string typeName)
+        {
+            if (typeName.EndsWith("*"))
+                return "nullptr";
+            if (typeName == "bool")
+                return "false";
+            if (typeName == "Il2CppChar")
+                return "{}";
+            return "0";
+        }
+
         public void WriteCtor(CppStreamWriter writer, ITypeData type, string name, bool asHeader)
         {
             // If the type we are writing is a value type, we would like to make a constructor that takes in each non-static, non-const field.
@@ -67,12 +81,16 @@ namespace Il2Cpp_Modding_Codegen.Serialization
                 {
                     var typeName = pair.Value;
                     var fieldName = _safeFieldNames[pair.Key];
-                    var fType = _resolvedTypes[pair.Key];
-                    var defaultVal = "0";
-                    if (fType.Info.TypeFlags == TypeFlags.ValueType)
-                        defaultVal = "{}";
-                    else if (typeName.EndsWith("*"))
-                        defaultVal = "nullptr";
+                    var defaultVal = "";
+                    if (_resolvedTypes.TryGetValue(pair.Key, out var fType))
+                    {
+                        if (fType.Info.TypeFlags == TypeFlags.ValueType)
+                            defaultVal = "{}";
+                        else if (typeName.EndsWith("*"))
+                            defaultVal = "nullptr";
+                    }
+                    else
+                        defaultVal = PrimitiveDefault(typeName);
                     return typeName + " " + fieldName + "_ = " + defaultVal;
                 }));
                 signature += ") : ";
@@ -80,7 +98,7 @@ namespace Il2Cpp_Modding_Codegen.Serialization
                 {
                     return pair.Value + "{" + pair.Value + "_}";
                 }));
-                signature += "{}";
+                signature += " {}";
                 writer.WriteComment("Creating value type constructor for type: " + name);
                 writer.WriteLine(signature);
             }

@@ -209,10 +209,22 @@ namespace Il2Cpp_Modding_Codegen.Serialization
             }
         }
 
-        public void WriteMethods(CppStreamWriter writer, ITypeData type, bool asHeader)
+        public void WriteSpecialCtors(CppStreamWriter writer, ITypeData type, bool isNested)
         {
             // Write the special constructor
-            fieldSerializer?.WriteCtor(writer, type, map[type.This].type, asHeader);
+            var state = map[type.This];
+            var typeName = state.type;
+            if (isNested)
+            {
+                int idx = typeName.LastIndexOf("::");
+                if (idx >= 0)
+                    typeName = typeName.Substring(idx + 2);
+            }
+            fieldSerializer?.WriteCtor(writer, type, typeName, true);
+        }
+
+        public void WriteMethods(CppStreamWriter writer, ITypeData type, bool asHeader)
+        {
             // Finally, we write the methods
             foreach (var m in type.Methods)
             {

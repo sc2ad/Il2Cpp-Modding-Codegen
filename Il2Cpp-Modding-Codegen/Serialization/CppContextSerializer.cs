@@ -371,6 +371,9 @@ namespace Il2Cpp_Modding_Codegen.Serialization
             }
             // Fields may be converted to methods, so we handle writing these in non-header contexts just in case we need definitions of the methods
             typeSerializer.WriteFields(writer, context.LocalType, asHeader);
+            // Write special ctors, if this is a header
+            if (asHeader)
+                typeSerializer.WriteSpecialCtors(writer, context.LocalType, context.InPlace);
             // Method declarations are written in the header, definitions written when the body is needed.
             typeSerializer.WriteMethods(writer, context.LocalType, asHeader);
             writer.Flush();
