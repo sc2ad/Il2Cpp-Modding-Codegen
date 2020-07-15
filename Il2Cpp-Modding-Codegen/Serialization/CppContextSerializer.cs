@@ -321,6 +321,16 @@ namespace Il2Cpp_Modding_Codegen.Serialization
             writer.WriteDeclaration(typeStr + " " + nested.LocalType.This.GetName());
         }
 
+        private void WriteNamespacedMethods(CppStreamWriter writer, CppTypeContext context, bool asHeader)
+        {
+            var typeSerializer = _typeSerializers[context];
+            typeSerializer.WriteNamespacedMethods(writer, context.LocalType, asHeader);
+            foreach (var inPlace in context.NestedContexts.Where(nc => nc.InPlace))
+            {
+                WriteNamespacedMethods(writer, inPlace, asHeader);
+            }
+        }
+
         public void Serialize(CppStreamWriter writer, CppTypeContext context, bool asHeader)
         {
             var contextMap = asHeader ? _headerContextMap : _sourceContextMap;
@@ -380,6 +390,8 @@ namespace Il2Cpp_Modding_Codegen.Serialization
 
             if (asHeader)
                 typeSerializer.CloseDefinition(writer, context.LocalType);
+            if (!context.InPlace)
+                WriteNamespacedMethods(writer, context, asHeader);
         }
     }
 }

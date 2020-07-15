@@ -8,10 +8,21 @@ namespace Il2Cpp_Modding_Codegen.Data
     {
         private string typeName;
         private string templatedName;
+        public bool Skip = false;
 
         internal MethodTypeContainer(string t)
         {
             typeName = t;
+        }
+
+        internal void Prefix(string prefix)
+        {
+            typeName = prefix + typeName;
+        }
+
+        internal void Suffix(string suffix)
+        {
+            typeName += suffix;
         }
 
         internal string TypeName(bool header)

@@ -9,7 +9,76 @@ namespace Il2Cpp_Modding_Codegen.Serialization
 {
     public class CppMethodSerializer : Serializer<IMethod>
     {
+        // TODO: remove op_Implicit and op_Explicit from IgnoredMethods once we figure out a safe way to serialize them
         private static readonly HashSet<string> IgnoredMethods = new HashSet<string>() { "op_Implicit", "op_Explicit" };
+
+        [Flags]
+        private enum OpFlags
+        {
+            Constructor = 0,
+            RefReturn = 1,
+            ConstSelf = 2,
+            NonConstOthers = 4,
+            InClassOnly = 8,
+        }
+        private static readonly Dictionary<string, (string, OpFlags)> Operators = new Dictionary<string, (string, OpFlags)>()
+        {
+            // https://en.cppreference.com/w/cpp/language/converting_constructor OR https://en.cppreference.com/w/cpp/language/cast_operator
+            { "op_Implicit", ("{type}", OpFlags.Constructor | OpFlags.InClassOnly) },
+            { "op_Explicit", ("explicit {type}", OpFlags.Constructor | OpFlags.InClassOnly) },
+            // https://en.cppreference.com/w/cpp/language/operator_assignment
+            { "op_Assign", ("operator =", OpFlags.RefReturn | OpFlags.InClassOnly) },
+            { "op_AdditionAssignment", ("operator +=", OpFlags.RefReturn) },
+            { "op_SubtractionAssignment", ("operator -=", OpFlags.RefReturn) },
+            { "op_MultiplicationAssignment", ("operator *=", OpFlags.RefReturn) },
+            { "op_DivisionAssignment", ("operator /=", OpFlags.RefReturn) },
+            { "op_ModulusAssignment", ("operator %=", OpFlags.RefReturn) },
+            { "op_BitwiseAndAssignment", ("operator &=", OpFlags.RefReturn) },
+            { "op_BitwiseOrAssignment", ("operator |=", OpFlags.RefReturn) },
+            { "op_ExclusiveOrAssignment", ("operator ^=", OpFlags.RefReturn) },
+            { "op_LeftShiftAssignment", ("operator <<=", OpFlags.RefReturn) },
+            { "op_RightShiftAssignment", ("operator >>=", OpFlags.RefReturn) },
+            // https://en.cppreference.com/w/cpp/language/operator_incdec
+            { "op_Increment", ("operator++", OpFlags.RefReturn) },
+            { "op_Decrement", ("operator--", OpFlags.RefReturn) },
+            // https://en.cppreference.com/w/cpp/language/operator_arithmetic
+            { "op_UnaryPlus", ("operator+", OpFlags.ConstSelf) },
+            { "op_UnaryNegation", ("operator-", OpFlags.ConstSelf) },
+            { "op_Addition", ("operator+", OpFlags.ConstSelf) },
+            { "op_Subtraction", ("operator-", OpFlags.ConstSelf) },
+            { "op_Multiply", ("operator*", OpFlags.ConstSelf) },
+            { "op_Division", ("operator/", OpFlags.ConstSelf) },
+            { "op_Modulus", ("operator%", OpFlags.ConstSelf) },
+            { "op_OnesComplement", ("operator~", OpFlags.ConstSelf) },
+            { "op_BitwiseAnd", ("operator&", OpFlags.ConstSelf) },
+            { "op_BitwiseOr", ("operator|", OpFlags.ConstSelf) },
+            { "op_ExclusiveOr", ("operator^", OpFlags.ConstSelf) },
+            { "op_LeftShift", ("operator<<", OpFlags.ConstSelf) },
+            { "op_RightShift", ("operator>>", OpFlags.ConstSelf) },
+            // https://en.cppreference.com/w/cpp/language/operator_logical
+            { "op_LogicalNot", ("operator!", OpFlags.ConstSelf) },
+            { "op_LogicalAnd", ("operator&&", OpFlags.ConstSelf) },
+            { "op_LogicalOr", ("operator||", OpFlags.ConstSelf) },
+            // https://en.cppreference.com/w/cpp/language/operator_comparison
+            { "op_Equality", ("operator ==", OpFlags.ConstSelf) },
+            { "op_Inequality", ("operator !=", OpFlags.ConstSelf) },
+            { "op_LessThan", ("operator <", OpFlags.ConstSelf) },
+            { "op_GreaterThan", ("operator >", OpFlags.ConstSelf) },
+            { "op_LessThanOrEqual", ("operator <=", OpFlags.ConstSelf) },
+            { "op_GreaterThanOrEqual", ("operator >=", OpFlags.ConstSelf) },
+            // { "", ("operator <=>", OpFlags.ConstSelf) },
+            // https://en.cppreference.com/w/cpp/language/operator_member_access
+            // https://en.cppreference.com/w/cpp/language/operator_other
+            { "op_Comma", ("operator,", OpFlags.RefReturn | OpFlags.ConstSelf | OpFlags.NonConstOthers) },  // returns T2& (aka B&)
+        };
+        internal enum MethodScope
+        {
+            Class,
+            Static,
+            Namespace
+        }
+        internal Dictionary<IMethod, MethodScope> Scope = new Dictionary<IMethod, MethodScope>();
+
         private bool _asHeader;
         private SerializationConfig _config;
 
@@ -26,6 +95,7 @@ namespace Il2Cpp_Modding_Codegen.Serialization
         /// </summary>
         private Dictionary<IMethod, SortedSet<string>> _genericArgs = new Dictionary<IMethod, SortedSet<string>>();
 
+        private string _declaringNamespace;
         private string _declaringFullyQualified;
         private string _thisTypeName;
 
@@ -64,9 +134,7 @@ namespace Il2Cpp_Modding_Codegen.Serialization
         {
             void FixNames(IMethod m, string n, bool isFullName, HashSet<IMethod> skip)
             {
-                if (skip.Contains(m))
-                    return;
-                skip.Add(m);
+                if (!skip.Add(m)) return;
                 // Fix all names for a given method by recursively checking our base method and our implementing methods.
                 foreach (var im in m.ImplementingMethods)
                 {
@@ -114,6 +182,30 @@ namespace Il2Cpp_Modding_Codegen.Serialization
                 // If the name is not a special name, set it to be the method name
                 name = method.Name;
             name = _config.SafeMethodName(name).Replace('<', '$').Replace('>', '$').Replace('.', '_');
+
+            if (Operators.TryGetValue(name, out var info))
+            {
+                name = info.Item1;
+                _parameterMaps[method].ForEach(param => param.container.Suffix("&"));
+                if (info.Item2.HasFlag(OpFlags.RefReturn))
+                    _resolvedReturns[method].Suffix("&");
+                if (info.Item2.HasFlag(OpFlags.ConstSelf))
+                    _parameterMaps[method][0].container.Prefix("const ");
+                if (!info.Item2.HasFlag(OpFlags.NonConstOthers))
+                    for (int i = 1; i < _parameterMaps[method].Count; i++)
+                        _parameterMaps[method][i].container.Prefix("const ");
+
+                if (!info.Item2.HasFlag(OpFlags.InClassOnly))
+                {
+                    Scope[method] = MethodScope.Namespace;  // namespace define operators as much as possible
+                }
+                else if (!info.Item2.HasFlag(OpFlags.Constructor))
+                {
+                    _parameterMaps[method][0].container.Skip = true;
+                    Scope[method] = MethodScope.Class;
+                }
+            }
+
             // Iterate over all implementing and base methods and change their names accordingly
             var skips = new HashSet<IMethod>();
             // Chances are, for the first time a method is hit, it has a false for fullName.
@@ -230,17 +322,23 @@ namespace Il2Cpp_Modding_Codegen.Serialization
 
         public override void PreSerialize(CppTypeContext context, IMethod method)
         {
-            if (method.Generic)
-                // Skip generic methods
-                return;
+            //if (method.Generic)
+            //    // Skip generic methods
+            //    return;
 
             // Get the fully qualified name of the context
             bool success = true;
             // TODO: wrap all .cpp methods in a `namespace [X] {` ?
+            _declaringNamespace = context.TypeNamespace.TrimStart(':');
             _declaringFullyQualified = context.QualifiedTypeName.TrimStart(':');
             _thisTypeName = context.GetCppName(method.DeclaringType, false, needAs: CppTypeContext.NeedAs.Definition);
             var resolved = context.ResolveAndStore(method.DeclaringType, CppTypeContext.ForceAsType.Literal, CppTypeContext.NeedAs.Definition);
             _declaringIsValueType = resolved.Info.TypeFlags.HasFlag(TypeFlags.ValueType);
+
+            if (method.Name.StartsWith("op_") && method.Parameters.Count > 1 && !method.Parameters[0].Type.ContainsOrEquals(method.DeclaringType))
+            {
+                Console.WriteLine($"{method}");
+            }
 
             var needAs = NeedTypesAs(method);
             // We need to forward declare everything used in methods (return types and parameters)
@@ -265,13 +363,14 @@ namespace Il2Cpp_Modding_Codegen.Serialization
                 parameterMap.Add((new MethodTypeContainer(s), p.Flags));
             }
             _parameterMaps.Add(method, parameterMap);
+            Scope.Add(method, method.Specifiers.IsStatic() ? MethodScope.Static : MethodScope.Class);
             //RenameGenericMethods(context, method);
             ResolveName(method);
             if (success)
                 Resolved(method);
         }
 
-        private string WriteMethod(bool staticFunc, IMethod method, bool isHeader)
+        private string WriteMethod(MethodScope scope, IMethod method, bool isHeader)
         {
             var ns = "";
             var preRetStr = "";
@@ -279,10 +378,12 @@ namespace Il2Cpp_Modding_Codegen.Serialization
             var impl = "";
             var namespaceQualified = !isHeader;
             if (namespaceQualified)
-                ns = _declaringFullyQualified + "::";
+            {
+                ns = (scope == MethodScope.Namespace ? _declaringNamespace : _declaringFullyQualified) + "::";
+            }
             else
             {
-                if (staticFunc)
+                if (scope == MethodScope.Static)
                     preRetStr += "static ";
 
                 // TODO: apply override correctly? It basically requires making all methods virtual
@@ -330,7 +431,11 @@ namespace Il2Cpp_Modding_Codegen.Serialization
                 preRetStr = "// ABORTED: conflicts with another method. " + preRetStr;
                 _aborted.Add(method);
             }
-            return $"{preRetStr}{retStr} {ns}{signature}{overrideStr}{impl}";
+
+            var ret = $"{preRetStr}{retStr} {ns}{signature}{overrideStr}{impl}";
+            if (isHeader && scope == MethodScope.Namespace)
+                Console.WriteLine(ret);
+            return ret;
         }
 
         private bool IsCtor(IMethod method)
@@ -349,26 +454,26 @@ namespace Il2Cpp_Modding_Codegen.Serialization
                 return;
             if (_resolvedReturns[method] == null)
                 throw new UnresolvedTypeException(method.DeclaringType, method.ReturnType);
-            var val = _parameterMaps[method].FindIndex(s => s.container.TypeName(asHeader) is null);
-            if (val != -1)
-                throw new UnresolvedTypeException(method.DeclaringType, method.Parameters[val].Type);
-            // Blacklist and IgnoredMethods should still use method.Name, not method.Il2CppName
-            if (IgnoredMethods.Contains(method.Name) || _config.BlacklistMethods.Contains(method.Name) || _aborted.Contains(method))
+            for (int i = 0; i < _parameterMaps[method].Count; i++)
+            {
+                var s = _parameterMaps[method][i];
+                if (s.container.TypeName(asHeader) is null && !method.Parameters[i].Type.IsGenericParameter)
+                    throw new UnresolvedTypeException(method.DeclaringType, method.Parameters[i].Type);
+            }
+            if (IgnoredMethods.Contains(method.Il2CppName) || _config.BlacklistMethods.Contains(method.Il2CppName) || _aborted.Contains(method))
                 return;
             if (method.DeclaringType.IsGeneric && !_asHeader)
                 // Need to create the method ENTIRELY in the header, instead of split between the C++ and the header
                 return;
 
             bool writeContent = !_asHeader || NeedDefinitionInHeader(method);
+            var scope = Scope[method];
             if (_asHeader)
             {
                 var methodComment = "";
-                bool staticFunc = false;
                 foreach (var spec in method.Specifiers)
                 {
                     methodComment += $"{spec} ";
-                    if (spec.Static)
-                        staticFunc = true;
                 }
                 // Method comment should also use the Il2CppName whenever possible
                 methodComment += $"{method.ReturnType} {method.Il2CppName}({method.Parameters.FormatParameters(csharp: true)})";
@@ -382,7 +487,7 @@ namespace Il2Cpp_Modding_Codegen.Serialization
                 {
                     if (_genericArgs.TryGetValue(method, out var types))
                         writer.WriteLine($"template<{string.Join(", ", types.Select(s => "class " + s))}>");
-                    writer.WriteDeclaration(WriteMethod(staticFunc, method, true));
+                    writer.WriteDeclaration(WriteMethod(scope, method, true));
                 }
             }
             else
@@ -392,9 +497,8 @@ namespace Il2Cpp_Modding_Codegen.Serialization
             }
             if (writeContent)
             {
-                bool isStatic = method.Specifiers.IsStatic();
                 // Write the qualified name if not in the header
-                var methodStr = WriteMethod(isStatic, method, _asHeader);
+                var methodStr = WriteMethod(scope, method, _asHeader);
                 if (methodStr.StartsWith("/"))
                 {
                     writer.WriteLine(methodStr);
@@ -444,7 +548,7 @@ namespace Il2Cpp_Modding_Codegen.Serialization
 
                     // TODO: Replace with RET_NULLOPT_UNLESS or another equivalent (perhaps literally just the ret)
                     s += $"{macro}il2cpp_utils::RunMethod{innard}(";
-                    if (!isStatic)
+                    if (scope == MethodScope.Class)
                     {
                         s += (_declaringIsValueType ? "*" : "") + "this, ";
                     }

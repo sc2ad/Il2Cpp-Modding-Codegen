@@ -117,6 +117,7 @@ namespace Il2Cpp_Modding_Codegen.Data
                     // Only types
                     if (resolvedNames != null)
                     {
+                        if (resolvedNames[i].Item1.Skip) continue;
                         s += $"{resolvedNames[i].PrintParameter(header, csharp)}";
                     }
                     else
@@ -130,6 +131,7 @@ namespace Il2Cpp_Modding_Codegen.Data
                     // Types and names
                     if (resolvedNames != null)
                     {
+                        if (resolvedNames[i].Item1.Skip) continue;
                         s += $"{resolvedNames[i].PrintParameter(header, csharp)} {nameStr}";
                     }
                     else

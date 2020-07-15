@@ -228,6 +228,32 @@ namespace Il2Cpp_Modding_Codegen.Serialization
             // Finally, we write the methods
             foreach (var m in type.Methods)
             {
+                if (methodSerializer.Scope[m] == CppMethodSerializer.MethodScope.Namespace) continue;
+                try
+                {
+                    methodSerializer?.Serialize(writer, m, asHeader);
+                }
+                catch (UnresolvedTypeException e)
+                {
+                    if (_config.UnresolvedTypeExceptionHandling.MethodHandling == UnresolvedTypeExceptionHandling.DisplayInFile)
+                    {
+                        writer.WriteLine("/*");
+                        writer.WriteLine(e);
+                        writer.WriteLine("*/");
+                        writer.Flush();
+                    }
+                    else if (_config.UnresolvedTypeExceptionHandling.MethodHandling == UnresolvedTypeExceptionHandling.Elevate)
+                        throw;
+                }
+            }
+        }
+
+        public void WriteNamespacedMethods(CppStreamWriter writer, ITypeData type, bool asHeader)
+        {
+            // Finally, we write the methods
+            foreach (var m in type.Methods)
+            {
+                if (methodSerializer.Scope[m] != CppMethodSerializer.MethodScope.Namespace) continue;
                 try
                 {
                     methodSerializer?.Serialize(writer, m, asHeader);

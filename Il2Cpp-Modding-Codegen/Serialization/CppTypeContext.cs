@@ -399,8 +399,11 @@ namespace Il2Cpp_Modding_Codegen.Serialization
                                 first = false;
                             }
                             declaringGenericParams += ">";
-                            if (declaringGenericParams.Length == 2)
+                            if (declaringGenericParams.Length <= 2)
+                            {
                                 Console.Error.WriteLine($"Attempted to write generic parameters, but actually wrote <>! for type being resolved: {data} type with generics: {declType}");
+                                return null;
+                            }
                         }
                     }
 
