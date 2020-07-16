@@ -26,6 +26,7 @@ namespace Il2Cpp_Modding_Codegen.Data.DllHandling
         public string Il2CppName { get; }
         public List<Parameter> Parameters { get; } = new List<Parameter>();
         public bool Generic { get; }
+        public IReadOnlyList<TypeRef> GenericParameters { get; }
 
         // Use the specific hash comparer to ensure validity!
         private static readonly DllMethodDefinitionHash comparer = new DllMethodDefinitionHash();
@@ -52,6 +53,7 @@ namespace Il2Cpp_Modding_Codegen.Data.DllHandling
             Specifiers.AddRange(DllSpecifierHelpers.From(m));
             // This is not necessary: m.GenericParameters.Any(param => !m.DeclaringType.GenericParameters.Contains(param));
             Generic = m.HasGenericParameters;
+            GenericParameters = m.GenericParameters?.Select(DllTypeRef.From).ToList();
 
             // This may not always be the case, we could have a special name in which case we have to do some sorcery
             // Grab the special name, grab the type from the special name

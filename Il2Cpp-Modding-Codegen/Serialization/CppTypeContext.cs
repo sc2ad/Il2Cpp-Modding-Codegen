@@ -330,7 +330,7 @@ namespace Il2Cpp_Modding_Codegen.Serialization
             }
 
             // If the TypeRef is a generic parameter, return its name
-            if (_genericTypes.Contains(data))
+            if (_genericTypes.Contains(data) || data.IsGenericParameter)
                 return data.Name;
 
             var resolved = ResolveAndStore(data, forceAsType, needAs);
@@ -384,26 +384,31 @@ namespace Il2Cpp_Modding_Codegen.Serialization
                         {
                             declaringGenericParams += "<";
                             bool first = true;
+                            bool allSuccess = true;
                             foreach (var g in declaringGenerics)
                             {
                                 if (!first)
                                     declaringGenericParams += ", ";
+                                string str;
                                 if (data.IsGenericInstance)
-                                    declaringGenericParams += GetCppName(argMapping[g], true, true);
+                                    str = GetCppName(argMapping[g], true, true);
                                 else
                                     // Here we need to ensure that we are actually getting this from the right place.
                                     // When data is NOT a generic instance, that means that this type has a generic template type.
                                     // If it is a generic parameter it should be gotten from declType
                                     // Or, we need to forward all of the generic parameters our declaring types have onto ourselves, thus allowing for resolution.
-                                    declaringGenericParams += GetCppName(g, true, true);
+                                    str = GetCppName(g, true, true);
+                                if (str is null)
+                                {
+                                    Console.WriteLine($"Failed to get name for generic {g} while resolving type {data}!");
+                                    allSuccess = false;
+                                }
+                                declaringGenericParams += str;
                                 first = false;
                             }
                             declaringGenericParams += ">";
-                            if (declaringGenericParams.Length <= 2)
-                            {
-                                Console.Error.WriteLine($"Attempted to write generic parameters, but actually wrote <>! for type being resolved: {data} type with generics: {declType}");
-                                return null;
-                            }
+                            if (!allSuccess)
+                                throw new Exception($"Attempted to write generic parameters, but actually wrote <>! for type being resolved: {data} type with generics: {declType}");
                         }
                     }
 
@@ -471,7 +476,7 @@ namespace Il2Cpp_Modding_Codegen.Serialization
         /// <returns>A bool representing if the type was resolved successfully</returns>
         public ITypeData ResolveAndStore(TypeRef typeRef, ForceAsType forceAs, NeedAs needAs = NeedAs.BestMatch)
         {
-            if (_genericTypes.Contains(typeRef))
+            if (_genericTypes.Contains(typeRef) || typeRef.IsGenericParameter)
                 // Generic parameters are resolved to nothing and shouldn't even attempted to be resolved.
                 return null;
             var resolved = typeRef.Resolve(_types);

@@ -97,6 +97,8 @@ namespace Il2Cpp_Modding_Codegen.Data
             var s = "";
             for (int i = 0; i < parameters.Count; i++)
             {
+                if (resolvedNames != null && resolvedNames[i].Item1.Skip)
+                    continue;
                 var nameStr = "";
                 if (mode != FormatParameterMode.Types)
                 {
@@ -109,6 +111,8 @@ namespace Il2Cpp_Modding_Codegen.Data
                 nameStr = nameStr.Replace('<', '$').Replace('>', '$');
                 if (mode == FormatParameterMode.Names)
                 {
+                    if (resolvedNames != null && resolvedNames[i].Item1.UnPointered)
+                        nameStr = "&" + nameStr;
                     // Only names
                     s += $"{nameStr}";
                 }
@@ -117,7 +121,6 @@ namespace Il2Cpp_Modding_Codegen.Data
                     // Only types
                     if (resolvedNames != null)
                     {
-                        if (resolvedNames[i].Item1.Skip) continue;
                         s += $"{resolvedNames[i].PrintParameter(header, csharp)}";
                     }
                     else
@@ -131,7 +134,6 @@ namespace Il2Cpp_Modding_Codegen.Data
                     // Types and names
                     if (resolvedNames != null)
                     {
-                        if (resolvedNames[i].Item1.Skip) continue;
                         s += $"{resolvedNames[i].PrintParameter(header, csharp)} {nameStr}";
                     }
                     else

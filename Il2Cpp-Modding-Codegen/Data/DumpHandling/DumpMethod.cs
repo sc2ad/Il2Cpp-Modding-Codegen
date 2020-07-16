@@ -24,6 +24,7 @@ namespace Il2Cpp_Modding_Codegen.Data.DumpHandling
         public string Il2CppName { get; }
         public List<Parameter> Parameters { get; } = new List<Parameter>();
         public bool Generic { get; }
+        public IReadOnlyList<TypeRef> GenericParameters { get; }
 
         public DumpMethod(TypeRef declaring, PeekableStreamReader fs)
         {
@@ -118,7 +119,7 @@ namespace Il2Cpp_Modding_Codegen.Data.DumpHandling
             {
                 Specifiers.Add(new DumpSpecifier(methodSplit[i]));
             }
-            // TODO: Implement Generic
+            // TODO: mark this and populate GenericParameters iff the method's actual params reference any types that cannot be resolved?
             Generic = false;
 
             HidesBase = Specifiers.Any(s => s.Override);

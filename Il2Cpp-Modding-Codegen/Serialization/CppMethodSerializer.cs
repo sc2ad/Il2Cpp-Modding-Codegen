@@ -2,6 +2,7 @@
 using Il2Cpp_Modding_Codegen.Data;
 using System;
 using System.Collections.Generic;
+using System.Collections.ObjectModel;
 using System.Diagnostics.Contracts;
 using System.Linq;
 
@@ -15,11 +16,11 @@ namespace Il2Cpp_Modding_Codegen.Serialization
         [Flags]
         private enum OpFlags
         {
-            Constructor = 0,
-            RefReturn = 1,
-            ConstSelf = 2,
-            NonConstOthers = 4,
-            InClassOnly = 8,
+            Constructor = 1,
+            RefReturn = 2,
+            ConstSelf = 4,
+            NonConstOthers = 8,
+            InClassOnly = 16,
         }
         private static readonly Dictionary<string, (string, OpFlags)> Operators = new Dictionary<string, (string, OpFlags)>()
         {
@@ -85,15 +86,17 @@ namespace Il2Cpp_Modding_Codegen.Serialization
         private Dictionary<IMethod, MethodTypeContainer> _resolvedReturns = new Dictionary<IMethod, MethodTypeContainer>();
         private Dictionary<IMethod, List<(MethodTypeContainer container, ParameterFlags flags)>> _parameterMaps = new Dictionary<IMethod, List<(MethodTypeContainer container, ParameterFlags flags)>>();
 
+        // This dictionary maps from method to a list of real generic parameters.
+        private Dictionary<IMethod, List<string>> _genericArgs = new Dictionary<IMethod, List<string>>();
         /// <summary>
-        /// This dictionary maps from method to a list of generic arguments.
+        /// This dictionary maps from method to a list of placeholder generic arguments.
         /// These generic arguments are only ever used as replacements for types that should not be included/defined within our context.
         /// Thus, we only read these generic arguments and use them for our template<class ...> string when we populate it.
         /// If there is no value for a given <see cref="IMethod"/>, we simply avoid writing a template string at all.
         /// If we are not a header, we write template<> instead.
         /// This is populated only when <see cref="FixBadDefinition(CppTypeContext, TypeRef, IMethod)"/> is called.
         /// </summary>
-        private Dictionary<IMethod, SortedSet<string>> _genericArgs = new Dictionary<IMethod, SortedSet<string>>();
+        private Dictionary<IMethod, SortedSet<string>> _tempGenerics = new Dictionary<IMethod, SortedSet<string>>();
 
         private string _declaringNamespace;
         private string _declaringFullyQualified;
@@ -185,21 +188,36 @@ namespace Il2Cpp_Modding_Codegen.Serialization
 
             if (Operators.TryGetValue(name, out var info))
             {
+                var numParams = _parameterMaps[method].Count;
                 name = info.Item1;
-                _parameterMaps[method].ForEach(param => param.container.Suffix("&"));
-                if (info.Item2.HasFlag(OpFlags.RefReturn))
-                    _resolvedReturns[method].Suffix("&");
-                if (info.Item2.HasFlag(OpFlags.ConstSelf))
-                    _parameterMaps[method][0].container.Prefix("const ");
-                if (!info.Item2.HasFlag(OpFlags.NonConstOthers))
-                    for (int i = 1; i < _parameterMaps[method].Count; i++)
-                        _parameterMaps[method][i].container.Prefix("const ");
+                var flags = info.Item2;
 
-                if (!info.Item2.HasFlag(OpFlags.InClassOnly))
+                void PrefixConstUnlessPointer(MethodTypeContainer container)
+                {
+                    if (!container.IsPointer) container.Prefix("const ");
+                }
+                if (flags.HasFlag(OpFlags.ConstSelf))
+                    PrefixConstUnlessPointer(_parameterMaps[method][0].container);
+                if (!flags.HasFlag(OpFlags.NonConstOthers))
+                    for (int i = 1; i < numParams; i++)
+                        PrefixConstUnlessPointer(_parameterMaps[method][i].container);
+                if (!flags.HasFlag(OpFlags.Constructor))
+                {
+                    for (int i = numParams - 1; i >= 0; i--)
+                        if (_parameterMaps[method][i].container.IsClassType && _parameterMaps[method][i].container.UnPointer())
+                            break;
+                }
+                    
+                // TODO: pointers don't technically need & added either
+                _parameterMaps[method].ForEach(param => param.container.Suffix("&"));
+                if (flags.HasFlag(OpFlags.RefReturn))
+                    _resolvedReturns[method].Suffix("&");
+
+                if (!flags.HasFlag(OpFlags.InClassOnly))
                 {
                     Scope[method] = MethodScope.Namespace;  // namespace define operators as much as possible
                 }
-                else if (!info.Item2.HasFlag(OpFlags.Constructor))
+                else if (!flags.HasFlag(OpFlags.Constructor))
                 {
                     _parameterMaps[method][0].container.Skip = true;
                     Scope[method] = MethodScope.Class;
@@ -294,7 +312,7 @@ namespace Il2Cpp_Modding_Codegen.Serialization
                 return false;
 
             // Use existing genericParameters if it already exists (a single method could have multiple offending types!)
-            if (!_genericArgs.TryGetValue(method, out var genericParameters))
+            if (!_tempGenerics.TryGetValue(method, out var genericParameters))
                 genericParameters = new SortedSet<string>();
             // Ideally, all I should have to do here is iterate over my method, see if any params or return types match offending type, and template it if so
             if (method.ReturnType.ContainsOrEquals(offendingType))
@@ -316,7 +334,7 @@ namespace Il2Cpp_Modding_Codegen.Serialization
             found = genericParameters.Count;
             if (genericParameters.Count > 0)
                 // Only add to dictionary if we actually HAVE the offending type somewhere.
-                _genericArgs.Add(method, genericParameters);
+                _tempGenerics.Add(method, genericParameters);
             return true;
         }
 
@@ -335,9 +353,19 @@ namespace Il2Cpp_Modding_Codegen.Serialization
             var resolved = context.ResolveAndStore(method.DeclaringType, CppTypeContext.ForceAsType.Literal, CppTypeContext.NeedAs.Definition);
             _declaringIsValueType = resolved.Info.TypeFlags.HasFlag(TypeFlags.ValueType);
 
-            if (method.Name.StartsWith("op_") && method.Parameters.Count > 1 && !method.Parameters[0].Type.ContainsOrEquals(method.DeclaringType))
+            if (method.Generic)
             {
-                Console.WriteLine($"{method}");
+                var generics = new List<string>();
+                foreach (var g in method.GenericParameters)
+                {
+                    var s = context.GetCppName(g, true, needAs: CppTypeContext.NeedAs.Declaration);
+                    if (s is null)
+                        // If we fail to resolve a parameter, we will simply add a (null, p.Flags) item to our mapping.
+                        // However, we should not call Resolved(method)
+                        success = false;
+                    generics.Add(s);
+                }
+                _genericArgs.Add(method, generics);
             }
 
             var needAs = NeedTypesAs(method);
@@ -363,6 +391,7 @@ namespace Il2Cpp_Modding_Codegen.Serialization
                 parameterMap.Add((new MethodTypeContainer(s), p.Flags));
             }
             _parameterMaps.Add(method, parameterMap);
+
             Scope.Add(method, method.Specifiers.IsStatic() ? MethodScope.Static : MethodScope.Class);
             //RenameGenericMethods(context, method);
             ResolveName(method);
@@ -443,6 +472,27 @@ namespace Il2Cpp_Modding_Codegen.Serialization
             return method.Name == "_ctor" || method.Name == ".ctor";
         }
 
+        private bool TemplateString(IMethod method, bool withTemps, out string templateString)
+        {
+            templateString = null;
+            var str = "";
+            bool hadGenerics = false;
+            if (_genericArgs.TryGetValue(method, out var generics))
+            {
+                hadGenerics = true;
+                str += string.Join(", ", generics.Select(s => "class " + s));
+            }
+            if (_tempGenerics.TryGetValue(method, out var temps))
+            {
+                hadGenerics = true;
+                if (withTemps)
+                    str += string.Join(", ", temps.Select(s => "class " + s));
+            }
+            if (hadGenerics)
+                templateString = $"template<{str}>";
+            return hadGenerics;
+        }
+
         // Write the method here
         public override void Serialize(CppStreamWriter writer, IMethod method, bool asHeader)
         {
@@ -485,9 +535,10 @@ namespace Il2Cpp_Modding_Codegen.Serialization
                     writer.WriteComment($"Base method: {method.BaseMethod.ReturnType} {method.BaseMethod.DeclaringType.Name}::{method.BaseMethod.Name}({method.Parameters.FormatParameters(csharp: true)})");
                 if (!writeContent)
                 {
-                    if (_genericArgs.TryGetValue(method, out var types))
-                        writer.WriteLine($"template<{string.Join(", ", types.Select(s => "class " + s))}>");
-                    writer.WriteDeclaration(WriteMethod(scope, method, true));
+                    var methodStr = WriteMethod(scope, method, true);
+                    if (TemplateString(method, true, out var templateStr))
+                        writer.WriteLine((methodStr.StartsWith("/") ? "// " : "") + templateStr);
+                    writer.WriteDeclaration(methodStr);
                 }
             }
             else
@@ -506,8 +557,8 @@ namespace Il2Cpp_Modding_Codegen.Serialization
                     return;
                 }
 
-                if (_genericArgs.ContainsKey(method))
-                    writer.WriteLine("template<>");
+                if (TemplateString(method, false, out var templateStr))
+                    writer.WriteLine(templateStr);
                 writer.WriteDefinition(methodStr);
 
                 var (@namespace, @class) = method.DeclaringType.GetIl2CppName();
