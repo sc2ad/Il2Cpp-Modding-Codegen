@@ -462,8 +462,8 @@ namespace Il2Cpp_Modding_Codegen.Serialization
             }
 
             var ret = $"{preRetStr}{retStr} {ns}{signature}{overrideStr}{impl}";
-            if (isHeader && scope == MethodScope.Namespace)
-                Console.WriteLine(ret);
+            //if (isHeader && scope == MethodScope.Namespace)
+            //    Console.WriteLine(ret);
             return ret;
         }
 
@@ -562,6 +562,9 @@ namespace Il2Cpp_Modding_Codegen.Serialization
                 writer.WriteDefinition(methodStr);
 
                 var (@namespace, @class) = method.DeclaringType.GetIl2CppName();
+                var classArgs = $"\"{@namespace}\", \"{@class}\"";
+                if (method.DeclaringType.IsGeneric)
+                    classArgs = $"il2cpp_utils::il2cpp_type_check::il2cpp_no_arg_class<{_thisTypeName}>::get()";
                 if (IsCtor(method))
                 {
                     // Always use thisTypeName for the cast type, since we are already within the context of the type.
@@ -571,7 +574,7 @@ namespace Il2Cpp_Modding_Codegen.Serialization
                     if (!string.IsNullOrEmpty(paramNames))
                         // Prefix , for parameters to New
                         paramNames = ", " + paramNames;
-                    var newObject = $"il2cpp_utils::New(\"{@namespace}\", \"{@class}\"{paramNames})";
+                    var newObject = $"il2cpp_utils::New({classArgs}{paramNames})";
                     // TODO: Make this configurable
                     writer.WriteDeclaration($"return ({typeName})CRASH_UNLESS({newObject})");
                     writer.CloseDefinition();
@@ -606,7 +609,7 @@ namespace Il2Cpp_Modding_Codegen.Serialization
                     else
                     {
                         // TODO: Check to ensure this works with non-generic methods in a generic type
-                        s += $"\"{@namespace}\", \"{@class}\", ";
+                        s += $"{classArgs}, ";
                     }
                     var paramString = method.Parameters.FormatParameters(_config.IllegalNames, _parameterMaps[method], FormatParameterMode.Names);
                     if (!string.IsNullOrEmpty(paramString))
