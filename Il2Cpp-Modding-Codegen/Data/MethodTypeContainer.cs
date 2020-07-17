@@ -40,6 +40,9 @@ namespace Il2CppModdingCodegen.Data
 
         internal void Template(string newName) => templatedName = newName;
 
-        public override string ToString() => throw new NotSupportedException("Not implemented! Did you mean to use TypeName( ?");
+        [Obsolete("TypeName should be used instead!", true)]
+#pragma warning disable CS0809 // Obsolete member 'MethodTypeContainer.ToString()' overrides non-obsolete member 'object.ToString()'
+        public override string ToString() => null;
+#pragma warning restore CS0809 // Obsolete member 'MethodTypeContainer.ToString()' overrides non-obsolete member 'object.ToString()'
     }
 }

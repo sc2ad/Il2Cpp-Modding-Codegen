@@ -8,7 +8,8 @@ namespace Il2CppModdingCodegen.Data.DllHandling
 {
     internal class DllMethod : IMethod
     {
-        private readonly MethodDefinition This;  // just to aid with debugging
+        [System.Diagnostics.CodeAnalysis.SuppressMessage("CodeQuality", "IDE0052:Remove unread private members", Justification = "aids with debugging")]
+        private readonly MethodDefinition This;
         public List<IAttribute> Attributes { get; } = new List<IAttribute>();
         public List<ISpecifier> Specifiers { get; } = new List<ISpecifier>();
         public int RVA { get; }

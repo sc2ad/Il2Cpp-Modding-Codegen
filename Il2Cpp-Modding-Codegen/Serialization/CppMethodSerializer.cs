@@ -116,17 +116,14 @@ namespace Il2CppModdingCodegen.Serialization
             _config = config;
         }
 
-        private bool NeedDefinitionInHeader(IMethod method)
-        {
-            return method.DeclaringType.IsGenericTemplate;
-        }
+        private static bool NeedDefinitionInHeader(IMethod method) => method.DeclaringType.IsGenericTemplate;
 
         /// <summary>
         /// Returns whether the given method should be written as a definition or a declaration
         /// </summary>
         /// <param name="method"></param>
         /// <returns></returns>
-        private CppTypeContext.NeedAs NeedTypesAs(IMethod method)
+        private static CppTypeContext.NeedAs NeedTypesAs(IMethod method)
         {
             if (NeedDefinitionInHeader(method)) return CppTypeContext.NeedAs.BestMatch;
             return CppTypeContext.NeedAs.Declaration;
@@ -491,8 +488,8 @@ namespace Il2CppModdingCodegen.Serialization
                 throw new UnresolvedTypeException(method.DeclaringType, method.ReturnType);
             for (int i = 0; i < _parameterMaps[method].Count; i++)
             {
-                var s = _parameterMaps[method][i];
-                if (s.container.TypeName(asHeader) is null && !method.Parameters[i].Type.IsGenericParameter)
+                var (container, _) = _parameterMaps[method][i];
+                if (container.TypeName(asHeader) is null && !method.Parameters[i].Type.IsGenericParameter)
                     throw new UnresolvedTypeException(method.DeclaringType, method.Parameters[i].Type);
             }
             if (IgnoredMethods.Contains(method.Il2CppName) || _config.BlacklistMethods.Contains(method.Il2CppName) || _aborted.Contains(method))

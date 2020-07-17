@@ -139,7 +139,8 @@ namespace Il2CppModdingCodegen.Serialization
         }
 
         // Returns whether the include is valid/has been made.
-        private bool AddIncludeDefinitions(CppTypeContext context, HashSet<TypeRef> defs, CppTypeContext newContext, bool asHeader, HashSet<CppTypeContext> includesOfType)
+        private static bool AddIncludeDefinitions(CppTypeContext context, HashSet<TypeRef> defs, CppTypeContext newContext, bool asHeader,
+            HashSet<CppTypeContext> includesOfType)
         {
             if (newContext != context && includesOfType.Contains(newContext)) return true;
 
@@ -175,7 +176,7 @@ namespace Il2CppModdingCodegen.Serialization
             return allGood;
         }
 
-        private void WriteForwardDeclaration(CppStreamWriter writer, ITypeData typeData)
+        private static void WriteForwardDeclaration(CppStreamWriter writer, ITypeData typeData)
         {
             var resolved = typeData.This;
             var comment = "Forward declaring type: " + resolved.Name;
@@ -277,7 +278,7 @@ namespace Il2CppModdingCodegen.Serialization
         /// </summary>
         /// <param name="writer"></param>
         /// <param name="nested"></param>
-        private void AddNestedDeclare(CppStreamWriter writer, CppTypeContext nested)
+        private static void AddNestedDeclare(CppStreamWriter writer, CppTypeContext nested)
         {
             var comment = "Nested type: " + nested.LocalType.This.GetQualifiedName();
             var typeStr = nested.LocalType.Type.TypeName();
@@ -358,7 +359,7 @@ namespace Il2CppModdingCodegen.Serialization
             writer.Flush();
 
             if (asHeader)
-                typeSerializer.CloseDefinition(writer, context.LocalType);
+                CppTypeDataSerializer.CloseDefinition(writer, context.LocalType);
             if (!context.InPlace)
                 WriteNamespacedMethods(writer, context, asHeader);
         }

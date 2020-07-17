@@ -74,7 +74,7 @@ namespace Il2CppModdingCodegen.Data.DllHandling
 
             _namespace = (refDeclaring?.Namespace ?? This.Namespace) ?? "";
 
-            IsCovariant = IsGenericParameter ? (This as GenericParameter).IsCovariant : false;
+            IsCovariant = IsGenericParameter && (This as GenericParameter).IsCovariant;
         }
 
         public static DllTypeRef From(TypeReference type)

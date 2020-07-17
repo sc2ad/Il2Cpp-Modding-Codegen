@@ -130,7 +130,7 @@ namespace Il2CppModdingCodegen.Data.DumpHandling
         private void ParseProperties(PeekableStreamReader fs)
         {
             string line = fs.PeekLine().Trim();
-            if (line == "")
+            if (line.Length == 0)
             {
                 // Spaced after fields
                 fs.ReadLine();
@@ -142,7 +142,7 @@ namespace Il2CppModdingCodegen.Data.DumpHandling
             // Read past // Properties
             fs.ReadLine();
 
-            while (line != "" && line != "}" && !line.StartsWith("// Methods"))
+            while (line.Length != 0 && line != "}" && !line.StartsWith("// Methods"))
             {
                 if (_config.ParseTypeProperties)
                     Properties.Add(new DumpProperty(This, fs));
@@ -155,7 +155,7 @@ namespace Il2CppModdingCodegen.Data.DumpHandling
         private void ParseMethods(PeekableStreamReader fs)
         {
             string line = fs.PeekLine().Trim();
-            if (line == "")
+            if (line.Length == 0)
             {
                 // Spaced after fields or properties
                 fs.ReadLine();
@@ -167,7 +167,7 @@ namespace Il2CppModdingCodegen.Data.DumpHandling
             // Read past // Methods
             fs.ReadLine();
 
-            while (line != "" && line != "}")
+            while (line.Length != 0 && line != "}")
             {
                 if (_config.ParseTypeMethods)
                     Methods.Add(new DumpMethod(This, fs));

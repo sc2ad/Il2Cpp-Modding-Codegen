@@ -232,6 +232,6 @@ namespace Il2CppModdingCodegen.Serialization
                 }
         }
 
-        public void CloseDefinition(CppStreamWriter writer, ITypeData type) => writer.CloseDefinition($"; // {type.This}");
+        public static void CloseDefinition(CppStreamWriter writer, ITypeData type) => writer.CloseDefinition($"; // {type.This}");
     }
 }

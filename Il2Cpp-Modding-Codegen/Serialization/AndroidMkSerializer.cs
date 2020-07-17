@@ -10,7 +10,7 @@ namespace Il2CppModdingCodegen.Serialization
     /// </summary>
     public class AndroidMkSerializer
     {
-        public struct Library
+        public class Library
         {
             internal IEnumerable<string> toBuild;
             internal bool isSource;
