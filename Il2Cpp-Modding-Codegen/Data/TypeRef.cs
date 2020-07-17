@@ -44,7 +44,7 @@ namespace Il2CppModdingCodegen.Data
         public virtual bool IsPointer()
         {
             // If type is not a value type, it is a pointer
-            return _resolvedType?.Info.TypeFlags == Refness.ReferenceType;
+            return _resolvedType?.Info.Refness == Refness.ReferenceType;
         }
 
         public abstract bool IsArray();

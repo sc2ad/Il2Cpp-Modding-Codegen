@@ -27,13 +27,13 @@ namespace Il2CppModdingCodegen.Serialization
             if (!type.This.IsGeneric)
             {
                 string fullName = context.GetCppName(context.LocalType.This, true, true, CppTypeContext.NeedAs.Definition, CppTypeContext.ForceAsType.Literal);
-                if (context.LocalType.Info.TypeFlags.HasFlag(Refness.ReferenceType)) fullName += "*";
+                if (context.LocalType.Info.Refness == Refness.ReferenceType) fullName += "*";
                 writer.WriteLine($"DEFINE_IL2CPP_ARG_TYPE({fullName}, \"{ns}\", \"{il2cppName}\");");
             }
             else if (type.This.DeclaringType is null || !type.This.DeclaringType.IsGeneric)
             {
                 string templateName = context.GetCppName(context.LocalType.This, true, false, CppTypeContext.NeedAs.Declaration, CppTypeContext.ForceAsType.Literal);
-                var structStr = context.LocalType.Info.TypeFlags.HasFlag(Refness.ReferenceType) ? "CLASS" : "STRUCT";
+                var structStr = context.LocalType.Info.Refness == Refness.ReferenceType ? "CLASS" : "STRUCT";
                 writer.WriteLine($"DEFINE_IL2CPP_ARG_TYPE_GENERIC_{structStr}({templateName}, \"{ns}\", \"{il2cppName}\");");
             }
             foreach (var nested in context.NestedContexts.Where(n => n.InPlace))

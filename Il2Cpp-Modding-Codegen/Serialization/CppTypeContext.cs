@@ -443,7 +443,7 @@ namespace Il2CppModdingCodegen.Serialization
                 return name;
             if (resolved.This.DeclaringType?.IsGeneric ?? false)  // note: it's important that ForceAsType.Literal is ruled out first
                 name = "typename " + name;
-            if (resolved.Info.TypeFlags == Refness.ReferenceType)
+            if (resolved.Info.Refness == Refness.ReferenceType)
                 return name + "*";
             return name;
         }
@@ -471,7 +471,7 @@ namespace Il2CppModdingCodegen.Serialization
                     break;
 
                 case NeedAs.BestMatch:
-                    if (forceAs != ForceAsType.Literal && (typeRef.IsPointer() || resolved.Info.TypeFlags == Refness.ReferenceType))
+                    if (forceAs != ForceAsType.Literal && (typeRef.IsPointer() || resolved.Info.Refness == Refness.ReferenceType))
                         AddDeclaration(typeRef, resolved);
                     else
                         AddDefinition(typeRef, resolved);

@@ -350,7 +350,7 @@ namespace Il2CppModdingCodegen.Serialization
             _declaringFullyQualified = context.QualifiedTypeName.TrimStart(':');
             _thisTypeName = context.GetCppName(method.DeclaringType, false, needAs: CppTypeContext.NeedAs.Definition);
             var resolved = context.ResolveAndStore(method.DeclaringType, CppTypeContext.ForceAsType.Literal, CppTypeContext.NeedAs.Definition);
-            _declaringIsValueType = resolved.Info.TypeFlags.HasFlag(Refness.ValueType);
+            _declaringIsValueType = resolved.Info.Refness == Refness.ValueType;
 
             if (method.Generic)
             {

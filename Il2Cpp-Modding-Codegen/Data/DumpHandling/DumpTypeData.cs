@@ -91,13 +91,13 @@ namespace Il2CppModdingCodegen.Data.DumpHandling
 
             Info = new TypeInfo
             {
-                TypeFlags = Type == TypeEnum.Class || Type == TypeEnum.Interface ? Refness.ReferenceType : Refness.ValueType
+                Refness = Type == TypeEnum.Class || Type == TypeEnum.Interface ? Refness.ReferenceType : Refness.ValueType
             };
 
             if (Parent is null)
                 // If the type is a value type, it has no parent.
                 // If the type is a reference type, it has parent Il2CppObject
-                if (Info.TypeFlags == Refness.ReferenceType)
+                if (Info.Refness == Refness.ReferenceType)
                     Parent = DumpTypeRef.ObjectType;
         }
 
