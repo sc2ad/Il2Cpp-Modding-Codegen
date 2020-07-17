@@ -13,15 +13,15 @@ namespace Il2Cpp_Modding_Codegen.Serialization
     /// </summary>
     public class CppContextSerializer
     {
-        private ITypeCollection _collection;
-        private Dictionary<CppTypeContext, (HashSet<CppTypeContext>, Dictionary<string, HashSet<TypeRef>>)> _headerContextMap = new Dictionary<CppTypeContext, (HashSet<CppTypeContext>, Dictionary<string, HashSet<TypeRef>>)>();
-        private Dictionary<CppTypeContext, (HashSet<CppTypeContext>, Dictionary<string, HashSet<TypeRef>>)> _sourceContextMap = new Dictionary<CppTypeContext, (HashSet<CppTypeContext>, Dictionary<string, HashSet<TypeRef>>)>();
-        private SerializationConfig _config;
+        private readonly ITypeCollection _collection;
+        private readonly Dictionary<CppTypeContext, (HashSet<CppTypeContext>, Dictionary<string, HashSet<TypeRef>>)> _headerContextMap = new Dictionary<CppTypeContext, (HashSet<CppTypeContext>, Dictionary<string, HashSet<TypeRef>>)>();
+        private readonly Dictionary<CppTypeContext, (HashSet<CppTypeContext>, Dictionary<string, HashSet<TypeRef>>)> _sourceContextMap = new Dictionary<CppTypeContext, (HashSet<CppTypeContext>, Dictionary<string, HashSet<TypeRef>>)>();
+        private readonly SerializationConfig _config;
 
         // Hold a type serializer to use for type serialization
         // We want to split up the type serialization into steps, managing nested types ourselves, instead of letting it do it.
         // Map contexts to CppTypeDataSerializers, one to one.
-        private Dictionary<CppTypeContext, CppTypeDataSerializer> _typeSerializers = new Dictionary<CppTypeContext, CppTypeDataSerializer>();
+        private readonly Dictionary<CppTypeContext, CppTypeDataSerializer> _typeSerializers = new Dictionary<CppTypeContext, CppTypeDataSerializer>();
 
         /// <summary>
         /// This event is invoked whenever a definition is defined at least twice in a single <see cref="CppTypeContext"/>

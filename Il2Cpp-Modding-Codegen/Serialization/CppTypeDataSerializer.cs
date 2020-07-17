@@ -15,12 +15,12 @@ namespace Il2Cpp_Modding_Codegen.Serialization
         }
 
         // Uses TypeRef instead of ITypeData because nested types have different pointers
-        private Dictionary<TypeRef, State> map = new Dictionary<TypeRef, State>();
+        private readonly Dictionary<TypeRef, State> map = new Dictionary<TypeRef, State>();
 
         private CppFieldSerializer fieldSerializer;
         private CppStaticFieldSerializer staticFieldSerializer;
         private CppMethodSerializer methodSerializer;
-        private SerializationConfig _config;
+        private readonly SerializationConfig _config;
 
         public CppTypeContext Context { get; private set; }
 

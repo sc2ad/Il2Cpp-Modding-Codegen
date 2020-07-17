@@ -11,10 +11,10 @@ namespace Il2Cpp_Modding_Codegen.Serialization
         // When we construct this class, we resolve the field by placing everything it needs in the context object
         // When serialize is called, we simply write the field we have.
 
-        private Dictionary<IField, string> _resolvedTypeNames = new Dictionary<IField, string>();
-        private Dictionary<IField, string> _safeFieldNames = new Dictionary<IField, string>();
+        private readonly Dictionary<IField, string> _resolvedTypeNames = new Dictionary<IField, string>();
+        private readonly Dictionary<IField, string> _safeFieldNames = new Dictionary<IField, string>();
 
-        private SerializationConfig _config;
+        private readonly SerializationConfig _config;
 
         public CppFieldSerializer(SerializationConfig config)
         {

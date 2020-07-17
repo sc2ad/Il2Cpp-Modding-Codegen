@@ -56,9 +56,9 @@ namespace Il2Cpp_Modding_Codegen.Serialization
         public bool NeedPrimitives { get; private set; }
 
         // Holds generic types (ex: T1, T2, ...) defined by the type
-        private HashSet<TypeRef> _genericTypes = new HashSet<TypeRef>(TypeRef.fastComparer);
-        private List<CppTypeContext> _nestedContexts = new List<CppTypeContext>();
-        private ITypeCollection _types;
+        private readonly HashSet<TypeRef> _genericTypes = new HashSet<TypeRef>(TypeRef.fastComparer);
+        private readonly List<CppTypeContext> _nestedContexts = new List<CppTypeContext>();
+        private readonly ITypeCollection _types;
 
         private void AddGenericTypes(TypeRef type)
         {

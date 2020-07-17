@@ -12,12 +12,12 @@ namespace Il2Cpp_Modding_Codegen.Serialization
         // This class is responsible for creating the contexts and passing them to each of the types
         // It then needs to create a header and a non-header for each class, with reasonable file structuring
         // Images, fortunately, don't have to be created at all
-        private ITypeCollection _collection;
+        private readonly ITypeCollection _collection;
 
-        private SerializationConfig _config;
+        private readonly SerializationConfig _config;
 
         private CppContextSerializer _contextSerializer;
-        private static Dictionary<ITypeData, CppTypeContext> _map = new Dictionary<ITypeData, CppTypeContext>();
+        private static readonly Dictionary<ITypeData, CppTypeContext> _map = new Dictionary<ITypeData, CppTypeContext>();
         public static IReadOnlyDictionary<ITypeData, CppTypeContext> TypeToContext { get => _map; }
 
         /// <summary>

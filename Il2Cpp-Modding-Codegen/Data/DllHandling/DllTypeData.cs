@@ -20,7 +20,7 @@ namespace Il2Cpp_Modding_Codegen.Data.DllHandling
         public List<IProperty> Properties { get; } = new List<IProperty>();
         public List<IMethod> Methods { get; } = new List<IMethod>();
 
-        private DllConfig _config;
+        private readonly DllConfig _config;
 
         public DllTypeData(TypeDefinition def, DllConfig config)
         {

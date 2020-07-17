@@ -9,7 +9,7 @@ namespace Il2Cpp_Modding_Codegen
 {
     public class DllParser : IParser
     {
-        private DllConfig _config;
+        private readonly DllConfig _config;
 
         public DllParser(DllConfig config)
         {

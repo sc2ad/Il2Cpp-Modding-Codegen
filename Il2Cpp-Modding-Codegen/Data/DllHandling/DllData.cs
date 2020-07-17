@@ -12,12 +12,12 @@ namespace Il2Cpp_Modding_Codegen.Data.DllHandling
         public string Name => "Dll Data";
         public List<IImage> Images { get; } = new List<IImage>();
         public IEnumerable<ITypeData> Types { get { return _types.Values; } }
-        private DllConfig _config;
-        private string _dir;
-        private ReaderParameters _readerParams;
-        private IMetadataResolver _metadataResolver;
+        private readonly DllConfig _config;
+        private readonly string _dir;
+        private readonly ReaderParameters _readerParams;
+        private readonly IMetadataResolver _metadataResolver;
 
-        private Dictionary<TypeRef, ITypeData> _types = new Dictionary<TypeRef, ITypeData>();
+        private readonly Dictionary<TypeRef, ITypeData> _types = new Dictionary<TypeRef, ITypeData>();
 
         public DllData(string dir, DllConfig config)
         {

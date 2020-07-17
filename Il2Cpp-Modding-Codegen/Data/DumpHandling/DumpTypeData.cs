@@ -26,7 +26,7 @@ namespace Il2Cpp_Modding_Codegen.Data.DumpHandling
         public List<IProperty> Properties { get; } = new List<IProperty>();
         public List<IMethod> Methods { get; } = new List<IMethod>();
 
-        private DumpConfig _config;
+        private readonly DumpConfig _config;
 
         private void ParseAttributes(PeekableStreamReader fs)
         {

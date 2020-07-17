@@ -21,7 +21,7 @@ namespace Il2Cpp_Modding_Codegen.Data.DllHandling
         public override bool IsGenericInstance { get => This.IsGenericInstance; }
         public override bool IsGenericTemplate { get => This.HasGenericParameters; }
 
-        private List<TypeRef> _generics = new List<TypeRef>();
+        private readonly List<TypeRef> _generics = new List<TypeRef>();
         public override IReadOnlyList<TypeRef> Generics { get => _generics; }
 
         public override TypeRef DeclaringType { get => From(This.DeclaringType); }

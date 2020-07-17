@@ -8,7 +8,7 @@ namespace Il2Cpp_Modding_Codegen
 {
     public class DumpParser : IParser
     {
-        private DumpConfig _config;
+        private readonly DumpConfig _config;
 
         public DumpParser(DumpConfig config)
         {

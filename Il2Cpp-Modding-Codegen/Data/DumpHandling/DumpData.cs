@@ -11,8 +11,8 @@ namespace Il2Cpp_Modding_Codegen.Data.DumpHandling
         public string Name => "Dump Data";
         public List<IImage> Images { get; } = new List<IImage>();
         public IEnumerable<ITypeData> Types { get => _types; }
-        private DumpConfig _config;
-        private List<ITypeData> _types = new List<ITypeData>();
+        private readonly DumpConfig _config;
+        private readonly List<ITypeData> _types = new List<ITypeData>();
 
         private void ParseImages(PeekableStreamReader fs)
         {

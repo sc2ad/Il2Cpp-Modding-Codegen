@@ -8,9 +8,9 @@ namespace Il2Cpp_Modding_Codegen.Serialization
     {
         private string _declaringFullyQualified;
         private string _thisTypeName;
-        private Dictionary<IField, string> _resolvedTypes = new Dictionary<IField, string>();
+        private readonly Dictionary<IField, string> _resolvedTypes = new Dictionary<IField, string>();
         private bool _asHeader;
-        private SerializationConfig _config;
+        private readonly SerializationConfig _config;
 
         public CppStaticFieldSerializer(SerializationConfig config)
         {

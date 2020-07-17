@@ -8,8 +8,8 @@ namespace Il2Cpp_Modding_Codegen.Serialization
 {
     public class CppHeaderCreator
     {
-        private SerializationConfig _config;
-        private CppContextSerializer _serializer;
+        private readonly SerializationConfig _config;
+        private readonly CppContextSerializer _serializer;
 
         public CppHeaderCreator(SerializationConfig config, CppContextSerializer serializer)
         {

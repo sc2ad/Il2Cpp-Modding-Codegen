@@ -80,13 +80,13 @@ namespace Il2Cpp_Modding_Codegen.Serialization
         internal Dictionary<IMethod, MethodScope> Scope = new Dictionary<IMethod, MethodScope>();
 
         private bool _asHeader;
-        private SerializationConfig _config;
+        private readonly SerializationConfig _config;
 
-        private Dictionary<IMethod, MethodTypeContainer> _resolvedReturns = new Dictionary<IMethod, MethodTypeContainer>();
-        private Dictionary<IMethod, List<(MethodTypeContainer container, ParameterFlags flags)>> _parameterMaps = new Dictionary<IMethod, List<(MethodTypeContainer container, ParameterFlags flags)>>();
+        private readonly Dictionary<IMethod, MethodTypeContainer> _resolvedReturns = new Dictionary<IMethod, MethodTypeContainer>();
+        private readonly Dictionary<IMethod, List<(MethodTypeContainer container, ParameterFlags flags)>> _parameterMaps = new Dictionary<IMethod, List<(MethodTypeContainer container, ParameterFlags flags)>>();
 
         // This dictionary maps from method to a list of real generic parameters.
-        private Dictionary<IMethod, List<string>> _genericArgs = new Dictionary<IMethod, List<string>>();
+        private readonly Dictionary<IMethod, List<string>> _genericArgs = new Dictionary<IMethod, List<string>>();
         /// <summary>
         /// This dictionary maps from method to a list of placeholder generic arguments.
         /// These generic arguments are only ever used as replacements for types that should not be included/defined within our context.
@@ -95,18 +95,18 @@ namespace Il2Cpp_Modding_Codegen.Serialization
         /// If we are not a header, we write template<> instead.
         /// This is populated only when <see cref="FixBadDefinition(CppTypeContext, TypeRef, IMethod)"/> is called.
         /// </summary>
-        private Dictionary<IMethod, SortedSet<string>> _tempGenerics = new Dictionary<IMethod, SortedSet<string>>();
+        private readonly Dictionary<IMethod, SortedSet<string>> _tempGenerics = new Dictionary<IMethod, SortedSet<string>>();
 
         private string _declaringNamespace;
         private string _declaringFullyQualified;
         private string _thisTypeName;
 
-        private HashSet<(TypeRef, bool, string)> _signatures = new HashSet<(TypeRef, bool, string)>();
+        private readonly HashSet<(TypeRef, bool, string)> _signatures = new HashSet<(TypeRef, bool, string)>();
         private bool _ignoreSignatureMap;
-        private HashSet<IMethod> _aborted = new HashSet<IMethod>();
+        private readonly HashSet<IMethod> _aborted = new HashSet<IMethod>();
 
         // Holds a mapping of IMethod to the name, as well as if the name has been specifically converted already.
-        private static Dictionary<IMethod, (string, bool)> _nameMap = new Dictionary<IMethod, (string, bool)>();
+        private static readonly Dictionary<IMethod, (string, bool)> _nameMap = new Dictionary<IMethod, (string, bool)>();
 
         private bool performedGenericRenames = false;
         private bool _declaringIsValueType;

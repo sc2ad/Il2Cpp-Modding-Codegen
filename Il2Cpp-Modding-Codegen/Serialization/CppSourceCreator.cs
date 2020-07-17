@@ -6,8 +6,8 @@ namespace Il2Cpp_Modding_Codegen.Serialization
 {
     public class CppSourceCreator
     {
-        private SerializationConfig _config;
-        private CppContextSerializer _serializer;
+        private readonly SerializationConfig _config;
+        private readonly CppContextSerializer _serializer;
 
         public CppSourceCreator(SerializationConfig config, CppContextSerializer serializer)
         {

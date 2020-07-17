@@ -44,7 +44,7 @@ namespace Il2Cpp_Modding_Codegen
             public bool Equals(TypeReference r1, TypeReference r2) => r1?.FullName == r2?.FullName;
             public int GetHashCode(TypeReference r) => r?.FullName.GetHashCode() ?? 0;
         };
-        static QuickComparer quickCompare = new QuickComparer();
+        static readonly QuickComparer quickCompare = new QuickComparer();
 
         // Returns all methods with the same name and parameters as `self` in any base type or interface of `type`.
         private static HashSet<MethodDefinition> FindIn(this MethodDefinition self, TypeDefinition type, Dictionary<string, TypeReference> genericMapping)
