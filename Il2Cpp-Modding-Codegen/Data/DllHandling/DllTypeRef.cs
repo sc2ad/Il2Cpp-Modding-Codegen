@@ -5,7 +5,7 @@ using System.IO;
 using System.Linq;
 using System.Text.RegularExpressions;
 
-namespace Il2Cpp_Modding_Codegen.Data.DllHandling
+namespace Il2CppModdingCodegen.Data.DllHandling
 {
     public class DllTypeRef : TypeRef
     {

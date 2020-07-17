@@ -1,9 +1,9 @@
-﻿using Il2Cpp_Modding_Codegen.Config;
-using Il2Cpp_Modding_Codegen.Data;
+﻿using Il2CppModdingCodegen.Config;
+using Il2CppModdingCodegen.Data;
 using System;
 using System.Collections.Generic;
 
-namespace Il2Cpp_Modding_Codegen.Serialization
+namespace Il2CppModdingCodegen.Serialization
 {
     public class CppTypeDataSerializer
     {

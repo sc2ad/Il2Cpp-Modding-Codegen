@@ -1,9 +1,9 @@
-﻿using Il2Cpp_Modding_Codegen.Parsers;
+﻿using Il2CppModdingCodegen.Parsers;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 
-namespace Il2Cpp_Modding_Codegen.Data.DumpHandling
+namespace Il2CppModdingCodegen.Data.DumpHandling
 {
     internal class DumpMethod : IMethod
     {

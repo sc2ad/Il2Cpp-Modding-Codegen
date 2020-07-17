@@ -1,10 +1,10 @@
-﻿using Il2Cpp_Modding_Codegen.Config;
-using Il2Cpp_Modding_Codegen.Data;
+﻿using Il2CppModdingCodegen.Config;
+using Il2CppModdingCodegen.Data;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 
-namespace Il2Cpp_Modding_Codegen.Serialization
+namespace Il2CppModdingCodegen.Serialization
 {
     public class CppFieldSerializer : Serializer<IField>
     {
@@ -55,7 +55,7 @@ namespace Il2Cpp_Modding_Codegen.Serialization
         {
             // If the type we are writing is a value type, we would like to make a constructor that takes in each non-static, non-const field.
             // This is to allow us to construct structs without having to provide initialization lists that are horribly long
-            if (type.Info.TypeFlags == TypeFlags.ValueType && asHeader)
+            if (type.Info.TypeFlags == Refness.ValueType && asHeader)
             {
                 var signature = name + "(";
                 signature += string.Join(", ", _resolvedTypeNames.Select(pair =>

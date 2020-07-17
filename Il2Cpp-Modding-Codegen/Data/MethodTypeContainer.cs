@@ -1,7 +1,7 @@
 ﻿using System;
 using System.Linq;
 
-namespace Il2Cpp_Modding_Codegen.Data
+namespace Il2CppModdingCodegen.Data
 {
     public class MethodTypeContainer
     {
@@ -9,7 +9,7 @@ namespace Il2Cpp_Modding_Codegen.Data
         private string _suffix;
         private string templatedName;
 
-        public bool Skip = false;
+        public bool Skip { get; set; } = false;
         public bool UnPointered { get; private set; }
         public bool IsPointer { get => typeName.EndsWith("*"); }
         // Contains a class or struct

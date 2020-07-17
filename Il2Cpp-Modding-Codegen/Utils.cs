@@ -5,7 +5,7 @@ using System.Diagnostics.Contracts;
 using System.Linq;
 using System.Text.RegularExpressions;
 
-namespace Il2Cpp_Modding_Codegen
+namespace Il2CppModdingCodegen
 {
     internal static class Utils
     {

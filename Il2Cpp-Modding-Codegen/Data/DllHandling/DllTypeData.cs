@@ -1,9 +1,9 @@
-﻿using Il2Cpp_Modding_Codegen.Config;
+﻿using Il2CppModdingCodegen.Config;
 using Mono.Cecil;
 using System.Collections.Generic;
 using System.Linq;
 
-namespace Il2Cpp_Modding_Codegen.Data.DllHandling
+namespace Il2CppModdingCodegen.Data.DllHandling
 {
     internal class DllTypeData : ITypeData
     {
@@ -32,7 +32,7 @@ namespace Il2Cpp_Modding_Codegen.Data.DllHandling
             Type = def.IsEnum ? TypeEnum.Enum : (def.IsInterface ? TypeEnum.Interface : (def.IsValueType ? TypeEnum.Struct : TypeEnum.Class));
             Info = new TypeInfo
             {
-                TypeFlags = def.IsValueType ? TypeFlags.ValueType : TypeFlags.ReferenceType
+                TypeFlags = def.IsValueType ? Refness.ValueType : Refness.ReferenceType
             };
 
             if (def.BaseType != null)

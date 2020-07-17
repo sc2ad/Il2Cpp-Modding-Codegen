@@ -1,7 +1,7 @@
 ﻿using Mono.Cecil;
 using System.Collections.Generic;
 
-namespace Il2Cpp_Modding_Codegen.Data.DllHandling
+namespace Il2CppModdingCodegen.Data.DllHandling
 {
     /// <summary>
     /// Provides a way of determining whether two method definitions are the same or not.

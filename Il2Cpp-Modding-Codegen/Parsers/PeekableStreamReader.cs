@@ -1,6 +1,6 @@
 ﻿using System.IO;
 
-namespace Il2Cpp_Modding_Codegen.Parsers
+namespace Il2CppModdingCodegen.Parsers
 {
     public class PeekableStreamReader : StreamReader
     {

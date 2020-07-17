@@ -1,9 +1,9 @@
-﻿using Il2Cpp_Modding_Codegen.Config;
+﻿using Il2CppModdingCodegen.Config;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 
-namespace Il2Cpp_Modding_Codegen.Serialization
+namespace Il2CppModdingCodegen.Serialization
 {
     /// <summary>
     /// Serializes an Android.mk file

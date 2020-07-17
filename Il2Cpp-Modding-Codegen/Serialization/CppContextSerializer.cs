@@ -1,10 +1,10 @@
-﻿using Il2Cpp_Modding_Codegen.Config;
-using Il2Cpp_Modding_Codegen.Data;
+﻿using Il2CppModdingCodegen.Config;
+using Il2CppModdingCodegen.Data;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 
-namespace Il2Cpp_Modding_Codegen.Serialization
+namespace Il2CppModdingCodegen.Serialization
 {
     /// <summary>
     /// Serializes <see cref="CppTypeContext"/> objects
@@ -36,7 +36,7 @@ namespace Il2Cpp_Modding_Codegen.Serialization
             _collection = collection;
         }
 
-        private void ForwardToTypeDataSerializer(CppContextSerializer self, CppTypeContext context, TypeRef offendingType)
+        private void ForwardToTypeDataSerializer(CppTypeContext context, TypeRef offendingType)
         {
             Console.Error.WriteLine("Forwarding to CppTypeDataSerializer!");
             _typeSerializers[context].DuplicateDefinition(context, offendingType);
@@ -108,7 +108,7 @@ namespace Il2Cpp_Modding_Codegen.Serialization
                 var value = map[resolved];  // any error should have fired in previous loop
                 if (!AddIncludeDefinitions(context, defs, value, asHeader, includes))
                 {
-                    ForwardToTypeDataSerializer(this, context, td);
+                    ForwardToTypeDataSerializer(context, td);
                     DuplicateDefinition?.Invoke(this, context, td);
                 }
                 // No need to inherit declarations, since our own declarations should be all the types we need?

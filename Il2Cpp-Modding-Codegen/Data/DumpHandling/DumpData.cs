@@ -1,10 +1,10 @@
-﻿using Il2Cpp_Modding_Codegen.Config;
-using Il2Cpp_Modding_Codegen.Parsers;
+﻿using Il2CppModdingCodegen.Config;
+using Il2CppModdingCodegen.Parsers;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 
-namespace Il2Cpp_Modding_Codegen.Data.DumpHandling
+namespace Il2CppModdingCodegen.Data.DumpHandling
 {
     public class DumpData : IParsedData
     {

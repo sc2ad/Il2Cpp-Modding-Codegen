@@ -1,5 +1,8 @@
-﻿namespace Il2Cpp_Modding_Codegen.Data
+﻿using System;
+
+namespace Il2CppModdingCodegen.Data
 {
+    [Flags]
     public enum ParameterFlags
     {
         None = 0,

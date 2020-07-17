@@ -1,11 +1,11 @@
-﻿using Il2Cpp_Modding_Codegen.Config;
-using Il2Cpp_Modding_Codegen.Data;
+﻿using Il2CppModdingCodegen.Config;
+using Il2CppModdingCodegen.Data;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics.Contracts;
 using System.Linq;
 
-namespace Il2Cpp_Modding_Codegen.Serialization
+namespace Il2CppModdingCodegen.Serialization
 {
     public class CppMethodSerializer : Serializer<IMethod>
     {
@@ -126,7 +126,7 @@ namespace Il2Cpp_Modding_Codegen.Serialization
         /// </summary>
         /// <param name="method"></param>
         /// <returns></returns>
-        private CppTypeContext.NeedAs NeedTypesAs(IMethod method, bool returnType = false)
+        private CppTypeContext.NeedAs NeedTypesAs(IMethod method)
         {
             if (NeedDefinitionInHeader(method)) return CppTypeContext.NeedAs.BestMatch;
             return CppTypeContext.NeedAs.Declaration;
@@ -244,7 +244,7 @@ namespace Il2Cpp_Modding_Codegen.Serialization
             }
         }
 
-        private void RenameGenericMethods(CppTypeContext context, IMethod method)
+        private void RenameGenericMethods(CppTypeContext context)
         {
             // We want to ONLY do this once, for all methods.
             // That is because we don't want to end up renaming a bunch of methods multiple times, which is slow.
@@ -350,7 +350,7 @@ namespace Il2Cpp_Modding_Codegen.Serialization
             _declaringFullyQualified = context.QualifiedTypeName.TrimStart(':');
             _thisTypeName = context.GetCppName(method.DeclaringType, false, needAs: CppTypeContext.NeedAs.Definition);
             var resolved = context.ResolveAndStore(method.DeclaringType, CppTypeContext.ForceAsType.Literal, CppTypeContext.NeedAs.Definition);
-            _declaringIsValueType = resolved.Info.TypeFlags.HasFlag(TypeFlags.ValueType);
+            _declaringIsValueType = resolved.Info.TypeFlags.HasFlag(Refness.ValueType);
 
             if (method.Generic)
             {
@@ -370,7 +370,7 @@ namespace Il2Cpp_Modding_Codegen.Serialization
             var needAs = NeedTypesAs(method);
             // We need to forward declare everything used in methods (return types and parameters)
             // If we are writing the definition, we MUST define it
-            var resolvedReturn = context.GetCppName(method.ReturnType, true, needAs: NeedTypesAs(method, true));
+            var resolvedReturn = context.GetCppName(method.ReturnType, true, needAs: NeedTypesAs(method));
             if (resolvedReturn is null)
                 // If we fail to resolve the return type, we will simply add a null item to our dictionary.
                 // However, we should not call Resolved(method)
@@ -455,7 +455,7 @@ namespace Il2Cpp_Modding_Codegen.Serialization
             return ret;
         }
 
-        private bool IsCtor(IMethod method) => method.Name == "_ctor" || method.Name == ".ctor";
+        private static bool IsCtor(IMethod method) => method.Name == "_ctor" || method.Name == ".ctor";
 
         private bool TemplateString(IMethod method, bool withTemps, out string templateString)
         {

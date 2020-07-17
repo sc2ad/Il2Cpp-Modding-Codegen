@@ -1,4 +1,4 @@
-﻿namespace Il2Cpp_Modding_Codegen.Data.DumpHandling
+﻿namespace Il2CppModdingCodegen.Data.DumpHandling
 {
     internal class DumpSpecifier : ISpecifier
     {

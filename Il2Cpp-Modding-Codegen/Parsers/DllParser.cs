@@ -1,11 +1,11 @@
-﻿using Il2Cpp_Modding_Codegen.Config;
-using Il2Cpp_Modding_Codegen.Data;
-using Il2Cpp_Modding_Codegen.Data.DllHandling;
-using Il2Cpp_Modding_Codegen.Parsers;
+﻿using Il2CppModdingCodegen.Config;
+using Il2CppModdingCodegen.Data;
+using Il2CppModdingCodegen.Data.DllHandling;
+using Il2CppModdingCodegen.Parsers;
 using System;
 using System.IO;
 
-namespace Il2Cpp_Modding_Codegen
+namespace Il2CppModdingCodegen
 {
     public class DllParser : IParser
     {

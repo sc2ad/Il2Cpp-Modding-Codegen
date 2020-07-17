@@ -1,7 +1,7 @@
-﻿using Il2Cpp_Modding_Codegen.Data;
+﻿using Il2CppModdingCodegen.Data;
 using System.IO;
 
-namespace Il2Cpp_Modding_Codegen.Parsers
+namespace Il2CppModdingCodegen.Parsers
 {
     public interface IParser
     {

@@ -1,14 +1,16 @@
-﻿using Il2Cpp_Modding_Codegen.Data;
+﻿using Il2CppModdingCodegen.Data;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics.Contracts;
 using System.Linq;
 
-namespace Il2Cpp_Modding_Codegen.Serialization
+namespace Il2CppModdingCodegen.Serialization
 {
     public class CppTypeContext
     {
+#pragma warning disable CA1717 // Only FlagsAttribute enums should have plural names
         public enum NeedAs
+#pragma warning restore CA1717 // Only FlagsAttribute enums should have plural names
         {
             Definition,
             Declaration,
@@ -441,7 +443,7 @@ namespace Il2Cpp_Modding_Codegen.Serialization
                 return name;
             if (resolved.This.DeclaringType?.IsGeneric ?? false)  // note: it's important that ForceAsType.Literal is ruled out first
                 name = "typename " + name;
-            if (resolved.Info.TypeFlags == TypeFlags.ReferenceType)
+            if (resolved.Info.TypeFlags == Refness.ReferenceType)
                 return name + "*";
             return name;
         }
@@ -469,7 +471,7 @@ namespace Il2Cpp_Modding_Codegen.Serialization
                     break;
 
                 case NeedAs.BestMatch:
-                    if (forceAs != ForceAsType.Literal && (typeRef.IsPointer() || resolved.Info.TypeFlags == TypeFlags.ReferenceType))
+                    if (forceAs != ForceAsType.Literal && (typeRef.IsPointer() || resolved.Info.TypeFlags == Refness.ReferenceType))
                         AddDeclaration(typeRef, resolved);
                     else
                         AddDefinition(typeRef, resolved);
@@ -492,7 +494,7 @@ namespace Il2Cpp_Modding_Codegen.Serialization
         }
 
         // We only need a declaration for the element type (if we aren't needed as a definition)
-        private NeedAs NeedAsForPrimitiveEtype(NeedAs needAs) => needAs == NeedAs.Definition ? needAs : NeedAs.Declaration;
+        private static NeedAs NeedAsForPrimitiveEtype(NeedAs needAs) => needAs == NeedAs.Definition ? needAs : NeedAs.Declaration;
 
         private string ConvertPrimitive(TypeRef def, ForceAsType forceAs, NeedAs needAs)
         {

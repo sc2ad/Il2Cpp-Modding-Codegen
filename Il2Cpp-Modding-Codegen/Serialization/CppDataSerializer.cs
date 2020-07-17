@@ -1,11 +1,11 @@
-﻿using Il2Cpp_Modding_Codegen.Config;
-using Il2Cpp_Modding_Codegen.Data;
+﻿using Il2CppModdingCodegen.Config;
+using Il2CppModdingCodegen.Data;
 using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 
-namespace Il2Cpp_Modding_Codegen.Serialization
+namespace Il2CppModdingCodegen.Serialization
 {
     public class CppDataSerializer : Serializer<IParsedData>
     {
@@ -131,7 +131,7 @@ namespace Il2Cpp_Modding_Codegen.Serialization
                 if (!pair.Value.InPlace || pair.Value.DeclaringContext == null)
                     new CppHeaderCreator(_config, _contextSerializer).Serialize(pair.Value);
                 var t = pair.Value.LocalType;
-                if (/*t.Type == TypeEnum.Interface || */t.This.IsGeneric || (t.Methods.Count == 0 && t.Fields.Where(f => f.Specifiers.IsStatic()).Count() == 0))
+                if (/*t.Type == TypeEnum.Interface || */t.This.IsGeneric || (t.Methods.Count == 0 && !t.Fields.Where(f => f.Specifiers.IsStatic()).Any()))
                     // Don't create C++ for types with no methods (including static fields), or if it is an interface, or if it is generic
                     continue;
 

@@ -1,4 +1,4 @@
-﻿namespace Il2Cpp_Modding_Codegen.Config
+﻿namespace Il2CppModdingCodegen.Config
 {
     public class DumpConfig
     {

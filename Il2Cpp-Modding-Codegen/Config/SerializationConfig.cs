@@ -1,7 +1,7 @@
 ﻿using System.Collections.Generic;
 using System.Diagnostics.Contracts;
 
-namespace Il2Cpp_Modding_Codegen.Config
+namespace Il2CppModdingCodegen.Config
 {
     public class SerializationConfig
     {
@@ -132,7 +132,7 @@ namespace Il2Cpp_Modding_Codegen.Config
         }
     }
 
-    public struct ExceptionHandling
+    public class ExceptionHandling
     {
         public UnresolvedTypeExceptionHandling TypeHandling { get; set; }
 

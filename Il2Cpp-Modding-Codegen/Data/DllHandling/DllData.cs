@@ -1,11 +1,11 @@
-﻿using Il2Cpp_Modding_Codegen.Config;
+﻿using Il2CppModdingCodegen.Config;
 using Mono.Cecil;
 using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 
-namespace Il2Cpp_Modding_Codegen.Data.DllHandling
+namespace Il2CppModdingCodegen.Data.DllHandling
 {
     public class DllData : DefaultAssemblyResolver, IParsedData
     {

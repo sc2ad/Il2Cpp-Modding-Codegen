@@ -1,6 +1,6 @@
 ﻿using System;
 
-namespace Il2Cpp_Modding_Codegen.Serialization
+namespace Il2CppModdingCodegen.Serialization
 {
     public abstract class Serializer<T>
     {

@@ -1,10 +1,10 @@
-﻿using Il2Cpp_Modding_Codegen.Config;
-using Il2Cpp_Modding_Codegen.Parsers;
+﻿using Il2CppModdingCodegen.Config;
+using Il2CppModdingCodegen.Parsers;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 
-namespace Il2Cpp_Modding_Codegen.Data.DumpHandling
+namespace Il2CppModdingCodegen.Data.DumpHandling
 {
     internal class DumpTypeData : ITypeData
     {
@@ -91,13 +91,13 @@ namespace Il2Cpp_Modding_Codegen.Data.DumpHandling
 
             Info = new TypeInfo
             {
-                TypeFlags = Type == TypeEnum.Class || Type == TypeEnum.Interface ? TypeFlags.ReferenceType : TypeFlags.ValueType
+                TypeFlags = Type == TypeEnum.Class || Type == TypeEnum.Interface ? Refness.ReferenceType : Refness.ValueType
             };
 
             if (Parent is null)
                 // If the type is a value type, it has no parent.
                 // If the type is a reference type, it has parent Il2CppObject
-                if (Info.TypeFlags == TypeFlags.ReferenceType)
+                if (Info.TypeFlags == Refness.ReferenceType)
                     Parent = DumpTypeRef.ObjectType;
         }
 

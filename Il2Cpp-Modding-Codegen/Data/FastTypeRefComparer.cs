@@ -2,7 +2,7 @@
 using System.Collections.Generic;
 using System.Linq;
 
-namespace Il2Cpp_Modding_Codegen.Data
+namespace Il2CppModdingCodegen.Data
 {
     /// <summary>
     /// Compares <see cref="TypeRef"/> objects WITHOUT comparing their DeclaringTypes.

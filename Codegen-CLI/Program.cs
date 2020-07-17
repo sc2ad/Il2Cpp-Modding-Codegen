@@ -1,8 +1,8 @@
-using Il2Cpp_Modding_Codegen;
-using Il2Cpp_Modding_Codegen.Config;
-using Il2Cpp_Modding_Codegen.Data;
-using Il2Cpp_Modding_Codegen.Parsers;
-using Il2Cpp_Modding_Codegen.Serialization;
+using Il2CppModdingCodegen;
+using Il2CppModdingCodegen.Config;
+using Il2CppModdingCodegen.Data;
+using Il2CppModdingCodegen.Parsers;
+using Il2CppModdingCodegen.Serialization;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;

@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 
-namespace Il2Cpp_Modding_Codegen.Data
+namespace Il2CppModdingCodegen.Data
 {
     public abstract class TypeRef : IEquatable<TypeRef>
     {
@@ -44,7 +44,7 @@ namespace Il2Cpp_Modding_Codegen.Data
         public virtual bool IsPointer()
         {
             // If type is not a value type, it is a pointer
-            return _resolvedType?.Info.TypeFlags == TypeFlags.ReferenceType;
+            return _resolvedType?.Info.TypeFlags == Refness.ReferenceType;
         }
 
         public abstract bool IsArray();

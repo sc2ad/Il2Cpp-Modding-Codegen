@@ -1,8 +1,8 @@
-﻿using Il2Cpp_Modding_Codegen.Config;
-using Il2Cpp_Modding_Codegen.Data;
+﻿using Il2CppModdingCodegen.Config;
+using Il2CppModdingCodegen.Data;
 using System.Collections.Generic;
 
-namespace Il2Cpp_Modding_Codegen.Serialization
+namespace Il2CppModdingCodegen.Serialization
 {
     public class CppStaticFieldSerializer : Serializer<IField>
     {
@@ -28,7 +28,7 @@ namespace Il2Cpp_Modding_Codegen.Serialization
             _resolvedTypes.Add(field, resolved);
         }
 
-        private string SafeName(IField field) => field.Name.Replace('<', '$').Replace('>', '$');
+        private static string SafeName(IField field) => field.Name.Replace('<', '$').Replace('>', '$');
 
         private string GetGetter(string fieldType, IField field, bool namespaceQualified)
         {

@@ -1,9 +1,9 @@
-﻿using Il2Cpp_Modding_Codegen.Data.DllHandling;
-using Il2Cpp_Modding_Codegen.Data.DumpHandling;
+﻿using Il2CppModdingCodegen.Data.DllHandling;
+using Il2CppModdingCodegen.Data.DumpHandling;
 using Mono.Cecil;
 using System.Collections.Generic;
 
-namespace Il2Cpp_Modding_Codegen.Data
+namespace Il2CppModdingCodegen.Data
 {
     public class Parameter
     {
