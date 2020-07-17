@@ -5,7 +5,7 @@
 
 using System.Diagnostics.CodeAnalysis;
 
-[assembly: SuppressMessage("Design", "CA1062:Validate arguments of public methods", Justification = "we shouldn't have to Contract.Requires ever parameter as not null")]
+[assembly: SuppressMessage("Design", "CA1062:Validate arguments of public methods", Justification = "Will go away in C# 8.0 https://stackoverflow.com/questions/291340/mark-parameters-as-not-nullable-in-c-net")]
 [assembly: SuppressMessage("Globalization", "CA1303:Do not pass literals as localized parameters", Justification = "language support is too much work")]
 [assembly: SuppressMessage("Globalization", "CA1304:Specify CultureInfo", Justification = "language support is too much work")]
 [assembly: SuppressMessage("Globalization", "CA1305:Specify IFormatProvider", Justification = "language support is too much work")]
