@@ -1,11 +1,9 @@
-﻿using Il2Cpp_Modding_Codegen.Serialization;
-using Mono.Cecil;
+﻿using Mono.Cecil;
 using Mono.Cecil.Rocks;
 using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using System.Text;
 using System.Text.RegularExpressions;
 
 namespace Il2Cpp_Modding_Codegen.Data.DllHandling

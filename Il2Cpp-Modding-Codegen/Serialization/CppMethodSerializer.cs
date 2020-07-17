@@ -2,7 +2,6 @@
 using Il2Cpp_Modding_Codegen.Data;
 using System;
 using System.Collections.Generic;
-using System.Collections.ObjectModel;
 using System.Diagnostics.Contracts;
 using System.Linq;
 
@@ -207,7 +206,7 @@ namespace Il2Cpp_Modding_Codegen.Serialization
                         if (_parameterMaps[method][i].container.IsClassType && _parameterMaps[method][i].container.UnPointer())
                             break;
                 }
-                    
+
                 // TODO: pointers don't technically need & added either
                 _parameterMaps[method].ForEach(param => param.container.Suffix("&"));
                 if (flags.HasFlag(OpFlags.RefReturn))
@@ -569,7 +568,7 @@ namespace Il2Cpp_Modding_Codegen.Serialization
                 {
                     // Always use thisTypeName for the cast type, since we are already within the context of the type.
                     var typeName = _thisTypeName.EndsWith("*") ? _thisTypeName : _thisTypeName + "*";
-                    
+
                     var paramNames = method.Parameters.FormatParameters(_config.IllegalNames, _parameterMaps[method], FormatParameterMode.Names, asHeader);
                     if (!string.IsNullOrEmpty(paramNames))
                         // Prefix , for parameters to New

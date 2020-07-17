@@ -2,10 +2,7 @@
 using Il2Cpp_Modding_Codegen.Data;
 using Il2Cpp_Modding_Codegen.Data.DumpHandling;
 using Il2Cpp_Modding_Codegen.Parsers;
-using System;
-using System.Collections.Generic;
 using System.IO;
-using System.Text;
 
 namespace Il2Cpp_Modding_Codegen
 {

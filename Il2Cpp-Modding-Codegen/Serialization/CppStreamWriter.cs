@@ -1,8 +1,5 @@
-﻿using System;
-using System.CodeDom.Compiler;
-using System.Collections.Generic;
+﻿using System.CodeDom.Compiler;
 using System.IO;
-using System.Text;
 
 namespace Il2Cpp_Modding_Codegen.Serialization
 {

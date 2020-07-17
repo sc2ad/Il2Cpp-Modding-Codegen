@@ -1,14 +1,11 @@
-﻿using System;
-using System.Collections.Generic;
-using System.IO;
-using System.Text;
+﻿using System.IO;
 
 namespace Il2Cpp_Modding_Codegen.Serialization
 {
     public class ApplicationMkSerializer
     {
         private const string ApplicationMk = @"APP_ABI := arm64-v8a
-APP_PLATFORM := 24
+APP_PLATFORM := android-24
 APP_PIE := true
 APP_STL := c++_static
 APP_CFLAGS := -std=gnu18

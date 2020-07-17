@@ -1,14 +1,11 @@
-﻿using System;
-using System.Collections.Generic;
-using System.IO;
-using System.Text;
+﻿using System.IO;
 
 namespace Il2Cpp_Modding_Codegen.Parsers
 {
     public class PeekableStreamReader : StreamReader
     {
 
-       
+
         // Only buffer a maximum of one line
         private string bufferedLine = null;
 

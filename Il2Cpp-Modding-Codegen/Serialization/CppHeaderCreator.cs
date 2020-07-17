@@ -1,12 +1,8 @@
 ﻿using Il2Cpp_Modding_Codegen.Config;
 using Il2Cpp_Modding_Codegen.Data;
 using System;
-using System.Collections.Generic;
-using System.CodeDom.Compiler;
 using System.IO;
-using System.Text;
 using System.Linq;
-using System.Text.RegularExpressions;
 
 namespace Il2Cpp_Modding_Codegen.Serialization
 {

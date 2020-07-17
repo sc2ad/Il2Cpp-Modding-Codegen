@@ -1,13 +1,9 @@
 ﻿using Il2Cpp_Modding_Codegen.Config;
-using Il2Cpp_Modding_Codegen.Parsers;
-using Il2Cpp_Modding_Codegen.Serialization;
 using Mono.Cecil;
 using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using System.Reflection;
-using System.Text;
 
 namespace Il2Cpp_Modding_Codegen.Data.DllHandling
 {

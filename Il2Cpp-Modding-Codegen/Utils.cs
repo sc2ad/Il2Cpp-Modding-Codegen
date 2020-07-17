@@ -1,5 +1,4 @@
-﻿using Il2Cpp_Modding_Codegen.Data;
-using Mono.Cecil;
+﻿using Mono.Cecil;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics.Contracts;

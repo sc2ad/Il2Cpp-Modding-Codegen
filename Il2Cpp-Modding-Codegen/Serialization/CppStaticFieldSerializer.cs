@@ -1,9 +1,6 @@
 ﻿using Il2Cpp_Modding_Codegen.Config;
 using Il2Cpp_Modding_Codegen.Data;
-using System;
-using System.CodeDom.Compiler;
 using System.Collections.Generic;
-using System.Text;
 
 namespace Il2Cpp_Modding_Codegen.Serialization
 {

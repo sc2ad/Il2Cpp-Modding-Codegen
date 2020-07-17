@@ -1,5 +1,4 @@
 ﻿using System;
-using System.CodeDom.Compiler;
 
 namespace Il2Cpp_Modding_Codegen.Serialization
 {
