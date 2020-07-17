@@ -26,9 +26,7 @@ namespace Il2Cpp_Modding_Codegen.Data.DllHandling
         {
             _config = config;
             foreach (var i in def.Interfaces)
-            {
                 ImplementingInterfaces.Add(DllTypeRef.From(i.InterfaceType));
-            }
 
             This = DllTypeRef.From(def);
             Type = def.IsEnum ? TypeEnum.Enum : (def.IsInterface ? TypeEnum.Interface : (def.IsValueType ? TypeEnum.Struct : TypeEnum.Class));
@@ -63,42 +61,30 @@ namespace Il2Cpp_Modding_Codegen.Data.DllHandling
         {
             var s = $"// Namespace: {This.Namespace}\n";
             foreach (var attr in Attributes)
-            {
                 s += $"{attr}\n";
-            }
             foreach (var spec in Specifiers)
-            {
                 s += $"{spec} ";
-            }
             s += $"{Type.ToString().ToLower()} {This.Name}";
             if (Parent != null)
-            {
                 s += $" : {Parent}";
-            }
             s += "\n{";
             if (Fields.Count > 0)
             {
                 s += "\n\t// Fields\n\t";
                 foreach (var f in Fields)
-                {
                     s += $"{f}\n\t";
-                }
             }
             if (Properties.Count > 0)
             {
                 s += "\n\t// Properties\n\t";
                 foreach (var p in Properties)
-                {
                     s += $"{p}\n\t";
-                }
             }
             if (Methods.Count > 0)
             {
                 s += "\n\t// Methods\n\t";
                 foreach (var m in Methods)
-                {
                     s += $"{m}\n\t";
-                }
             }
             s = s.TrimEnd('\t');
             s += "}";

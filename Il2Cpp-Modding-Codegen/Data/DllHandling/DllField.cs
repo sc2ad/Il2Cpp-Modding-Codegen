@@ -21,27 +21,19 @@ namespace Il2Cpp_Modding_Codegen.Data.DllHandling
             Name = f.Name;
             Offset = -1;
             if (f.HasCustomAttributes)
-            {
                 foreach (var ca in f.CustomAttributes)
-                {
                     if (ca.AttributeType.Name == "FieldOffsetAttribute")
                     {
                         if (ca.Fields.Count > 0)
                             Offset = Convert.ToInt32(ca.Fields.FirstOrDefault().Argument.Value as string, 16);
                     }
                     else
-                    {
                         // Ignore the DummyDll attributes
                         Attributes.Add(new DllAttribute(ca));
-                    }
-                }
-            }
+
             Specifiers.AddRange(DllSpecifierHelpers.From(f));
         }
 
-        public override string ToString()
-        {
-            return $"{Type} {DeclaringType}.{Name}; // Offset: 0x{Offset:X}";
-        }
+        public override string ToString() => $"{Type} {DeclaringType}.{Name}; // Offset: 0x{Offset:X}";
     }
 }

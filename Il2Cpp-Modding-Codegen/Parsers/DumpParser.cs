@@ -15,19 +15,10 @@ namespace Il2Cpp_Modding_Codegen
             _config = config;
         }
 
-        public IParsedData Parse(string fileName)
-        {
-            return new DumpData(fileName, _config);
-        }
+        public IParsedData Parse(string fileName) => new DumpData(fileName, _config);
 
-        public IParsedData Parse(Stream stream)
-        {
-            return new DumpData(stream, _config);
-        }
+        public IParsedData Parse(Stream stream) => new DumpData(stream, _config);
 
-        public bool ValidFile(string filename)
-        {
-            return Path.GetFileName(filename) == "dump.cs";
-        }
+        public bool ValidFile(string filename) => Path.GetFileName(filename) == "dump.cs";
     }
 }

@@ -39,9 +39,8 @@ namespace Il2Cpp_Modding_Codegen.Data.DumpHandling
             line = fs.ReadLine().Trim();
             var split = line.Split(' ');
             if (split.Length < 5)
-            {
                 throw new InvalidOperationException($"Line {fs.CurrentLineIndex}: Method cannot be created from: \"{line.Trim()}\"");
-            }
+
             int start = split.Length - 1;
             if (split[split.Length - 2] == "Slot:")
             {
@@ -65,12 +64,11 @@ namespace Il2Cpp_Modding_Codegen.Data.DumpHandling
                 start -= 2;
             }
             if (split[start - 1] == "RVA")
-            {
                 if (split[start] == "-1")
                     RVA = -1;
                 else
                     RVA = Convert.ToInt32(split[start], 16);
-            }
+
             // Read parameters
             line = fs.ReadLine().Trim();
             int end = line.LastIndexOf(')');
@@ -115,9 +113,8 @@ namespace Il2Cpp_Modding_Codegen.Data.DumpHandling
             }
             ReturnType = new DumpTypeRef(DumpTypeRef.FromMultiple(methodSplit, nameIdx - 1, out nameIdx, -1, " "));
             for (int i = 0; i < nameIdx - 1; i++)
-            {
                 Specifiers.Add(new DumpSpecifier(methodSplit[i]));
-            }
+
             // TODO: mark this and populate GenericParameters iff the method's actual params reference any types that cannot be resolved?
             Generic = false;
 
@@ -129,14 +126,10 @@ namespace Il2Cpp_Modding_Codegen.Data.DumpHandling
         {
             var s = "";
             foreach (var atr in Attributes)
-            {
                 s += $"{atr}\n\t";
-            }
             s += $"// Offset: 0x{Offset:X}\n\t";
             foreach (var spec in Specifiers)
-            {
                 s += $"{spec} ";
-            }
             s += $"{ReturnType} {Name}({Parameters.FormatParameters()}) ";
             s += "{}";
             return s;

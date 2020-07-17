@@ -77,9 +77,8 @@ namespace Il2Cpp_Modding_Codegen.Data.DumpHandling
                 }
             }
             else
-            {
                 start = split.Length - start;
-            }
+
             // -4 is name
             // -5 is type enum
             // all others are specifiers
@@ -87,41 +86,37 @@ namespace Il2Cpp_Modding_Codegen.Data.DumpHandling
             This = new DumpTypeRef(@namespace, DumpTypeRef.FromMultiple(split, start, out int adjusted, -1, " "));
             Type = (TypeEnum)Enum.Parse(typeof(TypeEnum), split[adjusted - 1], true);
             for (int i = 0; i < adjusted - 1; i++)
-            {
                 if (_config.ParseTypeSpecifiers)
                     Specifiers.Add(new DumpSpecifier(split[i]));
-            }
+
             Info = new TypeInfo
             {
                 TypeFlags = Type == TypeEnum.Class || Type == TypeEnum.Interface ? TypeFlags.ReferenceType : TypeFlags.ValueType
             };
+
             if (Parent is null)
-            {
                 // If the type is a value type, it has no parent.
                 // If the type is a reference type, it has parent Il2CppObject
                 if (Info.TypeFlags == TypeFlags.ReferenceType)
                     Parent = DumpTypeRef.ObjectType;
-            }
         }
 
         private void ParseFields(PeekableStreamReader fs)
         {
             string line = fs.PeekLine().Trim();
             if (line != "{")
-            {
                 // Nothing in the type
                 return;
-            }
             fs.ReadLine();
+
             line = fs.PeekLine().Trim();
             // Fields should be second line, if it isn't there are no fields.
             if (!line.StartsWith("// Fields"))
-            {
                 // No fields, but other things
                 return;
-            }
             // Read past // Fields
             fs.ReadLine();
+
             while (!string.IsNullOrEmpty(line) && line != "}" && !line.StartsWith("// Properties") && !line.StartsWith("// Methods"))
             {
                 if (_config.ParseTypeFields)
@@ -142,12 +137,11 @@ namespace Il2Cpp_Modding_Codegen.Data.DumpHandling
                 line = fs.PeekLine().Trim();
             }
             if (!line.StartsWith("// Properties"))
-            {
                 // No properties
                 return;
-            }
             // Read past // Properties
             fs.ReadLine();
+
             while (line != "" && line != "}" && !line.StartsWith("// Methods"))
             {
                 if (_config.ParseTypeProperties)
@@ -168,12 +162,11 @@ namespace Il2Cpp_Modding_Codegen.Data.DumpHandling
                 line = fs.PeekLine().Trim();
             }
             if (!line.StartsWith("// Methods"))
-            {
                 // No methods
                 return;
-            }
             // Read past // Methods
             fs.ReadLine();
+
             while (line != "" && line != "}")
             {
                 if (_config.ParseTypeMethods)
@@ -208,51 +201,37 @@ namespace Il2Cpp_Modding_Codegen.Data.DumpHandling
             ParseMethods(fs);
             // Read closing brace, if it needs to be read
             if (fs.PeekLine() == "}")
-            {
                 fs.ReadLine();
-            }
         }
 
         public override string ToString()
         {
             var s = $"// Namespace: {This.Namespace}\n";
             foreach (var attr in Attributes)
-            {
                 s += $"{attr}\n";
-            }
             foreach (var spec in Specifiers)
-            {
                 s += $"{spec} ";
-            }
             s += $"{Type.ToString().ToLower()} {This.Name}";
             if (Parent != null)
-            {
                 s += $" : {Parent}";
-            }
             s += "\n{";
             if (Fields.Count > 0)
             {
                 s += "\n\t// Fields\n\t";
                 foreach (var f in Fields)
-                {
                     s += $"{f}\n\t";
-                }
             }
             if (Properties.Count > 0)
             {
                 s += "\n\t// Properties\n\t";
                 foreach (var p in Properties)
-                {
                     s += $"{p}\n\t";
-                }
             }
             if (Methods.Count > 0)
             {
                 s += "\n\t// Methods\n\t";
                 foreach (var m in Methods)
-                {
                     s += $"{m}\n\t";
-                }
             }
             s = s.TrimEnd('\t');
             s += "}";

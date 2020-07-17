@@ -60,7 +60,6 @@ namespace Il2Cpp_Modding_Codegen.Serialization
             // For each type, we create their contexts, preserialize them.
             // Then we iterate over all the types again, creating header and source creators for each, using our context serializers.
             // We then serialize the header and source creators, actually creating the data.
-
             _contextSerializer = new CppContextSerializer(_config, data);
 
             foreach (var t in data.Types)
@@ -87,9 +86,8 @@ namespace Il2Cpp_Modding_Codegen.Serialization
             }
             // Perform any post context creation for all pairs in _map
             foreach (var pair in _map)
-            {
                 ContextsComplete?.Invoke(this, pair.Key, pair.Value);
-            }
+
             // Resolve all definitions and declarations for each context in _map
             foreach (var context in _map.Values)
             {
@@ -119,9 +117,7 @@ namespace Il2Cpp_Modding_Codegen.Serialization
 
                 if (_config.PrintSerializationProgress)
                     if (i % _config.PrintSerializationProgressFrequency == 0)
-                    {
                         Console.WriteLine($"{i} / {count}");
-                    }
 
                 // Ensure that we are going to write everything in this context:
                 // Global context should have everything now, all names are also resolved!

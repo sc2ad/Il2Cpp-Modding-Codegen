@@ -22,9 +22,6 @@ APP_SHORT_COMMANDS := true";
             _stream.WriteLine(ApplicationMk);
         }
 
-        public void Close()
-        {
-            _stream.Close();
-        }
+        public void Close() => _stream.Close();
     }
 }

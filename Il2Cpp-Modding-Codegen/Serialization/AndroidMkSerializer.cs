@@ -160,9 +160,7 @@ rwildcard=$(wildcard $1$2) $(foreach d,$(wildcard $1*),$(call rwildcard,$d/,$2))
             }
             // Upon reaching the end, we should have a list of static libraries that have been created wrapping the provided static libraries.
             if (outterLibsLength >= _config.SharedLibraryCharacterLimit)
-            {
                 AggregateStaticLibraries(outterLibs, depth + 1);
-            }
             else
             {
                 // Otherwise, simply write out the outterLibs directly, and be done!
@@ -182,9 +180,6 @@ rwildcard=$(wildcard $1$2) $(foreach d,$(wildcard $1*),$(call rwildcard,$d/,$2))
             // If we find that this is too long, recurse until we are small enough
         }
 
-        public void Close()
-        {
-            _stream.Close();
-        }
+        public void Close() => _stream.Close();
     }
 }

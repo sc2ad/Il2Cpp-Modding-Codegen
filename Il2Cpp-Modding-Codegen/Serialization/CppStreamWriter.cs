@@ -8,41 +8,25 @@ namespace Il2Cpp_Modding_Codegen.Serialization
     /// </summary>
     public class CppStreamWriter : IndentedTextWriter
     {
-        public CppStreamWriter(TextWriter writer) : base(writer)
-        {
-        }
+        public CppStreamWriter(TextWriter writer) : base(writer) { }
 
-        public CppStreamWriter(TextWriter writer, string tabString) : base(writer, tabString)
-        {
-        }
+        public CppStreamWriter(TextWriter writer, string tabString) : base(writer, tabString) { }
 
         /// <summary>
         /// Write a single line comment
         /// </summary>
         /// <param name="commentString"></param>
-        public void WriteComment(string commentString)
-        {
-            WriteLine("// " + commentString);
-        }
+        public void WriteComment(string commentString) => WriteLine("// " + commentString);
 
-        public void WriteInclude(string include)
-        {
-            WriteLine("#include \"" + include + "\"");
-        }
+        public void WriteInclude(string include) => WriteLine("#include \"" + include + "\"");
 
         /// <summary>
-        /// Write a single syntax ; terminated line (or a declaration)
+        /// Write a single ;-terminated line (or a declaration)
         /// </summary>
         /// <param name="declString"></param>
-        public void WriteDeclaration(string declString)
-        {
-            WriteLine(declString + ";");
-        }
+        public void WriteDeclaration(string declString) => WriteLine(declString + ";");
 
-        public void WriteFieldDeclaration(string fieldType, string fieldName)
-        {
-            WriteLine(fieldType + ' ' + fieldName + ';');
-        }
+        public void WriteFieldDeclaration(string fieldType, string fieldName) => WriteDeclaration(fieldType + ' ' + fieldName);
 
         /// <summary>
         /// Write a single syntax ; terminated line with a comment on the same line (or a declaration)

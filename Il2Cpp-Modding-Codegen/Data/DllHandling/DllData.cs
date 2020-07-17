@@ -33,18 +33,12 @@ namespace Il2Cpp_Modding_Codegen.Data.DllHandling
 
             var modules = new List<ModuleDefinition>();
             foreach (var file in Directory.GetFiles(dir))
-            {
-                if (!file.EndsWith(".dll"))
-                    continue;
-                if (!_config.BlacklistDlls.Contains(file))
+                if (file.EndsWith(".dll") && !_config.BlacklistDlls.Contains(file))
                 {
                     var assemb = AssemblyDefinition.ReadAssembly(file, _readerParams);
                     foreach (var module in assemb.Modules)
-                    {
                         modules.Add(module);
-                    }
                 }
-            }
 
             Queue<TypeDefinition> frontier = new Queue<TypeDefinition>();
             modules.ForEach(m => m.Types.ToList().ForEach(t =>
@@ -82,10 +76,7 @@ namespace Il2Cpp_Modding_Codegen.Data.DllHandling
             // Ignore images for now.
         }
 
-        public override string ToString()
-        {
-            return $"Types: {Types.Count()}";
-        }
+        public override string ToString() => $"Types: {Types.Count()}";
 
         public ITypeData Resolve(TypeRef typeRef)
         {
@@ -113,13 +104,6 @@ namespace Il2Cpp_Modding_Codegen.Data.DllHandling
                 if (def != null)
                 {
                     ret = new DllTypeData(def, _config);
-                    //if (!ret.This.Equals(typeRef))
-                    //{
-                    //    // Resolve should never be called on pointers or arrays!
-                    //    Console.Error.WriteLine($"{typeRef} resolves to a different type ({ret.This})!");
-                    //    TypeRef.PrintEqual(typeRef, ret.This);
-                    //}
-
                     if (!_types.ContainsKey(ret.This))
                         Console.Error.WriteLine($"Too late to add {def} to Types!");
                     else

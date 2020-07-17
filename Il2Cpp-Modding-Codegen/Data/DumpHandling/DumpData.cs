@@ -10,7 +10,7 @@ namespace Il2Cpp_Modding_Codegen.Data.DumpHandling
     {
         public string Name => "Dump Data";
         public List<IImage> Images { get; } = new List<IImage>();
-        public IEnumerable<ITypeData> Types { get { return _types; } }
+        public IEnumerable<ITypeData> Types { get => _types; }
         private DumpConfig _config;
         private List<ITypeData> _types = new List<ITypeData>();
 
@@ -79,14 +79,10 @@ namespace Il2Cpp_Modding_Codegen.Data.DumpHandling
         {
             var s = "";
             for (int i = 0; i < Images.Count; i++)
-            {
                 s += $"// Image {i}: {Images[i]}\n";
-            }
             s += "\n";
             foreach (var t in Types)
-            {
                 s += $"{t}\n";
-            }
             return s;
         }
 

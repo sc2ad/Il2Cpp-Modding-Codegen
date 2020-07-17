@@ -112,13 +112,11 @@ namespace Il2Cpp_Modding_Codegen.Data.DllHandling
             VA = -1;
             Slot = -1;
             if (m.HasCustomAttributes)
-            {
                 foreach (var ca in m.CustomAttributes)
                 {
                     if (ca.AttributeType.Name == "AddressAttribute")
                     {
                         if (ca.Fields.Count >= 3)
-                        {
                             for (int i = 0; i < ca.Fields.Count; i++)
                             {
                                 var f = ca.Fields[i];
@@ -132,20 +130,13 @@ namespace Il2Cpp_Modding_Codegen.Data.DllHandling
                                 else if (f.Name == "Slot")
                                     Slot = Convert.ToInt32(f.Argument.Value as string);
                             }
-                        }
                     }
                     else
-                    {
                         // Ignore the DummyDll attributes
                         Attributes.Add(new DllAttribute(ca));
-                    }
                 }
-            }
         }
 
-        public override string ToString()
-        {
-            return $"{ReturnType} {Name}({Parameters.FormatParameters()})";
-        }
+        public override string ToString() => $"{ReturnType} {Name}({Parameters.FormatParameters()})";
     }
 }

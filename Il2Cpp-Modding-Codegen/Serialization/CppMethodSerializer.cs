@@ -200,22 +200,26 @@ namespace Il2Cpp_Modding_Codegen.Serialization
                 if (!flags.HasFlag(OpFlags.NonConstOthers))
                     for (int i = 1; i < numParams; i++)
                         PrefixConstUnlessPointer(_parameterMaps[method][i].container);
-                if (!flags.HasFlag(OpFlags.Constructor))
-                {
-                    for (int i = numParams - 1; i >= 0; i--)
-                        if (_parameterMaps[method][i].container.IsClassType && _parameterMaps[method][i].container.UnPointer())
-                            break;
-                }
 
-                // TODO: pointers don't technically need & added either
-                _parameterMaps[method].ForEach(param => param.container.Suffix("&"));
+                if (!flags.HasFlag(OpFlags.Constructor))
+                    // fix for "overloaded '[operator]' must have at least one parameter of class or enumeration type" (pointers don't count)
+                    for (int i = numParams - 1; i >= 0; i--)
+                    {
+                        var container = _parameterMaps[method][i].container;
+                        if (container.IsClassType && container.UnPointer())
+                            break;
+                    }
+
+                void SuffixRefUnlessPointer(MethodTypeContainer container)
+                {
+                    if (!container.IsPointer) container.Suffix("&");
+                }
+                _parameterMaps[method].ForEach(param => SuffixRefUnlessPointer(param.container));
                 if (flags.HasFlag(OpFlags.RefReturn))
-                    _resolvedReturns[method].Suffix("&");
+                    SuffixRefUnlessPointer(_resolvedReturns[method]);
 
                 if (!flags.HasFlag(OpFlags.InClassOnly))
-                {
                     Scope[method] = MethodScope.Namespace;  // namespace define operators as much as possible
-                }
                 else if (!flags.HasFlag(OpFlags.Constructor))
                 {
                     _parameterMaps[method][0].container.Skip = true;
@@ -339,10 +343,6 @@ namespace Il2Cpp_Modding_Codegen.Serialization
 
         public override void PreSerialize(CppTypeContext context, IMethod method)
         {
-            //if (method.Generic)
-            //    // Skip generic methods
-            //    return;
-
             // Get the fully qualified name of the context
             bool success = true;
             // TODO: wrap all .cpp methods in a `namespace [X] {` ?
@@ -404,34 +404,24 @@ namespace Il2Cpp_Modding_Codegen.Serialization
             var preRetStr = "";
             var overrideStr = "";
             var impl = "";
-            var namespaceQualified = !isHeader;
-            if (namespaceQualified)
-            {
-                ns = (scope == MethodScope.Namespace ? _declaringNamespace : _declaringFullyQualified) + "::";
-            }
-            else
-            {
-                if (scope == MethodScope.Static)
-                    preRetStr += "static ";
 
-                // TODO: apply override correctly? It basically requires making all methods virtual
-                // and if you miss any override the compiler gives you warnings
-                //if (IsOverride(method))
-                //    overrideStr += " override";
-            }
-            // Returns an optional
-            // TODO: Should be configurable
+            bool namespaceQualified = !isHeader;
+            if (namespaceQualified)
+                ns = (scope == MethodScope.Namespace ? _declaringNamespace : _declaringFullyQualified) + "::";
+            else if (scope == MethodScope.Static)
+                preRetStr += "static ";
+
+            // stringify the return type
             var retStr = _resolvedReturns[method].TypeName(isHeader);
-            if (!method.ReturnType.IsVoid())
-            {
-                if (_config.OutputStyle == OutputStyle.Normal)
-                    retStr = "std::optional<" + retStr + ">";
-            }
+            if (!method.ReturnType.IsVoid() && _config.OutputStyle == OutputStyle.Normal)
+                retStr = "std::optional<" + retStr + ">";
+
             if (!_nameMap.TryGetValue(method, out var namePair))
                 throw new InvalidOperationException($"Could not find method: {method} in _nameMap! Ensure it is PreSerialized first!");
             var nameStr = namePair.Item1;
 
-            string paramString = method.Parameters.FormatParameters(_config.IllegalNames, _parameterMaps[method], FormatParameterMode.Names | FormatParameterMode.Types, header: isHeader);
+            string paramString = method.Parameters.FormatParameters(_config.IllegalNames, _parameterMaps[method],
+                FormatParameterMode.Names | FormatParameterMode.Types, header: isHeader);
 
             // Handles i.e. ".ctor"
             if (IsCtor(method))
@@ -461,15 +451,11 @@ namespace Il2Cpp_Modding_Codegen.Serialization
             }
 
             var ret = $"{preRetStr}{retStr} {ns}{signature}{overrideStr}{impl}";
-            //if (isHeader && scope == MethodScope.Namespace)
-            //    Console.WriteLine(ret);
+            //if (isHeader && scope == MethodScope.Namespace) Console.WriteLine(ret);
             return ret;
         }
 
-        private bool IsCtor(IMethod method)
-        {
-            return method.Name == "_ctor" || method.Name == ".ctor";
-        }
+        private bool IsCtor(IMethod method) => method.Name == "_ctor" || method.Name == ".ctor";
 
         private bool TemplateString(IMethod method, bool withTemps, out string templateString)
         {
@@ -521,12 +507,11 @@ namespace Il2Cpp_Modding_Codegen.Serialization
             {
                 var methodComment = "";
                 foreach (var spec in method.Specifiers)
-                {
                     methodComment += $"{spec} ";
-                }
                 // Method comment should also use the Il2CppName whenever possible
                 methodComment += $"{method.ReturnType} {method.Il2CppName}({method.Parameters.FormatParameters(csharp: true)})";
                 writer.WriteComment(methodComment);
+
                 writer.WriteComment($"Offset: 0x{method.Offset:X}");
                 if (method.ImplementedFrom != null)
                     writer.WriteComment("Implemented from: " + method.ImplementedFrom);
@@ -541,10 +526,9 @@ namespace Il2Cpp_Modding_Codegen.Serialization
                 }
             }
             else
-            {
                 // Comment for autogenerated method should use Il2CppName whenever possible
                 writer.WriteComment("Autogenerated method: " + method.DeclaringType + "." + method.Il2CppName);
-            }
+
             if (writeContent)
             {
                 // Write the qualified name if not in the header
@@ -602,14 +586,11 @@ namespace Il2Cpp_Modding_Codegen.Serialization
                     // TODO: Replace with RET_NULLOPT_UNLESS or another equivalent (perhaps literally just the ret)
                     s += $"{macro}il2cpp_utils::RunMethod{innard}(";
                     if (scope == MethodScope.Class)
-                    {
                         s += (_declaringIsValueType ? "*" : "") + "this, ";
-                    }
                     else
-                    {
                         // TODO: Check to ensure this works with non-generic methods in a generic type
                         s += $"{classArgs}, ";
-                    }
+
                     var paramString = method.Parameters.FormatParameters(_config.IllegalNames, _parameterMaps[method], FormatParameterMode.Names);
                     if (!string.IsNullOrEmpty(paramString))
                         paramString = ", " + paramString;

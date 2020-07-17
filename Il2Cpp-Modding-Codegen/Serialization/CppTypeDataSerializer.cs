@@ -49,14 +49,12 @@ namespace Il2Cpp_Modding_Codegen.Serialization
             }
 
             if (type.Parent != null)
-            {
                 // System::ValueType should be the 1 type where we want to extend System::Object without the Il2CppObject fields
                 if (type.This.Namespace == "System" && type.This.Name == "ValueType")
                     s.parentNames.Add("System::Object");
                 else
                     // TODO: just use type.Parent's QualifiedTypeName instead?
                     s.parentNames.Add(_config.SafeName(context.GetCppName(type.Parent, true, true, CppTypeContext.NeedAs.Definition, CppTypeContext.ForceAsType.Literal)));
-            }
 
             if (type.This.DeclaringType != null && type.This.DeclaringType.IsGeneric)
             {
@@ -68,20 +66,18 @@ namespace Il2Cpp_Modding_Codegen.Serialization
                 s.parentNames.Add(_config.SafeName(context.GetCppName(@interface, true, true, CppTypeContext.NeedAs.Definition, CppTypeContext.ForceAsType.Literal)));
             map.Add(type.This, s);
 
+            // TODO: if we upgrade to C# 8.0, change these to e.x. `fieldSerializer ??= new CppFieldSerializer(_config)`
             if (fieldSerializer is null)
                 fieldSerializer = new CppFieldSerializer(_config);
 
             if (type.Type != TypeEnum.Interface)
-            {
                 // do the non-static fields first
                 foreach (var f in type.Fields)
                     if (!f.Specifiers.IsStatic())
                         fieldSerializer.PreSerialize(context, f);
-            }
 
             // then, the static fields
             foreach (var f in type.Fields)
-            {
                 // If the field is a static field, we want to create two methods, (get and set for the static field)
                 // and make a call to GetFieldValue and SetFieldValue for those methods
                 if (f.Specifiers.IsStatic())
@@ -90,7 +86,6 @@ namespace Il2Cpp_Modding_Codegen.Serialization
                         staticFieldSerializer = new CppStaticFieldSerializer(_config);
                     staticFieldSerializer.PreSerialize(context, f);
                 }
-            }
 
             // then the methods
             if (methodSerializer is null)
@@ -109,14 +104,13 @@ namespace Il2Cpp_Modding_Codegen.Serialization
                     // If it was a field at all, we throw (this is unsolvable)
                     throw new InvalidOperationException($"Cannot fix duplicate definition for offending type: {offendingType}, it is used as field: {f} in: {self.LocalType.This}");
             foreach (var m in self.LocalType.Methods)
-            {
                 // If it was simply a method, we iterate over all methods and attempt to template them
                 // However, if we cannot fix it, this function will return false, informing us that we have failed.
                 if (!methodSerializer.FixBadDefinition(offendingType, m, out var found))
                     throw new InvalidOperationException($"Cannot fix duplicate definition for offending type: {offendingType}, it is used in an unfixable method: {m}");
                 else
                     total += found;
-            }
+
             if (total <= 0)
                 throw new InvalidOperationException($"Failed to find any occurrences of offendingType {offendingType} in {self.LocalType.This}!");
             Console.WriteLine($"CppTypeDataSerializer has successfully replaced {total} occurrences of {offendingType} in {self.LocalType.This}!");
@@ -179,7 +173,6 @@ namespace Il2Cpp_Modding_Codegen.Serialization
         public void WriteFields(CppStreamWriter writer, ITypeData type, bool asHeader)
         {
             foreach (var f in type.Fields)
-            {
                 try
                 {
                     if (f.Specifiers.IsStatic())
@@ -200,7 +193,6 @@ namespace Il2Cpp_Modding_Codegen.Serialization
                     else if (_config.UnresolvedTypeExceptionHandling.FieldHandling == UnresolvedTypeExceptionHandling.Elevate)
                         throw;
                 }
-            }
         }
 
         public void WriteSpecialCtors(CppStreamWriter writer, ITypeData type, bool isNested)
@@ -217,15 +209,14 @@ namespace Il2Cpp_Modding_Codegen.Serialization
             fieldSerializer?.WriteCtor(writer, type, typeName, true);
         }
 
-        public void WriteMethods(CppStreamWriter writer, ITypeData type, bool asHeader)
+        // Iff namespaced, writes only the namespace-scoped methods. Otherwise, writes only the non-namespace-scoped methods.
+        public void WriteMethods(CppStreamWriter writer, ITypeData type, bool asHeader, bool namespaced = false)
         {
-            // Finally, we write the methods
             foreach (var m in type.Methods)
-            {
-                if (methodSerializer.Scope[m] == CppMethodSerializer.MethodScope.Namespace) continue;
                 try
                 {
-                    methodSerializer?.Serialize(writer, m, asHeader);
+                    if (namespaced == (methodSerializer.Scope[m] == CppMethodSerializer.MethodScope.Namespace))
+                        methodSerializer?.Serialize(writer, m, asHeader);
                 }
                 catch (UnresolvedTypeException e)
                 {
@@ -239,37 +230,8 @@ namespace Il2Cpp_Modding_Codegen.Serialization
                     else if (_config.UnresolvedTypeExceptionHandling.MethodHandling == UnresolvedTypeExceptionHandling.Elevate)
                         throw;
                 }
-            }
         }
 
-        public void WriteNamespacedMethods(CppStreamWriter writer, ITypeData type, bool asHeader)
-        {
-            // Finally, we write the methods
-            foreach (var m in type.Methods)
-            {
-                if (methodSerializer.Scope[m] != CppMethodSerializer.MethodScope.Namespace) continue;
-                try
-                {
-                    methodSerializer?.Serialize(writer, m, asHeader);
-                }
-                catch (UnresolvedTypeException e)
-                {
-                    if (_config.UnresolvedTypeExceptionHandling.MethodHandling == UnresolvedTypeExceptionHandling.DisplayInFile)
-                    {
-                        writer.WriteLine("/*");
-                        writer.WriteLine(e);
-                        writer.WriteLine("*/");
-                        writer.Flush();
-                    }
-                    else if (_config.UnresolvedTypeExceptionHandling.MethodHandling == UnresolvedTypeExceptionHandling.Elevate)
-                        throw;
-                }
-            }
-        }
-
-        public void CloseDefinition(CppStreamWriter writer, ITypeData type)
-        {
-            writer.CloseDefinition($"; // {type.This}");
-        }
+        public void CloseDefinition(CppStreamWriter writer, ITypeData type) => writer.CloseDefinition($"; // {type.This}");
     }
 }

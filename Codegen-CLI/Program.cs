@@ -24,17 +24,13 @@ namespace Codegen_CLI
             IParser parser;
             if (Directory.Exists(path))
             {
-                var parseConfig = new DllConfig()
-                {
-                };
+                var parseConfig = new DllConfig() { };
                 parser = new DllParser(parseConfig);
                 parseDlls = true;
             }
             else
             {
-                var parseConfig = new DumpConfig()
-                {
-                };
+                var parseConfig = new DumpConfig() { };
                 parser = new DumpParser(parseConfig);
             }
 
@@ -57,9 +53,7 @@ namespace Codegen_CLI
             var input = Console.ReadLine();
             // TODO: strip non-alphabetic characters out of input before parsing it
             if (Enum.TryParse(input, true, out OutputStyle style))
-            {
                 Console.WriteLine($"Parsed style '{style}'");
-            }
 
             var libIl2cpp = "C:/Program Files/Unity/Editor/Data/il2cpp/libil2cpp";
             if (!Directory.Exists(libIl2cpp))
@@ -84,8 +78,7 @@ namespace Codegen_CLI
                     "template", "this", "thread_local", "throw", "true", "try", "typedef", "typeid", "typename", "union",
                     "unsigned", "using", "virtual", "void", "volatile", "wchar_t", "while", "xor", "xor_eq"
                 },
-                IllegalMethodNames = new HashSet<string>
-                {
+                IllegalMethodNames = new HashSet<string> {
                     "bzero", "Assert"
                 },
                 OutputDirectory = Path.Combine(Environment.CurrentDirectory, "output"),
@@ -125,6 +118,7 @@ namespace Codegen_CLI
             {
                 Console.WriteLine(e);
             }
+
             Console.WriteLine("Serializing...");
             try
             {

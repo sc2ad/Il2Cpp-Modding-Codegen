@@ -31,13 +31,9 @@ namespace Il2Cpp_Modding_Codegen.Data.DllHandling
             var s = $"{Type} {Name}";
             s += " { ";
             if (GetMethod)
-            {
                 s += "get; ";
-            }
             if (SetMethod)
-            {
                 s += "set; ";
-            }
             s += "}";
             return s;
         }

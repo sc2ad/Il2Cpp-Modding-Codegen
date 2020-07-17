@@ -16,21 +16,25 @@ namespace Il2Cpp_Modding_Codegen.Data.DllHandling
         {
             var list = new List<DumpSpecifier>();
             if (def.IsSealed)
-            {
                 // https://groups.google.com/forum/#!topic/mono-cecil/MtRTwHjPNu4
-                if (def.IsAbstract) list.Add(new DumpSpecifier("static"));
-                else list.Add(new DumpSpecifier("sealed"));
-            }
+                if (def.IsAbstract)
+                    list.Add(new DumpSpecifier("static"));
+                else
+                    list.Add(new DumpSpecifier("sealed"));
 
             // http://www.programmersought.com/article/6494173120/
-            if (def.IsPublic || def.IsNestedPublic) list.Add(new DumpSpecifier("public"));
-            else if (!def.IsNested) list.Add(new DumpSpecifier("internal"));
+            if (def.IsPublic || def.IsNestedPublic)
+                list.Add(new DumpSpecifier("public"));
+            else if (!def.IsNested)
+                list.Add(new DumpSpecifier("internal"));
             else if (def.IsNestedFamily || def.IsNestedFamilyOrAssembly)
             {
                 list.Add(new DumpSpecifier("protected"));
-                if (def.IsNestedFamilyOrAssembly) list.Add(new DumpSpecifier("internal"));
+                if (def.IsNestedFamilyOrAssembly)
+                    list.Add(new DumpSpecifier("internal"));
             }
-            else if (def.IsNestedPrivate) list.Add(new DumpSpecifier("private"));
+            else if (def.IsNestedPrivate)
+                list.Add(new DumpSpecifier("private"));
 
             // TODO: readonly struct?
             return list;
@@ -39,35 +43,46 @@ namespace Il2Cpp_Modding_Codegen.Data.DllHandling
         public static IEnumerable<ISpecifier> From(FieldDefinition def)
         {
             var list = new List<DumpSpecifier>();
-            if (def.IsStatic) list.Add(new DumpSpecifier("static"));
-            if (def.IsPublic) list.Add(new DumpSpecifier("public"));
+            if (def.IsStatic)
+                list.Add(new DumpSpecifier("static"));
+            if (def.IsPublic)
+                list.Add(new DumpSpecifier("public"));
             else if (def.IsFamily || def.IsFamilyOrAssembly)
             {
                 list.Add(new DumpSpecifier("protected"));
-                if (def.IsFamilyOrAssembly) list.Add(new DumpSpecifier("internal"));
+                if (def.IsFamilyOrAssembly)
+                    list.Add(new DumpSpecifier("internal"));
             }
-            else if (def.IsPrivate) list.Add(new DumpSpecifier("private"));
+            else if (def.IsPrivate)
+                list.Add(new DumpSpecifier("private"));
 
             if (def.IsInitOnly)
                 // https://stackoverflow.com/questions/56179043/how-to-get-initial-value-of-field-by-mono-cecil ?
-                if (def.HasConstant) list.Add(new DumpSpecifier("const"));
-                else list.Add(new DumpSpecifier("readonly"));
+                if (def.HasConstant)
+                    list.Add(new DumpSpecifier("const"));
+                else
+                    list.Add(new DumpSpecifier("readonly"));
             return list;
         }
 
         public static IEnumerable<ISpecifier> From(MethodDefinition def)
         {
             var list = new List<DumpSpecifier>();
-            if (def.IsStatic) list.Add(new DumpSpecifier("static"));
-            if (def.IsPublic) list.Add(new DumpSpecifier("public"));
+            if (def.IsStatic)
+                list.Add(new DumpSpecifier("static"));
+            if (def.IsPublic)
+                list.Add(new DumpSpecifier("public"));
             else if (def.IsFamily || def.IsFamilyOrAssembly)
             {
                 list.Add(new DumpSpecifier("protected"));
-                if (def.IsFamilyOrAssembly) list.Add(new DumpSpecifier("internal"));
+                if (def.IsFamilyOrAssembly)
+                    list.Add(new DumpSpecifier("internal"));
             }
-            else if (def.IsPrivate) list.Add(new DumpSpecifier("private"));
+            else if (def.IsPrivate)
+                list.Add(new DumpSpecifier("private"));
 
-            if (def.GetBaseMethod() != def) list.Add(new DumpSpecifier("override"));
+            if (def.GetBaseMethod() != def)
+                list.Add(new DumpSpecifier("override"));
             return list;
         }
 

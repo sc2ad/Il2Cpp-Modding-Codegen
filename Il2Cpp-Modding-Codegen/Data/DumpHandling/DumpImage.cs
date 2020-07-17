@@ -13,16 +13,12 @@ namespace Il2Cpp_Modding_Codegen.Data.DumpHandling
             var line = fs.ReadLine();
             var split = line.Split(' ');
             if (split.Length < 6)
-            {
                 throw new InvalidOperationException($"Could not create Image out of: \"{line.Trim()}\"");
-            }
+
             Start = int.Parse(split[split.Length - 1]);
             Name = split[split.Length - 3];
         }
 
-        public override string ToString()
-        {
-            return $"{Name} - {Start}";
-        }
+        public override string ToString() => $"{Name} - {Start}";
     }
 }

@@ -38,6 +38,7 @@ namespace Il2Cpp_Modding_Codegen.Serialization
                 Resolved(field);
             // In order to ensure we get an UnresolvedTypeException when we serialize
             _resolvedTypeNames.Add(field, resolvedType);
+
             string SafeFieldName()
             {
                 var name = field.Name;
@@ -48,17 +49,6 @@ namespace Il2Cpp_Modding_Codegen.Serialization
                 return _config.SafeName(name);
             }
             _safeFieldNames.Add(field, SafeFieldName());
-        }
-
-        private string PrimitiveDefault(string typeName)
-        {
-            if (typeName.EndsWith("*"))
-                return "nullptr";
-            if (typeName == "bool")
-                return "false";
-            if (typeName == "Il2CppChar")
-                return "{}";
-            return "0";
         }
 
         public void WriteCtor(CppStreamWriter writer, ITypeData type, string name, bool asHeader)
@@ -97,10 +87,9 @@ namespace Il2Cpp_Modding_Codegen.Serialization
 
             var fieldString = "";
             foreach (var spec in field.Specifiers)
-            {
                 fieldString += $"{spec} ";
-            }
             writer.WriteComment(fieldString + field.Type + " " + field.Name);
+
             writer.WriteComment($"Offset: 0x{field.Offset:X}");
             if (!field.Specifiers.IsStatic() && !field.Specifiers.IsConst())
                 writer.WriteFieldDeclaration(_resolvedTypeNames[field], _safeFieldNames[field]);

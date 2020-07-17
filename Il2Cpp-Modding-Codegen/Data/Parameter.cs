@@ -8,7 +8,6 @@ namespace Il2Cpp_Modding_Codegen.Data
     public class Parameter
     {
         public TypeRef Type { get; }
-
         public string Name { get; } = null;
         public ParameterFlags Flags { get; } = ParameterFlags.None;
 
@@ -17,17 +16,11 @@ namespace Il2Cpp_Modding_Codegen.Data
             var spl = innard.Split(' ');
             int typeIndex = 1;
             if (spl[0] == "ref")
-            {
                 Flags = ParameterFlags.Ref;
-            }
             else if (spl[0] == "out")
-            {
                 Flags = ParameterFlags.Out;
-            }
             else if (spl[0] == "in")
-            {
                 Flags = ParameterFlags.In;
-            }
             else
             {
                 Flags = ParameterFlags.None;
@@ -36,9 +29,7 @@ namespace Il2Cpp_Modding_Codegen.Data
 
             Type = new DumpTypeRef(DumpTypeRef.FromMultiple(spl, typeIndex, out int res, 1, " "));
             if (res + 1 < spl.Length)
-            {
                 Name = spl[res + 1];
-            }
         }
 
         public Parameter(ParameterDefinition def)
@@ -54,14 +45,10 @@ namespace Il2Cpp_Modding_Codegen.Data
         {
             string s = "";
             if (Flags != ParameterFlags.None)
-            {
                 s = $"{Flags.ToString().ToLower()} ";
-            }
             s += $"{Type}";
             if (Name != null)
-            {
                 s += $" {Name}";
-            }
             return s;
         }
     }
@@ -120,32 +107,22 @@ namespace Il2Cpp_Modding_Codegen.Data
                 {
                     // Only types
                     if (resolvedNames != null)
-                    {
                         s += $"{resolvedNames[i].PrintParameter(header, csharp)}";
-                    }
                     else
-                    {
                         // Includes ref modifier
                         s += $"{parameters[i]}";
-                    }
                 }
                 else
                 {
                     // Types and names
                     if (resolvedNames != null)
-                    {
                         s += $"{resolvedNames[i].PrintParameter(header, csharp)} {nameStr}";
-                    }
                     else
-                    {
                         // Does not include ref modifier
                         s += $"{parameters[i].Type} {nameStr}";
-                    }
                 }
                 if (i != parameters.Count - 1)
-                {
                     s += ", ";
-                }
             }
             return s;
         }

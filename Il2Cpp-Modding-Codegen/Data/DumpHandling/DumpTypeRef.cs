@@ -7,18 +7,18 @@ namespace Il2Cpp_Modding_Codegen.Data.DumpHandling
     public class DumpTypeRef : TypeRef
     {
         public static readonly DumpTypeRef ObjectType = new DumpTypeRef("object");
+
         public override string Namespace { get; } = string.Empty;
         public override string Name { get; }
+
         public override bool IsGenericParameter => throw new NotImplementedException();
+        public override bool IsCovariant { get => throw new NotImplementedException(); set => throw new NotImplementedException(); }
         public override bool IsGenericInstance { get; }
         public override bool IsGenericTemplate { get; }
-
         public override IReadOnlyList<TypeRef> Generics { get; }
 
         public override TypeRef DeclaringType { get; }
         public override TypeRef ElementType { get; }
-
-        public override bool IsCovariant { get => throw new NotImplementedException(); set => throw new NotImplementedException(); }
 
         public override bool IsPointer()
         {
@@ -27,16 +27,7 @@ namespace Il2Cpp_Modding_Codegen.Data.DumpHandling
             return base.IsPointer();
         }
 
-        public override bool IsArray()
-        {
-            return Name.EndsWith("[]");
-        }
-
-        public override bool IsPrimitive()
-        {
-            // TODO
-            return Name.Equals("void", StringComparison.OrdinalIgnoreCase);
-        }
+        public override bool IsArray() => Name.EndsWith("[]");
 
         private DumpTypeRef(DumpTypeRef other, string nameOverride = null)
         {
@@ -133,8 +124,6 @@ namespace Il2Cpp_Modding_Codegen.Data.DumpHandling
             }
         }
 
-        public DumpTypeRef(string qualifiedName) : this("", qualifiedName)
-        {
-        }
+        public DumpTypeRef(string qualifiedName) : this("", qualifiedName) { }
     }
 }

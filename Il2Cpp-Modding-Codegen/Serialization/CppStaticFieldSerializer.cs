@@ -22,18 +22,13 @@ namespace Il2Cpp_Modding_Codegen.Serialization
             _declaringFullyQualified = context.QualifiedTypeName.TrimStart(':');
             _thisTypeName = context.GetCppName(field.DeclaringType, false, needAs: CppTypeContext.NeedAs.Definition);
             var resolved = context.GetCppName(field.Type, true);
-            if (!(resolved is null))
-            {
+            if (resolved != null)
                 // Add static field to forward declares, since it is used by the static _get and _set methods
                 Resolved(field);
-            }
             _resolvedTypes.Add(field, resolved);
         }
 
-        private string SafeName(IField field)
-        {
-            return field.Name.Replace('<', '$').Replace('>', '$');
-        }
+        private string SafeName(IField field) => field.Name.Replace('<', '$').Replace('>', '$');
 
         private string GetGetter(string fieldType, IField field, bool namespaceQualified)
         {

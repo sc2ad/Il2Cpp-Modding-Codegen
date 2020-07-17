@@ -16,19 +16,10 @@ namespace Il2Cpp_Modding_Codegen
             _config = config;
         }
 
-        public IParsedData Parse(string dirname)
-        {
-            return new DllData(dirname, _config);
-        }
+        public IParsedData Parse(string dirname) => new DllData(dirname, _config);
 
-        public IParsedData Parse(Stream stream)
-        {
-            throw new InvalidOperationException("Cannot DllParse a stream! Must DllParse a directory!");
-        }
+        public IParsedData Parse(Stream stream) => throw new InvalidOperationException("Cannot DllParse a stream! Must DllParse a directory!");
 
-        public bool ValidFile(string filename)
-        {
-            return Directory.Exists(filename);
-        }
+        public bool ValidFile(string filename) => Directory.Exists(filename);
     }
 }
