@@ -14,7 +14,7 @@ namespace Il2CppModdingCodegen.Data.DllHandling
         public string Name { get; }
         public int Offset { get; }
 
-        public DllField(FieldDefinition f)
+        internal DllField(FieldDefinition f)
         {
             DeclaringType = DllTypeRef.From(f.DeclaringType);
             Type = DllTypeRef.From(f.FieldType);

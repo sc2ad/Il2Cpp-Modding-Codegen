@@ -12,7 +12,7 @@ namespace Il2CppModdingCodegen.Data.DllHandling
         // But in order to ensure that we can migrate away from it easier, this class literally does not exist.
         // Because we are doing this, we are using DumpSpecifiers for a DllSpecifier. Why? Because there are no DllSpecifiers
         // and there shouldn't be any.
-        public static IEnumerable<ISpecifier> From(TypeDefinition def)
+        internal static IEnumerable<ISpecifier> From(TypeDefinition def)
         {
             var list = new List<DumpSpecifier>();
             if (def.IsSealed)
@@ -40,7 +40,7 @@ namespace Il2CppModdingCodegen.Data.DllHandling
             return list;
         }
 
-        public static IEnumerable<ISpecifier> From(FieldDefinition def)
+        internal static IEnumerable<ISpecifier> From(FieldDefinition def)
         {
             var list = new List<DumpSpecifier>();
             if (def.IsStatic)
@@ -65,7 +65,7 @@ namespace Il2CppModdingCodegen.Data.DllHandling
             return list;
         }
 
-        public static IEnumerable<ISpecifier> From(MethodDefinition def)
+        internal static IEnumerable<ISpecifier> From(MethodDefinition def)
         {
             var list = new List<DumpSpecifier>();
             if (def.IsStatic)
@@ -86,7 +86,7 @@ namespace Il2CppModdingCodegen.Data.DllHandling
             return list;
         }
 
-        public static IEnumerable<ISpecifier> From(PropertyDefinition def)
+        internal static IEnumerable<ISpecifier> From(PropertyDefinition def)
         {
             if (def.GetMethod != null)
                 return From(def.GetMethod);

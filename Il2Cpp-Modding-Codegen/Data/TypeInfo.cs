@@ -2,6 +2,6 @@
 {
     public class TypeInfo
     {
-        public Refness Refness { get; internal set; }
+        internal Refness Refness { get; set; }
     }
 }

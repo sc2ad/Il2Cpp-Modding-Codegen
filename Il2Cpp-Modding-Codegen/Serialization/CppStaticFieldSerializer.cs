@@ -1,6 +1,7 @@
 ﻿using Il2CppModdingCodegen.Config;
 using Il2CppModdingCodegen.Data;
 using System.Collections.Generic;
+using System.Diagnostics.Contracts;
 
 namespace Il2CppModdingCodegen.Serialization
 {
@@ -12,13 +13,14 @@ namespace Il2CppModdingCodegen.Serialization
         private bool _asHeader;
         private readonly SerializationConfig _config;
 
-        public CppStaticFieldSerializer(SerializationConfig config)
+        internal CppStaticFieldSerializer(SerializationConfig config)
         {
             _config = config;
         }
 
         public override void PreSerialize(CppTypeContext context, IField field)
         {
+            Contract.Requires(context != null && field != null);
             _declaringFullyQualified = context.QualifiedTypeName.TrimStart(':');
             _thisTypeName = context.GetCppName(field.DeclaringType, false, needAs: CppTypeContext.NeedAs.Definition);
             var resolved = context.GetCppName(field.Type, true);
@@ -58,6 +60,7 @@ namespace Il2CppModdingCodegen.Serialization
 
         public override void Serialize(CppStreamWriter writer, IField field, bool asHeader)
         {
+            Contract.Requires(writer != null && field != null);
             _asHeader = asHeader;
             if (_resolvedTypes[field] == null)
                 throw new UnresolvedTypeException(field.DeclaringType, field.Type);

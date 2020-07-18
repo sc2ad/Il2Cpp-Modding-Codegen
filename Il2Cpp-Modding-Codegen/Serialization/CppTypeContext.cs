@@ -24,14 +24,14 @@ namespace Il2CppModdingCodegen.Serialization
         }
 
         // Declarations that should be made by our includes (DefinitionsToGet)
-        public HashSet<TypeRef> Declarations { get; } = new HashSet<TypeRef>();
-        public HashSet<TypeRef> DeclarationsToMake { get; } = new HashSet<TypeRef>();
-        public HashSet<TypeRef> Definitions { get; } = new HashSet<TypeRef>();
-        public HashSet<TypeRef> DefinitionsToGet { get; } = new HashSet<TypeRef>();
+        internal HashSet<TypeRef> Declarations { get; } = new HashSet<TypeRef>();
+        internal HashSet<TypeRef> DeclarationsToMake { get; } = new HashSet<TypeRef>();
+        internal HashSet<TypeRef> Definitions { get; } = new HashSet<TypeRef>();
+        internal HashSet<TypeRef> DefinitionsToGet { get; } = new HashSet<TypeRef>();
 
-        public CppTypeContext DeclaringContext { get; private set; }
-        public bool InPlace { get; private set; } = false;
-        public IReadOnlyList<CppTypeContext> NestedContexts { get => _nestedContexts; }
+        internal CppTypeContext DeclaringContext { get; private set; }
+        internal bool InPlace { get; private set; } = false;
+        internal IReadOnlyList<CppTypeContext> NestedContexts { get => _nestedContexts; }
 
         private CppTypeContext _rootContext;
         private CppTypeContext RootContext
@@ -44,18 +44,18 @@ namespace Il2CppModdingCodegen.Serialization
             }
         }
 
-        public string HeaderFileName { get => RootContext.LocalType.This.GetIncludeLocation() + ".hpp"; }
-        public string CppFileName { get => LocalType.This.GetIncludeLocation() + ".cpp"; }
+        internal string HeaderFileName { get => RootContext.LocalType.This.GetIncludeLocation() + ".hpp"; }
+        internal string CppFileName { get => LocalType.This.GetIncludeLocation() + ".cpp"; }
 
-        public string TypeNamespace { get; }
-        public string TypeName { get; }
-        public string QualifiedTypeName { get; }
-        public ITypeData LocalType { get; }
+        internal string TypeNamespace { get; }
+        internal string TypeName { get; }
+        internal string QualifiedTypeName { get; }
+        internal ITypeData LocalType { get; }
 
         /// <summary>
         /// Returns true if this context uses primitive il2cpp types.
         /// </summary>
-        public bool NeedPrimitives { get; private set; }
+        internal bool NeedPrimitives { get; private set; }
 
         // Holds generic types (ex: T1, T2, ...) defined by the type
         private readonly HashSet<TypeRef> _genericTypes = new HashSet<TypeRef>(TypeRef.fastComparer);
@@ -72,7 +72,7 @@ namespace Il2CppModdingCodegen.Serialization
             AddGenericTypes(type.DeclaringType);
         }
 
-        public CppTypeContext(ITypeCollection types, ITypeData data)
+        internal CppTypeContext(ITypeCollection types, ITypeData data)
         {
             _rootContext = this;
             _types = types;
@@ -107,9 +107,9 @@ namespace Il2CppModdingCodegen.Serialization
         /// </summary>
         /// <param name="type"></param>
         /// <returns></returns>
-        public bool IsGenericParameter(TypeRef type) => _genericTypes.Contains(type) || type.IsGenericParameter;
+        internal bool IsGenericParameter(TypeRef type) => _genericTypes.Contains(type) || type.IsGenericParameter;
 
-        public string GetTemplateLine(bool localOnly = true)
+        internal string GetTemplateLine(bool localOnly = true)
         {
             var s = "";
             if (LocalType.This.IsGeneric)
@@ -132,9 +132,9 @@ namespace Il2CppModdingCodegen.Serialization
             return s;
         }
 
-        public static string GetTemplateLine(ITypeData type, bool localOnly = true) => CppDataSerializer.TypeToContext[type].GetTemplateLine(localOnly);
+        internal static string GetTemplateLine(ITypeData type, bool localOnly = true) => CppDataSerializer.TypeToContext[type].GetTemplateLine(localOnly);
 
-        public void AbsorbInPlaceNeeds()
+        internal void AbsorbInPlaceNeeds()
         {
             // inherit DefinitionsToGet, Declarations from in-place NestedContexts
             var prevInPlace = new HashSet<CppTypeContext>();
@@ -161,7 +161,7 @@ namespace Il2CppModdingCodegen.Serialization
         }
 
         // Must be called AFTER context.SetDeclaringContext(this)
-        public void AddNestedContext(ITypeData type, CppTypeContext context)
+        internal void AddNestedContext(ITypeData type, CppTypeContext context)
         {
             Contract.Requires(type != null);
             Contract.Requires(type.This.DeclaringType.Equals(LocalType.This));
@@ -176,7 +176,7 @@ namespace Il2CppModdingCodegen.Serialization
         }
 
         // Must be called AFTER DeclaringContext.AddNestedContext(this)
-        public void SetDeclaringContext(CppTypeContext context)
+        internal void SetDeclaringContext(CppTypeContext context)
         {
             Contract.Requires(DeclaringContext is null);
             Contract.Requires(context != null);
@@ -302,7 +302,7 @@ namespace Il2CppModdingCodegen.Serialization
         /// Gets the C++ fully qualified name for the TypeRef.
         /// </summary>
         /// <returns>Null if the type has not been resolved (and is not a generic parameter or primitive)</returns>
-        public string GetCppName(TypeRef data, bool qualified, bool generics = true, NeedAs needAs = NeedAs.BestMatch, ForceAsType forceAsType = ForceAsType.None)
+        internal string GetCppName(TypeRef data, bool qualified, bool generics = true, NeedAs needAs = NeedAs.BestMatch, ForceAsType forceAsType = ForceAsType.None)
         {
             // First we check if the type is a primitive type. If it is, we return the converted name.
             // This must happen first because we can have T* and T[] which need to be converted correctly.
@@ -455,7 +455,7 @@ namespace Il2CppModdingCodegen.Serialization
         /// <param name="typeRef"></param>
         /// <param name="needAs"></param>
         /// <returns>A bool representing if the type was resolved successfully</returns>
-        public ITypeData ResolveAndStore(TypeRef typeRef, ForceAsType forceAs, NeedAs needAs = NeedAs.BestMatch)
+        internal ITypeData ResolveAndStore(TypeRef typeRef, ForceAsType forceAs, NeedAs needAs = NeedAs.BestMatch)
         {
             if (_genericTypes.Contains(typeRef) || typeRef.IsGenericParameter)
                 // Generic parameters are resolved to nothing and shouldn't even attempted to be resolved.

@@ -2,6 +2,7 @@
 using Il2CppModdingCodegen.Data;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.Contracts;
 using System.Linq;
 
 namespace Il2CppModdingCodegen.Serialization
@@ -16,7 +17,7 @@ namespace Il2CppModdingCodegen.Serialization
 
         private readonly SerializationConfig _config;
 
-        public CppFieldSerializer(SerializationConfig config)
+        internal CppFieldSerializer(SerializationConfig config)
         {
             _config = config;
         }
@@ -26,6 +27,7 @@ namespace Il2CppModdingCodegen.Serialization
         // Resolve the field into context here
         public override void PreSerialize(CppTypeContext context, IField field)
         {
+            Contract.Requires(context != null && field != null);
             // In this situation, if the type is a pointer, we can simply forward declare.
             // Otherwise, we need to include the corresponding file. This must be resolved via context
             // If the resolved type name is null, we won't serialize this field
@@ -51,7 +53,7 @@ namespace Il2CppModdingCodegen.Serialization
             _safeFieldNames.Add(field, SafeFieldName());
         }
 
-        public void WriteCtor(CppStreamWriter writer, ITypeData type, string name, bool asHeader)
+        internal void WriteCtor(CppStreamWriter writer, ITypeData type, string name, bool asHeader)
         {
             // If the type we are writing is a value type, we would like to make a constructor that takes in each non-static, non-const field.
             // This is to allow us to construct structs without having to provide initialization lists that are horribly long
@@ -81,6 +83,7 @@ namespace Il2CppModdingCodegen.Serialization
         // Write the field here
         public override void Serialize(CppStreamWriter writer, IField field, bool asHeader)
         {
+            Contract.Requires(writer != null && field != null);
             // If we could not resolve the type name, don't serialize the field (this should cause a critical failure in the type)
             if (_resolvedTypeNames[field] == null)
                 throw new UnresolvedTypeException(field.DeclaringType, field.Type);

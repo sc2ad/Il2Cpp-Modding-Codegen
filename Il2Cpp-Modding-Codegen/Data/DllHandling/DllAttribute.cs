@@ -11,7 +11,7 @@ namespace Il2CppModdingCodegen.Data.DllHandling
         public int Offset { get; } = -1;
         public int VA { get; } = -1;
 
-        public DllAttribute(CustomAttribute attribute)
+        internal DllAttribute(CustomAttribute attribute)
         {
             // These parameters are unknown for attributes besides the attribute that has all three in its constructor
             if (attribute.Fields.Count == 3)

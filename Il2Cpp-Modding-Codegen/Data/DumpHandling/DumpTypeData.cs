@@ -45,7 +45,7 @@ namespace Il2CppModdingCodegen.Data.DumpHandling
         {
             string line = fs.ReadLine();
             var split = line.Split(' ');
-            TypeDefIndex = int.Parse(split[split.Length - 1]);
+            TypeDefIndex = int.Parse(split[^1]);
             // : at least 4 from end
             int start = 4;
             bool found = false;
@@ -183,7 +183,7 @@ namespace Il2CppModdingCodegen.Data.DumpHandling
             Methods.AddRange(methods.Where(m => m.ImplementedFrom != null));
         }
 
-        public DumpTypeData(PeekableStreamReader fs, DumpConfig config)
+        internal DumpTypeData(PeekableStreamReader fs, DumpConfig config)
         {
             _config = config;
             // Extract namespace from line

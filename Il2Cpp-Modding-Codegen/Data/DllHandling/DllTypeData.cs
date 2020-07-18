@@ -22,7 +22,7 @@ namespace Il2CppModdingCodegen.Data.DllHandling
 
         private readonly DllConfig _config;
 
-        public DllTypeData(TypeDefinition def, DllConfig config)
+        internal DllTypeData(TypeDefinition def, DllConfig config)
         {
             _config = config;
             foreach (var i in def.Interfaces)

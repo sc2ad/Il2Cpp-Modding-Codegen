@@ -25,7 +25,7 @@ namespace Il2CppModdingCodegen.Data.DumpHandling
         public bool Generic { get; }
         public IReadOnlyList<TypeRef> GenericParameters { get; }
 
-        public DumpMethod(TypeRef declaring, PeekableStreamReader fs)
+        internal DumpMethod(TypeRef declaring, PeekableStreamReader fs)
         {
             DeclaringType = declaring;
             // Read Attributes
@@ -42,9 +42,9 @@ namespace Il2CppModdingCodegen.Data.DumpHandling
                 throw new InvalidOperationException($"Line {fs.CurrentLineIndex}: Method cannot be created from: \"{line.Trim()}\"");
 
             int start = split.Length - 1;
-            if (split[split.Length - 2] == "Slot:")
+            if (split[^2] == "Slot:")
             {
-                Slot = int.Parse(split[split.Length - 1]);
+                Slot = int.Parse(split[^1]);
                 start = split.Length - 3;
             }
             if (split[start - 1] == "VA:")
@@ -88,10 +88,10 @@ namespace Il2CppModdingCodegen.Data.DumpHandling
             var methodSplit = line.Substring(0, startSubstr).Split(' ');
             int startIndex = -1;
             int nameIdx = methodSplit.Length - 1;
-            if (!methodSplit[methodSplit.Length - 1].StartsWith("."))
+            if (!methodSplit[^1].StartsWith("."))
             {
                 // Not a special name, should have an implementing type
-                startIndex = methodSplit[methodSplit.Length - 1].LastIndexOf(".");
+                startIndex = methodSplit[^1].LastIndexOf(".");
                 if (startIndex != -1)
                 {
                     var typeStr = DumpTypeRef.FromMultiple(methodSplit, methodSplit.Length - 1, out nameIdx, -1, " ");
@@ -102,13 +102,13 @@ namespace Il2CppModdingCodegen.Data.DumpHandling
                 }
                 else
                 {
-                    Name = methodSplit[methodSplit.Length - 1];
+                    Name = methodSplit[^1];
                     Il2CppName = Name;
                 }
             }
             else
             {
-                Name = methodSplit[methodSplit.Length - 1].Substring(startIndex + 1);
+                Name = methodSplit[^1].Substring(startIndex + 1);
                 Il2CppName = Name;
             }
             ReturnType = new DumpTypeRef(DumpTypeRef.FromMultiple(methodSplit, nameIdx - 1, out nameIdx, -1, " "));

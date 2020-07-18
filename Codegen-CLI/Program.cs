@@ -131,7 +131,7 @@ namespace Codegen_CLI
             {
                 Console.WriteLine(e);
             }
-            Console.WriteLine(string.Join(", ", SerializationConfig.specialMethodNames));
+            Console.WriteLine(string.Join(", ", SerializationConfig.SpecialMethodNames));
             Console.ReadLine();
         }
     }

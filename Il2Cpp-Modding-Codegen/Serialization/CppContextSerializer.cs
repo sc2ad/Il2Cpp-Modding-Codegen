@@ -28,9 +28,9 @@ namespace Il2CppModdingCodegen.Serialization
         /// This is usually due to including something that (indirectly or directly) ends up including the original type.
         /// Called with: this, current <see cref="CppTypeContext"/>, offending <see cref="TypeRef"/>
         /// </summary>
-        public event Action<CppContextSerializer, CppTypeContext, TypeRef> DuplicateDefinition;
+        internal event Action<CppContextSerializer, CppTypeContext, TypeRef> DuplicateDefinition;
 
-        public CppContextSerializer(SerializationConfig config, ITypeCollection collection)
+        internal CppContextSerializer(SerializationConfig config, ITypeCollection collection)
         {
             _config = config;
             _collection = collection;
@@ -132,7 +132,7 @@ namespace Il2CppModdingCodegen.Serialization
             _contextMap.Add(context, (includes, forwardDeclares));
         }
 
-        public void Resolve(CppTypeContext context, Dictionary<ITypeData, CppTypeContext> map, bool asHeader)
+        internal void Resolve(CppTypeContext context, Dictionary<ITypeData, CppTypeContext> map, bool asHeader)
         {
             HashSet<CppTypeContext> stack = new HashSet<CppTypeContext>();
             Resolve(context, map, asHeader, stack);
@@ -304,7 +304,7 @@ namespace Il2CppModdingCodegen.Serialization
                 WriteNamespacedMethods(writer, inPlace, asHeader);
         }
 
-        public void Serialize(CppStreamWriter writer, CppTypeContext context, bool asHeader)
+        internal void Serialize(CppStreamWriter writer, CppTypeContext context, bool asHeader)
         {
             var contextMap = asHeader ? _headerContextMap : _sourceContextMap;
             if (!contextMap.TryGetValue(context, out var defsAndDeclares))

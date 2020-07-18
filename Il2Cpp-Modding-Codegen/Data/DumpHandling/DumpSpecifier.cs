@@ -12,7 +12,7 @@
         public bool Readonly => Value == "readonly";
         public bool Const => Value == "const";
 
-        public DumpSpecifier(string specifier) => Value = specifier;
+        internal DumpSpecifier(string specifier) => Value = specifier;
         public override string ToString() => Value;
     }
 }

@@ -2,7 +2,7 @@
 
 namespace Il2CppModdingCodegen.Serialization
 {
-    public class ApplicationMkSerializer
+    public sealed class ApplicationMkSerializer : System.IDisposable
     {
         private const string ApplicationMk = @"APP_ABI := arm64-v8a
 APP_PLATFORM := android-24
@@ -14,7 +14,7 @@ APP_SHORT_COMMANDS := true";
 
         private TextWriter _stream;
 
-        public void Write(string filename)
+        internal void Write(string filename)
         {
             if (File.Exists(filename))
                 File.Delete(filename);
@@ -23,5 +23,6 @@ APP_SHORT_COMMANDS := true";
         }
 
         public void Close() => _stream.Close();
+        public void Dispose() => Close();
     }
 }

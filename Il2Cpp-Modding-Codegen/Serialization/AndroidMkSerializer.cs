@@ -8,9 +8,9 @@ namespace Il2CppModdingCodegen.Serialization
     /// <summary>
     /// Serializes an Android.mk file
     /// </summary>
-    public class AndroidMkSerializer
+    public sealed class AndroidMkSerializer : System.IDisposable
     {
-        public class Library
+        internal class Library
         {
             internal IEnumerable<string> toBuild;
             internal bool isSource;
@@ -42,12 +42,12 @@ rwildcard=$(wildcard $1$2) $(foreach d,$(wildcard $1*),$(call rwildcard,$d/,$2))
         private TextWriter _stream;
         private readonly SerializationConfig _config;
 
-        public AndroidMkSerializer(SerializationConfig config)
+        internal AndroidMkSerializer(SerializationConfig config)
         {
             _config = config;
         }
 
-        public void WriteHeader(string filename)
+        internal void WriteHeader(string filename)
         {
             if (File.Exists(filename))
                 File.Delete(filename);
@@ -59,7 +59,7 @@ rwildcard=$(wildcard $1$2) $(foreach d,$(wildcard $1*),$(call rwildcard,$d/,$2))
         /// Writes a static library, containing either source or library files
         /// </summary>
         /// <param name="contexts"></param>
-        public void WriteStaticLibrary(Library lib)
+        internal void WriteStaticLibrary(Library lib)
         {
             _stream.WriteLine("# Writing static library: " + lib.id);
             _stream.WriteLine("include $(CLEAR_VARS)");
@@ -74,7 +74,7 @@ rwildcard=$(wildcard $1$2) $(foreach d,$(wildcard $1*),$(call rwildcard,$d/,$2))
             _stream.WriteLine("");
         }
 
-        public void WritePrebuiltSharedLibrary(string id, string src, string include)
+        internal void WritePrebuiltSharedLibrary(string id, string src, string include)
         {
             _stream.WriteLine("# Writing prebuilt shared library: " + id);
             _stream.WriteLine("include $(CLEAR_VARS)");
@@ -85,7 +85,7 @@ rwildcard=$(wildcard $1$2) $(foreach d,$(wildcard $1*),$(call rwildcard,$d/,$2))
             _stream.WriteLine("");
         }
 
-        public void WriteSharedLibrary(Library lib)
+        internal void WriteSharedLibrary(Library lib)
         {
             _stream.WriteLine("# Writing shared library: " + lib.id);
             _stream.WriteLine("include $(CLEAR_VARS)");
@@ -103,7 +103,7 @@ rwildcard=$(wildcard $1$2) $(foreach d,$(wildcard $1*),$(call rwildcard,$d/,$2))
             _stream.WriteLine("");
         }
 
-        public void WriteSingleFile(Library lib)
+        internal void WriteSingleFile(Library lib)
         {
             _stream.WriteLine("# Writing single library: " + lib.id);
             _stream.WriteLine("include $(CLEAR_VARS)");
@@ -121,7 +121,7 @@ rwildcard=$(wildcard $1$2) $(foreach d,$(wildcard $1*),$(call rwildcard,$d/,$2))
 
         private static int aggregateIdx = 0;
 
-        public void AggregateStaticLibraries(IEnumerable<Library> libs, int depth = 0)
+        internal void AggregateStaticLibraries(IEnumerable<Library> libs, int depth = 0)
         {
             int innerLibsLength = 0;
             int outterLibsLength = 0;
@@ -181,5 +181,6 @@ rwildcard=$(wildcard $1$2) $(foreach d,$(wildcard $1*),$(call rwildcard,$d/,$2))
         }
 
         public void Close() => _stream.Close();
+        public void Dispose() => Close();
     }
 }

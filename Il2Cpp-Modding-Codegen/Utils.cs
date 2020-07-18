@@ -9,7 +9,7 @@ namespace Il2CppModdingCodegen
 {
     internal static class Utils
     {
-        public static string ReplaceFirst(this string text, string search, string replace)
+        internal static string ReplaceFirst(this string text, string search, string replace)
         {
             int pos = text.IndexOf(search);
             if (pos < 0)
@@ -17,7 +17,7 @@ namespace Il2CppModdingCodegen
             return text.Substring(0, pos) + replace + text.Substring(pos + search.Length);
         }
 
-        public static TypeDefinition ResolvedBaseType(this TypeDefinition self)
+        internal static TypeDefinition ResolvedBaseType(this TypeDefinition self)
         {
             var base_type = self?.BaseType;
             if (base_type is null) return null;
@@ -103,7 +103,7 @@ namespace Il2CppModdingCodegen
             return FindInterface(def.BaseType, find);
         }
 
-        public static MethodDefinition GetSpecialNameBaseMethod(this MethodDefinition self, out TypeReference iface, int idxDot = -1)
+        internal static MethodDefinition GetSpecialNameBaseMethod(this MethodDefinition self, out TypeReference iface, int idxDot = -1)
         {
             if (idxDot == -1)
                 idxDot = self.Name.LastIndexOf('.');
@@ -124,7 +124,7 @@ namespace Il2CppModdingCodegen
         /// </summary>
         /// <param name="self"></param>
         /// <returns></returns>
-        public static HashSet<MethodDefinition> GetBaseMethods(this MethodDefinition self)
+        internal static HashSet<MethodDefinition> GetBaseMethods(this MethodDefinition self)
         {
             Contract.Requires(self != null);
             // Whenever we call GetBaseMethods, we should explicitly exclude all base methods that are specifically defined by self.DeclaringType via special names already.

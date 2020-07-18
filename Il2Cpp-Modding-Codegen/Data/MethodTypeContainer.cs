@@ -9,11 +9,11 @@ namespace Il2CppModdingCodegen.Data
         private string _suffix;
         private string templatedName;
 
-        public bool Skip { get; set; } = false;
-        public bool UnPointered { get; private set; }
-        public bool IsPointer { get => typeName.EndsWith("*"); }
+        internal bool Skip { get; set; } = false;
+        internal bool UnPointered { get; private set; }
+        internal bool IsPointer { get => typeName.EndsWith("*"); }
         // Contains a class or struct
-        public bool IsClassType { get => typeName.Any(char.IsUpper); }
+        internal bool IsClassType { get => typeName.Any(char.IsUpper); }
 
         internal MethodTypeContainer(string t) => typeName = t;
 
@@ -25,7 +25,7 @@ namespace Il2CppModdingCodegen.Data
         internal bool UnPointer()
         {
             if (!IsPointer) return false;
-            typeName = typeName.Substring(0, typeName.Length - 1);
+            typeName = typeName[0..^1];
             return UnPointered = true;
         }
 

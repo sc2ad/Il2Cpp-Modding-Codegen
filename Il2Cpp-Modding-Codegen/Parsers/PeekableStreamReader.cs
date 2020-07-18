@@ -7,13 +7,13 @@ namespace Il2CppModdingCodegen.Parsers
         // Only buffer a maximum of one line
         private string bufferedLine = null;
 
-        public ulong CurrentLineIndex { get; private set; } = 0;
+        internal ulong CurrentLineIndex { get; private set; } = 0;
 
-        public PeekableStreamReader(string path) : base(path) { }
+        internal PeekableStreamReader(string path) : base(path) { }
 
-        public PeekableStreamReader(Stream stream) : base(stream) { }
+        internal PeekableStreamReader(Stream stream) : base(stream) { }
 
-        public string PeekLine()
+        internal string PeekLine()
         {
             if (bufferedLine != null)
                 return bufferedLine;

@@ -7,11 +7,11 @@ namespace Il2CppModdingCodegen.Data
 {
     public class Parameter
     {
-        public TypeRef Type { get; }
-        public string Name { get; } = null;
-        public ParameterFlags Flags { get; } = ParameterFlags.None;
+        internal TypeRef Type { get; }
+        internal string Name { get; } = null;
+        internal ParameterFlags Flags { get; } = ParameterFlags.None;
 
-        public Parameter(string innard)
+        internal Parameter(string innard)
         {
             var spl = innard.Split(' ');
             int typeIndex = 1;
@@ -32,7 +32,7 @@ namespace Il2CppModdingCodegen.Data
                 Name = spl[res + 1];
         }
 
-        public Parameter(ParameterDefinition def)
+        internal Parameter(ParameterDefinition def)
         {
             Type = DllTypeRef.From(def.ParameterType);
             Name = def.Name;
@@ -62,7 +62,7 @@ namespace Il2CppModdingCodegen.Data
 
     public static class ParameterExtensions
     {
-        public static string PrintParameter(this (MethodTypeContainer container, ParameterFlags flags) param, bool header, bool csharp = false)
+        internal static string PrintParameter(this (MethodTypeContainer container, ParameterFlags flags) param, bool header, bool csharp = false)
         {
             var s = param.container.TypeName(header);
             if (csharp)
@@ -79,7 +79,7 @@ namespace Il2CppModdingCodegen.Data
             return s;
         }
 
-        public static string FormatParameters(this List<Parameter> parameters, HashSet<string> illegalNames = null, List<(MethodTypeContainer, ParameterFlags)> resolvedNames = null, FormatParameterMode mode = FormatParameterMode.Normal, bool header = false, bool csharp = false)
+        internal static string FormatParameters(this List<Parameter> parameters, HashSet<string> illegalNames = null, List<(MethodTypeContainer, ParameterFlags)> resolvedNames = null, FormatParameterMode mode = FormatParameterMode.Normal, bool header = false, bool csharp = false)
         {
             var s = "";
             for (int i = 0; i < parameters.Count; i++)

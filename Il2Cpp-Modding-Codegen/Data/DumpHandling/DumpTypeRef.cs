@@ -6,7 +6,7 @@ namespace Il2CppModdingCodegen.Data.DumpHandling
 {
     public class DumpTypeRef : TypeRef
     {
-        public static readonly DumpTypeRef ObjectType = new DumpTypeRef("object");
+        internal static readonly DumpTypeRef ObjectType = new DumpTypeRef("object");
 
         public override string Namespace { get; } = string.Empty;
         public override string Name { get; }
@@ -74,7 +74,7 @@ namespace Il2CppModdingCodegen.Data.DumpHandling
             return direction > 0 ? s.Substring(sep.Length) : s.Substring(0, s.Length - sep.Length);
         }
 
-        public DumpTypeRef(string @namespace, string typeName)
+        internal DumpTypeRef(string @namespace, string typeName)
         {
             Namespace = @namespace;
 
@@ -119,11 +119,11 @@ namespace Il2CppModdingCodegen.Data.DumpHandling
             Name = typeName.Replace('.', '/');
             if (IsArray())
             {
-                ElementType = new DumpTypeRef(Name.Substring(0, Name.Length - 2));
+                ElementType = new DumpTypeRef(Name[0..^2]);
                 // TODO: else set ElementType to `this` as Mono.Cecil does?
             }
         }
 
-        public DumpTypeRef(string qualifiedName) : this("", qualifiedName) { }
+        internal DumpTypeRef(string qualifiedName) : this("", qualifiedName) { }
     }
 }

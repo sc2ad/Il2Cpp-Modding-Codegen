@@ -114,16 +114,17 @@ namespace Il2CppModdingCodegen.Config
             return name;
         }
 
-        public static Dictionary<string, int> specialMethodNames = new Dictionary<string, int>();
+        public static Dictionary<string, int> SpecialMethodNames { get; private set; } = new Dictionary<string, int>();
 
         public string SafeMethodName(string name)
         {
+            Contract.Requires(name != null);
             if (name.StartsWith("op_"))
             {
-                if (specialMethodNames.ContainsKey(name))
-                    specialMethodNames[name]++;
+                if (SpecialMethodNames.ContainsKey(name))
+                    SpecialMethodNames[name]++;
                 else
-                    specialMethodNames.Add(name, 1);
+                    SpecialMethodNames.Add(name, 1);
             }
             if (!string.IsNullOrEmpty(name))
                 while (IllegalNames?.Contains(name) is true || IllegalMethodNames?.Contains(name) is true)

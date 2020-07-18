@@ -18,8 +18,8 @@ namespace Il2CppModdingCodegen.Data
 
     public static class SpecifierExtensions
     {
-        public static bool IsStatic(this List<ISpecifier> specifiers) => specifiers.Any(s => s.Static);
+        internal static bool IsStatic(this List<ISpecifier> specifiers) => specifiers.Any(s => s.Static);
 
-        public static bool IsConst(this List<ISpecifier> specifiers) => specifiers.Any(s => s.Const);
+        internal static bool IsConst(this List<ISpecifier> specifiers) => specifiers.Any(s => s.Const);
     }
 }

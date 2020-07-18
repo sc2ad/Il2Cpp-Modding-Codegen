@@ -14,7 +14,7 @@ namespace Il2CppModdingCodegen.Data.DumpHandling
         public bool GetMethod { get; }
         public bool SetMethod { get; }
 
-        public DumpProperty(TypeRef declaring, PeekableStreamReader fs)
+        internal DumpProperty(TypeRef declaring, PeekableStreamReader fs)
         {
             DeclaringType = declaring;
             string line = fs.PeekLine().Trim();

@@ -14,7 +14,7 @@ namespace Il2CppModdingCodegen.Data
 
         public abstract bool IsGenericParameter { get; }
         public abstract bool IsCovariant { get; set; }
-        public bool IsGeneric { get => IsGenericInstance || IsGenericTemplate; }
+        internal bool IsGeneric { get => IsGenericInstance || IsGenericTemplate; }
         public abstract bool IsGenericInstance { get; }
         public abstract bool IsGenericTemplate { get; }
         public abstract IReadOnlyList<TypeRef> Generics { get; }
@@ -29,7 +29,7 @@ namespace Il2CppModdingCodegen.Data
         /// <summary>
         /// Resolves the type from the given type collection
         /// </summary>
-        public ITypeData Resolve(ITypeCollection types)
+        internal ITypeData Resolve(ITypeCollection types)
         {
 #pragma warning disable 612, 618
             // TODO: if we upgrade to C# 8.0, change this to `_resolvedType ??= types.Resolve(this);`
@@ -183,8 +183,8 @@ namespace Il2CppModdingCodegen.Data
         public bool Equals(TypeRef other)
         {
             return fastComparer.Equals(this, other) &&
-                (DeclaringType?.Equals(other.DeclaringType) ?? other.DeclaringType == null) &&
-                (ElementType?.Equals(other.ElementType) ?? other.ElementType == null);
+                (DeclaringType?.Equals(other?.DeclaringType) ?? other?.DeclaringType == null) &&
+                (ElementType?.Equals(other?.ElementType) ?? other?.ElementType == null);
         }
 
         public override int GetHashCode()

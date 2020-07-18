@@ -13,7 +13,7 @@ namespace Il2CppModdingCodegen.Data.DumpHandling
         public string Name { get; }
         public int Offset { get; }
 
-        public DumpField(TypeRef declaring, PeekableStreamReader fs)
+        internal DumpField(TypeRef declaring, PeekableStreamReader fs)
         {
             DeclaringType = declaring;
             string line = fs.PeekLine().Trim();
@@ -28,7 +28,7 @@ namespace Il2CppModdingCodegen.Data.DumpHandling
             if (split.Length < 4)
                 throw new InvalidOperationException($"Line {fs.CurrentLineIndex}: Field cannot be created from: \"{line.Trim()}\"");
 
-            Offset = Convert.ToInt32(split[split.Length - 1], 16);
+            Offset = Convert.ToInt32(split[^1], 16);
             int start = split.Length - 3;
             for (int i = start; i > 1; i--)
                 if (split[i] == "=")

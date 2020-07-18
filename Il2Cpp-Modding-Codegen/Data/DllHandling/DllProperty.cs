@@ -14,7 +14,7 @@ namespace Il2CppModdingCodegen.Data.DllHandling
         public bool GetMethod { get; }
         public bool SetMethod { get; }
 
-        public DllProperty(PropertyDefinition p)
+        internal DllProperty(PropertyDefinition p)
         {
             DeclaringType = DllTypeRef.From(p.DeclaringType);
             Type = DllTypeRef.From(p.PropertyType);

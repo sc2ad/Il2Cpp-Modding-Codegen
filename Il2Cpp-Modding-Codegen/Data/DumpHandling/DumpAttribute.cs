@@ -10,7 +10,7 @@ namespace Il2CppModdingCodegen.Data.DumpHandling
         public int Offset { get; } = 0;
         public int VA { get; } = 0;
 
-        public DumpAttribute(PeekableStreamReader fs)
+        internal DumpAttribute(PeekableStreamReader fs)
         {
             var line = fs.ReadLine().Trim();
             // Line must start with a [ after being trimmed

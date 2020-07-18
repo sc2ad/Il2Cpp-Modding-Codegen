@@ -2,6 +2,7 @@
 using Il2CppModdingCodegen.Data;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.Contracts;
 using System.IO;
 using System.Linq;
 
@@ -18,14 +19,14 @@ namespace Il2CppModdingCodegen.Serialization
 
         private CppContextSerializer _contextSerializer;
         private static readonly Dictionary<ITypeData, CppTypeContext> _map = new Dictionary<ITypeData, CppTypeContext>();
-        public static IReadOnlyDictionary<ITypeData, CppTypeContext> TypeToContext { get => _map; }
+        internal static IReadOnlyDictionary<ITypeData, CppTypeContext> TypeToContext { get => _map; }
 
         /// <summary>
         /// This event is called after all types are PreSerialized, but BEFORE any definitions or declarations are resolved to includes.
         /// This allows for any delegates of this type to modify each type's context's definitions or declarations before they are considered complete.
         /// This is called for each type that is registered in <see cref="_map"/>, which is each type that is not skipped due to config.
         /// </summary>
-        public event Action<CppDataSerializer, ITypeData, CppTypeContext> ContextsComplete;
+        internal event Action<CppDataSerializer, ITypeData, CppTypeContext> ContextsComplete;
 
         /// <summary>
         /// Creates a C++ Serializer with the given type context, which is a wrapper for a list of all types to serialize
@@ -55,6 +56,7 @@ namespace Il2CppModdingCodegen.Serialization
 
         public override void PreSerialize(CppTypeContext _unused_, IParsedData data)
         {
+            Contract.Requires(data != null);
             // We create a CppContextSerializer for both headers and .cpp files
             // We create a mapping (either here or in the serializer) of ITypeData --> CppSerializerContext
             // For each type, we create their contexts, preserialize them.

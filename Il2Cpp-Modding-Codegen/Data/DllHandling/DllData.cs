@@ -2,6 +2,7 @@
 using Mono.Cecil;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.Contracts;
 using System.IO;
 using System.Linq;
 
@@ -19,7 +20,7 @@ namespace Il2CppModdingCodegen.Data.DllHandling
 
         private readonly Dictionary<TypeRef, ITypeData> _types = new Dictionary<TypeRef, ITypeData>();
 
-        public DllData(string dir, DllConfig config)
+        internal DllData(string dir, DllConfig config)
         {
             _config = config;
             _dir = dir;
@@ -71,14 +72,21 @@ namespace Il2CppModdingCodegen.Data.DllHandling
                     Console.Error.WriteLine($"{dllRef} already in _types! Matching item: {_types[dllRef].This}");
             }
 
-            int total = DllTypeRef.hits + DllTypeRef.misses;
-            Console.WriteLine($"{nameof(DllTypeRef)} cache hits: {DllTypeRef.hits} / {total} = {100.0f * DllTypeRef.hits / total}");
+            int total = DllTypeRef.Hits + DllTypeRef.Misses;
+            Console.WriteLine($"{nameof(DllTypeRef)} cache hits: {DllTypeRef.Hits} / {total} = {100.0f * DllTypeRef.Hits / total}");
             // Ignore images for now.
         }
 
         public override string ToString() => $"Types: {Types.Count()}";
 
         public ITypeData Resolve(TypeRef typeRef)
+        {
+            var temp = typeRef as DllTypeRef;
+            Contract.Requires(temp != null);
+            return Resolve(temp);
+        }
+
+        private ITypeData Resolve(DllTypeRef typeRef)
         {
             // Generic parameters can never "Resolve"
             if (typeRef.IsGenericParameter) return null;

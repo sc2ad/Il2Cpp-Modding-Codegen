@@ -10,10 +10,7 @@ namespace Il2CppModdingCodegen
     {
         private readonly DumpConfig _config;
 
-        public DumpParser(DumpConfig config)
-        {
-            _config = config;
-        }
+        public DumpParser(DumpConfig config) => _config = config;
 
         public IParsedData Parse(string fileName) => new DumpData(fileName, _config);
 

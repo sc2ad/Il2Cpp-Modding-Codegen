@@ -22,14 +22,14 @@ namespace Il2CppModdingCodegen.Serialization
         private CppMethodSerializer methodSerializer;
         private readonly SerializationConfig _config;
 
-        public CppTypeContext Context { get; private set; }
+        internal CppTypeContext Context { get; private set; }
 
-        public CppTypeDataSerializer(SerializationConfig config)
+        internal CppTypeDataSerializer(SerializationConfig config)
         {
             _config = config;
         }
 
-        public void Resolve(CppTypeContext context, ITypeData type)
+        internal void Resolve(CppTypeContext context, ITypeData type)
         {
             // Asking for ourselves as a definition will simply make things easier when resolving ourselves.
             var resolved = _config.SafeName(context.GetCppName(type.This, false, false, CppTypeContext.NeedAs.Definition, CppTypeContext.ForceAsType.Literal));
@@ -94,7 +94,7 @@ namespace Il2CppModdingCodegen.Serialization
                 methodSerializer.PreSerialize(context, m);
         }
 
-        public void DuplicateDefinition(CppTypeContext self, TypeRef offendingType)
+        internal void DuplicateDefinition(CppTypeContext self, TypeRef offendingType)
         {
             int total = 0;
             // If we ever have a duplicate definition, this should be called.
@@ -122,7 +122,7 @@ namespace Il2CppModdingCodegen.Serialization
         /// </summary>
         /// <param name="writer"></param>
         /// <param name="type"></param>
-        public void WriteInitialTypeDefinition(CppStreamWriter writer, ITypeData type, bool isNested)
+        internal void WriteInitialTypeDefinition(CppStreamWriter writer, ITypeData type, bool isNested)
         {
             if (!map.TryGetValue(type.This, out var state))
                 throw new UnresolvedTypeException(type.This.DeclaringType, type.This);
@@ -141,7 +141,7 @@ namespace Il2CppModdingCodegen.Serialization
                 {
                     if (!first)
                         s += ", ";
-                    s += $"public {parent}";
+                    s += $"internal {parent}";
                     first = false;
                 }
             }
@@ -170,7 +170,7 @@ namespace Il2CppModdingCodegen.Serialization
             writer.Flush();
         }
 
-        public void WriteFields(CppStreamWriter writer, ITypeData type, bool asHeader)
+        internal void WriteFields(CppStreamWriter writer, ITypeData type, bool asHeader)
         {
             foreach (var f in type.Fields)
                 try
@@ -195,7 +195,7 @@ namespace Il2CppModdingCodegen.Serialization
                 }
         }
 
-        public void WriteSpecialCtors(CppStreamWriter writer, ITypeData type, bool isNested)
+        internal void WriteSpecialCtors(CppStreamWriter writer, ITypeData type, bool isNested)
         {
             // Write the special constructor
             var state = map[type.This];
@@ -210,7 +210,7 @@ namespace Il2CppModdingCodegen.Serialization
         }
 
         // Iff namespaced, writes only the namespace-scoped methods. Otherwise, writes only the non-namespace-scoped methods.
-        public void WriteMethods(CppStreamWriter writer, ITypeData type, bool asHeader, bool namespaced = false)
+        internal void WriteMethods(CppStreamWriter writer, ITypeData type, bool asHeader, bool namespaced = false)
         {
             foreach (var m in type.Methods)
                 try
@@ -232,6 +232,6 @@ namespace Il2CppModdingCodegen.Serialization
                 }
         }
 
-        public static void CloseDefinition(CppStreamWriter writer, ITypeData type) => writer.CloseDefinition($"; // {type.This}");
+        internal static void CloseDefinition(CppStreamWriter writer, ITypeData type) => writer.CloseDefinition($"; // {type.This}");
     }
 }

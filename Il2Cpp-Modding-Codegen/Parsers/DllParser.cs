@@ -11,10 +11,7 @@ namespace Il2CppModdingCodegen
     {
         private readonly DllConfig _config;
 
-        public DllParser(DllConfig config)
-        {
-            _config = config;
-        }
+        public DllParser(DllConfig config) => _config = config;
 
         public IParsedData Parse(string dirname) => new DllData(dirname, _config);
 

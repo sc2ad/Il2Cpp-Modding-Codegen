@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics.Contracts;
 using System.Linq;
 
 namespace Il2CppModdingCodegen.Data
@@ -15,6 +16,8 @@ namespace Il2CppModdingCodegen.Data
         {
             if (x is null != y is null)
                 return false;
+            else if (x is null) return true;
+            Contract.Requires(y != null);
             if (x.Namespace != y.Namespace || x.Name != y.Name)
                 return false;
             if (x.IsGeneric && y.IsGeneric)

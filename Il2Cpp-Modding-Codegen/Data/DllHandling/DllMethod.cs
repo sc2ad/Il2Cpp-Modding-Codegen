@@ -33,7 +33,7 @@ namespace Il2CppModdingCodegen.Data.DllHandling
 
         private static readonly Dictionary<MethodDefinition, DllMethod> cache = new Dictionary<MethodDefinition, DllMethod>(comparer);
 
-        public static DllMethod From(MethodDefinition def, ref HashSet<MethodDefinition> mappedBaseMethods)
+        internal static DllMethod From(MethodDefinition def, ref HashSet<MethodDefinition> mappedBaseMethods)
         {
             // Note that TryGetValue is now significantly slower due to hash collisions and equality checks being expensive.
             // Before, it was simply pointers.

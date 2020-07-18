@@ -1,6 +1,7 @@
 ﻿using Il2CppModdingCodegen.Config;
 using Il2CppModdingCodegen.Parsers;
 using System.Collections.Generic;
+using System.Diagnostics.Contracts;
 using System.IO;
 using System.Linq;
 
@@ -51,28 +52,24 @@ namespace Il2CppModdingCodegen.Data.DumpHandling
             }
         }
 
-        public void Parse(PeekableStreamReader fs)
+        internal void Parse(PeekableStreamReader fs)
         {
             ParseImages(fs);
             ParseTypes(fs);
         }
 
-        public DumpData(string fileName, DumpConfig config)
+        internal DumpData(string fileName, DumpConfig config)
         {
             _config = config;
-            using (var fs = new PeekableStreamReader(fileName))
-            {
-                Parse(fs);
-            }
+            using var fs = new PeekableStreamReader(fileName);
+            Parse(fs);
         }
 
-        public DumpData(Stream stream, DumpConfig config)
+        internal DumpData(Stream stream, DumpConfig config)
         {
             _config = config;
-            using (var fs = new PeekableStreamReader(stream))
-            {
-                Parse(fs);
-            }
+            using var fs = new PeekableStreamReader(stream);
+            Parse(fs);
         }
 
         public override string ToString()
@@ -86,11 +83,12 @@ namespace Il2CppModdingCodegen.Data.DumpHandling
             return s;
         }
 
-        public ITypeData Resolve(TypeRef TypeRef)
+        public ITypeData Resolve(TypeRef typeRef)
         {
+            Contract.Requires(typeRef != null);
             // TODO: Resolve only among our types that we actually plan on serializing
             // Basically, check it against our whitelist/blacklist
-            var te = Types.LastOrDefault(t => t.This.Equals(TypeRef) || t.This.Name == TypeRef.Name);
+            var te = Types.LastOrDefault(t => t.This.Equals(typeRef) || t.This.Name == typeRef.Name);
             return te;
         }
     }

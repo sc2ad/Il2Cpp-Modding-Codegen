@@ -111,7 +111,7 @@ namespace Il2CppModdingCodegen.Serialization
         private bool performedGenericRenames = false;
         private bool _declaringIsValueType;
 
-        public CppMethodSerializer(SerializationConfig config)
+        internal CppMethodSerializer(SerializationConfig config)
         {
             _config = config;
         }
@@ -131,7 +131,7 @@ namespace Il2CppModdingCodegen.Serialization
 
         private void ResolveName(IMethod method)
         {
-            void FixNames(IMethod m, string n, bool isFullName, HashSet<IMethod> skip)
+            static void FixNames(IMethod m, string n, bool isFullName, HashSet<IMethod> skip)
             {
                 if (!skip.Add(m)) return;
                 // Fix all names for a given method by recursively checking our base method and our implementing methods.
@@ -188,7 +188,7 @@ namespace Il2CppModdingCodegen.Serialization
                 name = info.Item1;
                 var flags = info.Item2;
 
-                void PrefixConstUnlessPointer(MethodTypeContainer container)
+                static void PrefixConstUnlessPointer(MethodTypeContainer container)
                 {
                     if (!container.IsPointer) container.Prefix("const ");
                 }
@@ -207,7 +207,7 @@ namespace Il2CppModdingCodegen.Serialization
                             break;
                     }
 
-                void SuffixRefUnlessPointer(MethodTypeContainer container)
+                static void SuffixRefUnlessPointer(MethodTypeContainer container)
                 {
                     if (!container.IsPointer) container.Suffix("&");
                 }
@@ -291,7 +291,7 @@ namespace Il2CppModdingCodegen.Serialization
             performedGenericRenames = true;
         }
 
-        public bool FixBadDefinition(TypeRef offendingType, IMethod method, out int found)
+        internal bool FixBadDefinition(TypeRef offendingType, IMethod method, out int found)
         {
             // This method should be relatively straightforward:
             // First, check if we have a cycle with a nested type AND we don't want to write our content of our method (throw if we are a template type, for example)
@@ -340,6 +340,7 @@ namespace Il2CppModdingCodegen.Serialization
 
         public override void PreSerialize(CppTypeContext context, IMethod method)
         {
+            Contract.Requires(context != null && method != null);
             // Get the fully qualified name of the context
             bool success = true;
             // TODO: wrap all .cpp methods in a `namespace [X] {` ?
@@ -478,6 +479,7 @@ namespace Il2CppModdingCodegen.Serialization
         // Write the method here
         public override void Serialize(CppStreamWriter writer, IMethod method, bool asHeader)
         {
+            Contract.Requires(writer != null && method != null);
             if (_asHeader && !asHeader)
                 _ignoreSignatureMap = true;
             _asHeader = asHeader;

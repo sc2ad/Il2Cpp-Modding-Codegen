@@ -43,8 +43,8 @@ namespace Il2CppModdingCodegen.Data.DllHandling
 
         private static readonly Dictionary<TypeReference, DllTypeRef> cache = new Dictionary<TypeReference, DllTypeRef>();
 
-        public static int hits = 0;
-        public static int misses = 0;
+        internal static int Hits { get; private set; } = 0;
+        internal static int Misses { get; private set; } = 0;
 
         // Should use DllTypeRef.From instead!
         private DllTypeRef(TypeReference reference)
@@ -77,15 +77,15 @@ namespace Il2CppModdingCodegen.Data.DllHandling
             IsCovariant = IsGenericParameter && (This as GenericParameter).IsCovariant;
         }
 
-        public static DllTypeRef From(TypeReference type)
+        internal static DllTypeRef From(TypeReference type)
         {
             if (type is null) return null;
             if (cache.TryGetValue(type, out var value))
             {
-                hits++;
+                Hits++;
                 return value;
             }
-            misses++;
+            Misses++;
 
             // Creates new TypeRef and add it to map
             value = new DllTypeRef(type);
