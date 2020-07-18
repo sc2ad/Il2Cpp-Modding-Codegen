@@ -96,7 +96,7 @@ namespace Il2CppModdingCodegen.Data.DllHandling
             if (typeRef.IsGenericInstance)
             {
                 // This is a generic instance. We want to convert this instance to a generic type that we have already created in _types
-                var def = (typeRef as DllTypeRef).This.Resolve();
+                var def = typeRef.This.Resolve();
                 var check = DllTypeRef.From(def);
                 // Try to get our Generic Definition out of _types
                 _types.TryGetValue(check, out ret);
@@ -108,7 +108,7 @@ namespace Il2CppModdingCodegen.Data.DllHandling
 
             if (!_types.TryGetValue(typeRef, out ret))
             {
-                var def = (typeRef as DllTypeRef).This.Resolve();
+                var def = typeRef.This.Resolve();
                 if (def != null)
                 {
                     ret = new DllTypeData(def, _config);
