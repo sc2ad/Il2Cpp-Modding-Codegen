@@ -141,7 +141,7 @@ namespace Il2CppModdingCodegen.Serialization
                 {
                     if (!first)
                         s += ", ";
-                    s += $"internal {parent}";
+                    s += $"public {parent}";
                     first = false;
                 }
             }
