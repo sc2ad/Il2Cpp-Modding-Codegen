@@ -1,27 +1,26 @@
-﻿using Mono.Cecil;
-using System;
-using System.Collections;
+﻿using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using System.Security.Principal;
 
-namespace Il2Cpp_Modding_Codegen.Data
+namespace Il2CppModdingCodegen.Data
 {
     public abstract class TypeRef : IEquatable<TypeRef>
     {
         private const string NoNamespace = "GlobalNamespace";
+
         public abstract string Namespace { get; }
         public abstract string Name { get; }
 
         public abstract bool IsGenericParameter { get; }
-        public bool IsGeneric { get => IsGenericInstance || IsGenericTemplate; }
+        public abstract bool IsCovariant { get; set; }
+        internal bool IsGeneric { get => IsGenericInstance || IsGenericTemplate; }
         public abstract bool IsGenericInstance { get; }
         public abstract bool IsGenericTemplate { get; }
         public abstract IReadOnlyList<TypeRef> Generics { get; }
+
         public abstract TypeRef DeclaringType { get; }
-        public abstract TypeRef ElementType { get; }
-        public abstract bool IsCovariant { get; set; }
+        public abstract TypeRef? ElementType { get; }
 
         private ITypeData _resolvedType;
 
@@ -30,27 +29,23 @@ namespace Il2Cpp_Modding_Codegen.Data
         /// <summary>
         /// Resolves the type from the given type collection
         /// </summary>
-        public ITypeData Resolve(ITypeCollection types)
+        internal ITypeData Resolve(ITypeCollection types)
         {
 #pragma warning disable 612, 618
+            // TODO: if we upgrade to C# 8.0, change this to `_resolvedType ??= types.Resolve(this);`
             if (_resolvedType == null)
                 _resolvedType = types.Resolve(this);
 #pragma warning restore 612, 618
             return _resolvedType;
         }
 
-        public virtual bool IsVoid()
-        {
-            return Name.Equals("void", StringComparison.OrdinalIgnoreCase);
-        }
+        public virtual bool IsVoid() => Name.Equals("void", StringComparison.OrdinalIgnoreCase);
 
         public virtual bool IsPointer()
         {
             // If type is not a value type, it is a pointer
-            return _resolvedType?.Info.TypeFlags == TypeFlags.ReferenceType;
+            return _resolvedType?.Info.Refness == Refness.ReferenceType;
         }
-
-        public abstract bool IsPrimitive();
 
         public abstract bool IsArray();
 
@@ -144,13 +139,9 @@ namespace Il2Cpp_Modding_Codegen.Data
             while (dt != null)
             {
                 if (dt.IsGeneric)
-                {
                     foreach (var g in dt.Generics)
-                    {
                         // Overwrite existing declaring type and add it to genericParamToDeclaring
                         genericParamToDeclaring[g] = dt;
-                    }
-                }
                 dt = dt.DeclaringType;
             }
             // Iterate over each generic param to declaring type and convert it to a mapping of declaring type to generic parameters
@@ -184,19 +175,16 @@ namespace Il2Cpp_Modding_Codegen.Data
 
         [ObsoleteAttribute("The argument should be a TypeRef!")]
 #pragma warning disable 809  // "obsolete method extends non-obsolete mehtod object.Equals(object)
-        public override bool Equals(object obj)
+        public override bool Equals(object obj) => Equals(obj as TypeRef);
 #pragma warning restore 809
-        {
-            return Equals(obj as TypeRef);
-        }
 
         internal static FastTypeRefComparer fastComparer = new FastTypeRefComparer();
 
         public bool Equals(TypeRef other)
         {
             return fastComparer.Equals(this, other) &&
-                (DeclaringType?.Equals(other.DeclaringType) ?? other.DeclaringType == null) &&
-                (ElementType?.Equals(other.ElementType) ?? other.ElementType == null);
+                (DeclaringType?.Equals(other?.DeclaringType) ?? other?.DeclaringType == null) &&
+                (ElementType?.Equals(other?.ElementType) ?? other?.ElementType == null);
         }
 
         public override int GetHashCode()

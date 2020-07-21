@@ -1,10 +1,7 @@
 ﻿using Mono.Cecil;
-using System;
 using System.Collections.Generic;
-using System.Linq;
-using System.Text;
 
-namespace Il2Cpp_Modding_Codegen.Data.DllHandling
+namespace Il2CppModdingCodegen.Data.DllHandling
 {
     /// <summary>
     /// Provides a way of determining whether two method definitions are the same or not.
@@ -42,9 +39,9 @@ namespace Il2Cpp_Modding_Codegen.Data.DllHandling
         // This currently collides quite frequently and should probably be adjusted.
         public int GetHashCode(MethodDefinition obj)
         {
-            var val = obj.FullName.GetHashCode() ^ (19 * obj.DeclaringType.FullName.GetHashCode() << 1);
+            var val = obj.FullName.GetHashCode() * 1361 + obj.DeclaringType.FullName.GetHashCode();
             foreach (var p in obj.Parameters)
-                val ^= p.ParameterType.FullName.GetHashCode();
+                val = val * 42071 + p.ParameterType.FullName.GetHashCode();
             return val;
         }
     }

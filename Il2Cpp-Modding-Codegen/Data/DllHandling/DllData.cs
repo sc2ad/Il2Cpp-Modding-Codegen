@@ -1,29 +1,26 @@
-﻿using Il2Cpp_Modding_Codegen.Config;
-using Il2Cpp_Modding_Codegen.Parsers;
-using Il2Cpp_Modding_Codegen.Serialization;
+﻿using Il2CppModdingCodegen.Config;
 using Mono.Cecil;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.Contracts;
 using System.IO;
 using System.Linq;
-using System.Reflection;
-using System.Text;
 
-namespace Il2Cpp_Modding_Codegen.Data.DllHandling
+namespace Il2CppModdingCodegen.Data.DllHandling
 {
     public class DllData : DefaultAssemblyResolver, IParsedData
     {
         public string Name => "Dll Data";
         public List<IImage> Images { get; } = new List<IImage>();
         public IEnumerable<ITypeData> Types { get { return _types.Values; } }
-        private DllConfig _config;
-        private string _dir;
-        private ReaderParameters _readerParams;
-        private IMetadataResolver _metadataResolver;
+        private readonly DllConfig _config;
+        private readonly string _dir;
+        private readonly ReaderParameters _readerParams;
+        private readonly IMetadataResolver _metadataResolver;
 
-        private Dictionary<TypeRef, ITypeData> _types = new Dictionary<TypeRef, ITypeData>();
+        private readonly Dictionary<TypeRef, ITypeData> _types = new Dictionary<TypeRef, ITypeData>();
 
-        public DllData(string dir, DllConfig config)
+        internal DllData(string dir, DllConfig config)
         {
             _config = config;
             _dir = dir;
@@ -37,18 +34,12 @@ namespace Il2Cpp_Modding_Codegen.Data.DllHandling
 
             var modules = new List<ModuleDefinition>();
             foreach (var file in Directory.GetFiles(dir))
-            {
-                if (!file.EndsWith(".dll"))
-                    continue;
-                if (!_config.BlacklistDlls.Contains(file))
+                if (file.EndsWith(".dll") && !_config.BlacklistDlls.Contains(file))
                 {
                     var assemb = AssemblyDefinition.ReadAssembly(file, _readerParams);
                     foreach (var module in assemb.Modules)
-                    {
                         modules.Add(module);
-                    }
                 }
-            }
 
             Queue<TypeDefinition> frontier = new Queue<TypeDefinition>();
             modules.ForEach(m => m.Types.ToList().ForEach(t =>
@@ -81,17 +72,21 @@ namespace Il2Cpp_Modding_Codegen.Data.DllHandling
                     Console.Error.WriteLine($"{dllRef} already in _types! Matching item: {_types[dllRef].This}");
             }
 
-            int total = DllTypeRef.hits + DllTypeRef.misses;
-            Console.WriteLine($"{nameof(DllTypeRef)} cache hits: {DllTypeRef.hits} / {total} = {100.0f * DllTypeRef.hits / total}");
+            int total = DllTypeRef.Hits + DllTypeRef.Misses;
+            Console.WriteLine($"{nameof(DllTypeRef)} cache hits: {DllTypeRef.Hits} / {total} = {100.0f * DllTypeRef.Hits / total}");
             // Ignore images for now.
         }
 
-        public override string ToString()
+        public override string ToString() => $"Types: {Types.Count()}";
+
+        public ITypeData? Resolve(TypeRef typeRef)
         {
-            return $"Types: {Types.Count()}";
+            var temp = typeRef as DllTypeRef;
+            if (temp is null) throw new Exception();
+            return Resolve(temp);
         }
 
-        public ITypeData Resolve(TypeRef typeRef)
+        private ITypeData? Resolve(DllTypeRef typeRef)
         {
             // Generic parameters can never "Resolve"
             if (typeRef.IsGenericParameter) return null;
@@ -101,7 +96,7 @@ namespace Il2Cpp_Modding_Codegen.Data.DllHandling
             if (typeRef.IsGenericInstance)
             {
                 // This is a generic instance. We want to convert this instance to a generic type that we have already created in _types
-                var def = (typeRef as DllTypeRef).This.Resolve();
+                var def = typeRef.This.Resolve();
                 var check = DllTypeRef.From(def);
                 // Try to get our Generic Definition out of _types
                 _types.TryGetValue(check, out ret);
@@ -113,17 +108,10 @@ namespace Il2Cpp_Modding_Codegen.Data.DllHandling
 
             if (!_types.TryGetValue(typeRef, out ret))
             {
-                var def = (typeRef as DllTypeRef).This.Resolve();
+                var def = typeRef.This.Resolve();
                 if (def != null)
                 {
                     ret = new DllTypeData(def, _config);
-                    //if (!ret.This.Equals(typeRef))
-                    //{
-                    //    // Resolve should never be called on pointers or arrays!
-                    //    Console.Error.WriteLine($"{typeRef} resolves to a different type ({ret.This})!");
-                    //    TypeRef.PrintEqual(typeRef, ret.This);
-                    //}
-
                     if (!_types.ContainsKey(ret.This))
                         Console.Error.WriteLine($"Too late to add {def} to Types!");
                     else

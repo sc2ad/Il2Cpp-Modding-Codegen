@@ -1,9 +1,7 @@
-﻿using System;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using System.Linq;
-using System.Text;
 
-namespace Il2Cpp_Modding_Codegen.Data
+namespace Il2CppModdingCodegen.Data
 {
     public interface ISpecifier
     {
@@ -20,13 +18,8 @@ namespace Il2Cpp_Modding_Codegen.Data
 
     public static class SpecifierExtensions
     {
-        public static bool IsStatic(this List<ISpecifier> specifiers)
-        {
-            return specifiers.Any(s => s.Static);
-        }
-        public static bool IsConst(this List<ISpecifier> specifiers)
-        {
-            return specifiers.Any(s => s.Const);
-        }
+        internal static bool IsStatic(this List<ISpecifier> specifiers) => specifiers.Any(s => s.Static);
+
+        internal static bool IsConst(this List<ISpecifier> specifiers) => specifiers.Any(s => s.Const);
     }
 }

@@ -1,9 +1,7 @@
-﻿using System;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using System.Diagnostics.Contracts;
-using System.Text;
 
-namespace Il2Cpp_Modding_Codegen.Config
+namespace Il2CppModdingCodegen.Config
 {
     public class SerializationConfig
     {
@@ -116,16 +114,17 @@ namespace Il2Cpp_Modding_Codegen.Config
             return name;
         }
 
-        public static Dictionary<string, int> specialMethodNames = new Dictionary<string, int>();
+        public static Dictionary<string, int> SpecialMethodNames { get; private set; } = new Dictionary<string, int>();
 
         public string SafeMethodName(string name)
         {
+            Contract.Requires(name != null);
             if (name.StartsWith("op_"))
             {
-                if (specialMethodNames.ContainsKey(name))
-                    specialMethodNames[name]++;
+                if (SpecialMethodNames.ContainsKey(name))
+                    SpecialMethodNames[name]++;
                 else
-                    specialMethodNames.Add(name, 1);
+                    SpecialMethodNames.Add(name, 1);
             }
             if (!string.IsNullOrEmpty(name))
                 while (IllegalNames?.Contains(name) is true || IllegalMethodNames?.Contains(name) is true)
@@ -134,7 +133,7 @@ namespace Il2Cpp_Modding_Codegen.Config
         }
     }
 
-    public struct ExceptionHandling
+    public class ExceptionHandling
     {
         public UnresolvedTypeExceptionHandling TypeHandling { get; set; }
 

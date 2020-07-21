@@ -1,34 +1,32 @@
-﻿using Il2Cpp_Modding_Codegen.Config;
-using Il2Cpp_Modding_Codegen.Data;
+﻿using Il2CppModdingCodegen.Config;
+using Il2CppModdingCodegen.Data;
 using System;
-using System.CodeDom.Compiler;
 using System.Collections.Generic;
+using System.Diagnostics.Contracts;
 using System.IO;
 using System.Linq;
-using System.Net.Http.Headers;
-using System.Text;
 
-namespace Il2Cpp_Modding_Codegen.Serialization
+namespace Il2CppModdingCodegen.Serialization
 {
     public class CppDataSerializer : Serializer<IParsedData>
     {
         // This class is responsible for creating the contexts and passing them to each of the types
         // It then needs to create a header and a non-header for each class, with reasonable file structuring
         // Images, fortunately, don't have to be created at all
-        private ITypeCollection _collection;
+        private readonly ITypeCollection _collection;
 
-        private SerializationConfig _config;
+        private readonly SerializationConfig _config;
 
         private CppContextSerializer _contextSerializer;
-        private static Dictionary<ITypeData, CppTypeContext> _map = new Dictionary<ITypeData, CppTypeContext>();
-        public static IReadOnlyDictionary<ITypeData, CppTypeContext> TypeToContext { get => _map; }
+        private static readonly Dictionary<ITypeData, CppTypeContext> _map = new Dictionary<ITypeData, CppTypeContext>();
+        internal static IReadOnlyDictionary<ITypeData, CppTypeContext> TypeToContext { get => _map; }
 
         /// <summary>
         /// This event is called after all types are PreSerialized, but BEFORE any definitions or declarations are resolved to includes.
         /// This allows for any delegates of this type to modify each type's context's definitions or declarations before they are considered complete.
         /// This is called for each type that is registered in <see cref="_map"/>, which is each type that is not skipped due to config.
         /// </summary>
-        public event Action<CppDataSerializer, ITypeData, CppTypeContext> ContextsComplete;
+        internal event Action<CppDataSerializer, ITypeData, CppTypeContext> ContextsComplete;
 
         /// <summary>
         /// Creates a C++ Serializer with the given type context, which is a wrapper for a list of all types to serialize
@@ -58,12 +56,12 @@ namespace Il2Cpp_Modding_Codegen.Serialization
 
         public override void PreSerialize(CppTypeContext _unused_, IParsedData data)
         {
+            Contract.Requires(data != null);
             // We create a CppContextSerializer for both headers and .cpp files
             // We create a mapping (either here or in the serializer) of ITypeData --> CppSerializerContext
             // For each type, we create their contexts, preserialize them.
             // Then we iterate over all the types again, creating header and source creators for each, using our context serializers.
             // We then serialize the header and source creators, actually creating the data.
-
             _contextSerializer = new CppContextSerializer(_config, data);
 
             foreach (var t in data.Types)
@@ -90,9 +88,8 @@ namespace Il2Cpp_Modding_Codegen.Serialization
             }
             // Perform any post context creation for all pairs in _map
             foreach (var pair in _map)
-            {
                 ContextsComplete?.Invoke(this, pair.Key, pair.Value);
-            }
+
             // Resolve all definitions and declarations for each context in _map
             foreach (var context in _map.Values)
             {
@@ -122,9 +119,7 @@ namespace Il2Cpp_Modding_Codegen.Serialization
 
                 if (_config.PrintSerializationProgress)
                     if (i % _config.PrintSerializationProgressFrequency == 0)
-                    {
                         Console.WriteLine($"{i} / {count}");
-                    }
 
                 // Ensure that we are going to write everything in this context:
                 // Global context should have everything now, all names are also resolved!
@@ -138,7 +133,7 @@ namespace Il2Cpp_Modding_Codegen.Serialization
                 if (!pair.Value.InPlace || pair.Value.DeclaringContext == null)
                     new CppHeaderCreator(_config, _contextSerializer).Serialize(pair.Value);
                 var t = pair.Value.LocalType;
-                if (/*t.Type == TypeEnum.Interface || */t.This.IsGeneric || (t.Methods.Count == 0 && t.Fields.Where(f => f.Specifiers.IsStatic()).Count() == 0))
+                if (/*t.Type == TypeEnum.Interface || */t.This.IsGeneric || (t.Methods.Count == 0 && !t.Fields.Where(f => f.Specifiers.IsStatic()).Any()))
                     // Don't create C++ for types with no methods (including static fields), or if it is an interface, or if it is generic
                     continue;
 

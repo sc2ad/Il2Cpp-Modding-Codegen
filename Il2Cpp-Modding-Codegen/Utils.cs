@@ -1,16 +1,15 @@
-﻿using Il2Cpp_Modding_Codegen.Data;
-using Mono.Cecil;
+﻿using Mono.Cecil;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics.Contracts;
 using System.Linq;
 using System.Text.RegularExpressions;
 
-namespace Il2Cpp_Modding_Codegen
+namespace Il2CppModdingCodegen
 {
     internal static class Utils
     {
-        public static string ReplaceFirst(this string text, string search, string replace)
+        internal static string ReplaceFirst(this string text, string search, string replace)
         {
             int pos = text.IndexOf(search);
             if (pos < 0)
@@ -18,7 +17,7 @@ namespace Il2Cpp_Modding_Codegen
             return text.Substring(0, pos) + replace + text.Substring(pos + search.Length);
         }
 
-        public static TypeDefinition ResolvedBaseType(this TypeDefinition self)
+        internal static TypeDefinition ResolvedBaseType(this TypeDefinition self)
         {
             var base_type = self?.BaseType;
             if (base_type is null) return null;
@@ -35,17 +34,17 @@ namespace Il2Cpp_Modding_Codegen
                 // Since !0 and !1 will occur in resolved.GenericParameters instead.
                 throw new InvalidOperationException("instance.GenericArguments is either null or of a mismatching count compared to resolved.GenericParameters!");
             for (int i = 0; i < templateType.GenericParameters.Count; i++)
-            {
                 // Map from resolved generic parameter to self generic parameter
                 map.Add(templateType.GenericParameters[i].Name, (self as GenericInstanceType).GenericArguments[i]);
-            }
             return map;
         }
 
-        private static bool QuickEquals(TypeReference r1, TypeReference r2)
+        class QuickComparer : IEqualityComparer<TypeReference>
         {
-            return r1?.FullName == r2?.FullName;
-        }
+            public bool Equals(TypeReference r1, TypeReference r2) => r1?.FullName == r2?.FullName;
+            public int GetHashCode(TypeReference r) => r?.FullName.GetHashCode() ?? 0;
+        };
+        static readonly QuickComparer quickCompare = new QuickComparer();
 
         // Returns all methods with the same name and parameters as `self` in any base type or interface of `type`.
         private static HashSet<MethodDefinition> FindIn(this MethodDefinition self, TypeDefinition type, Dictionary<string, TypeReference> genericMapping)
@@ -61,26 +60,19 @@ namespace Il2Cpp_Modding_Codegen
                     // For example, if we have a T, we want to ensure that the Ts would match
                     // We need to ensure the name of both self and m are fixed to not have any ., use the last . and ignore generic parameters
                     if (m.Name.Substring(m.Name.LastIndexOf('.') + 1) != sName)
-                        goto cont;
-                    var ret = m.ReturnType;
-                    if (genericMapping.TryGetValue(ret.Name, out var r2))
-                        ret = r2;
-                    // If ret == self.ReturnType, we have a match
-                    if (!QuickEquals(ret, self.ReturnType))
-                        goto cont;
+                        continue;
+                    if (!genericMapping.TryGetValue(m.ReturnType.Name, out var ret))
+                        ret = m.ReturnType;
+                    // Only if ret == self.ReturnType, can we have a match
+                    if (!quickCompare.Equals(ret, self.ReturnType))
+                        continue;
                     if (m.Parameters.Count != self.Parameters.Count)
-                        goto cont;
-                    for (int i = 0; i < m.Parameters.Count; i++)
-                    {
-                        var arg = m.Parameters[i].ParameterType;
-                        if (genericMapping.TryGetValue(m.Parameters[i].ParameterType.Name, out var a))
-                            arg = a;
-                        // If arg == self.Parameters[i].ParameterType, we have a match
-                        if (!QuickEquals(arg, self.Parameters[i].ParameterType))
-                            goto cont;
-                    }
-                    matches.Add(m);
-                cont:;
+                        continue;
+
+                    var mParams = m.Parameters.Select(
+                        p => genericMapping.TryGetValue(p.ParameterType.Name, out var arg) ? arg : p.ParameterType);
+                    if (mParams.SequenceEqual(self.Parameters.Select(p => p.ParameterType), quickCompare))
+                        matches.Add(m);
                 }
             }
 
@@ -111,7 +103,7 @@ namespace Il2Cpp_Modding_Codegen
             return FindInterface(def.BaseType, find);
         }
 
-        public static MethodDefinition GetSpecialNameBaseMethod(this MethodDefinition self, out TypeReference iface, int idxDot = -1)
+        internal static MethodDefinition GetSpecialNameBaseMethod(this MethodDefinition self, out TypeReference iface, int idxDot = -1)
         {
             if (idxDot == -1)
                 idxDot = self.Name.LastIndexOf('.');
@@ -132,7 +124,7 @@ namespace Il2Cpp_Modding_Codegen
         /// </summary>
         /// <param name="self"></param>
         /// <returns></returns>
-        public static HashSet<MethodDefinition> GetBaseMethods(this MethodDefinition self)
+        internal static HashSet<MethodDefinition> GetBaseMethods(this MethodDefinition self)
         {
             Contract.Requires(self != null);
             // Whenever we call GetBaseMethods, we should explicitly exclude all base methods that are specifically defined by self.DeclaringType via special names already.

@@ -1,18 +1,16 @@
-﻿using Il2Cpp_Modding_Codegen.Config;
-using System;
+﻿using Il2CppModdingCodegen.Config;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using System.Text;
 
-namespace Il2Cpp_Modding_Codegen.Serialization
+namespace Il2CppModdingCodegen.Serialization
 {
     /// <summary>
     /// Serializes an Android.mk file
     /// </summary>
-    public class AndroidMkSerializer
+    public sealed class AndroidMkSerializer : System.IDisposable
     {
-        public struct Library
+        internal class Library
         {
             internal IEnumerable<string> toBuild;
             internal bool isSource;
@@ -42,14 +40,14 @@ rwildcard=$(wildcard $1$2) $(foreach d,$(wildcard $1*),$(call rwildcard,$d/,$2))
 ";
 
         private TextWriter _stream;
-        private SerializationConfig _config;
+        private readonly SerializationConfig _config;
 
-        public AndroidMkSerializer(SerializationConfig config)
+        internal AndroidMkSerializer(SerializationConfig config)
         {
             _config = config;
         }
 
-        public void WriteHeader(string filename)
+        internal void WriteHeader(string filename)
         {
             if (File.Exists(filename))
                 File.Delete(filename);
@@ -61,7 +59,7 @@ rwildcard=$(wildcard $1$2) $(foreach d,$(wildcard $1*),$(call rwildcard,$d/,$2))
         /// Writes a static library, containing either source or library files
         /// </summary>
         /// <param name="contexts"></param>
-        public void WriteStaticLibrary(Library lib)
+        internal void WriteStaticLibrary(Library lib)
         {
             _stream.WriteLine("# Writing static library: " + lib.id);
             _stream.WriteLine("include $(CLEAR_VARS)");
@@ -76,7 +74,7 @@ rwildcard=$(wildcard $1$2) $(foreach d,$(wildcard $1*),$(call rwildcard,$d/,$2))
             _stream.WriteLine("");
         }
 
-        public void WritePrebuiltSharedLibrary(string id, string src, string include)
+        internal void WritePrebuiltSharedLibrary(string id, string src, string include)
         {
             _stream.WriteLine("# Writing prebuilt shared library: " + id);
             _stream.WriteLine("include $(CLEAR_VARS)");
@@ -87,7 +85,7 @@ rwildcard=$(wildcard $1$2) $(foreach d,$(wildcard $1*),$(call rwildcard,$d/,$2))
             _stream.WriteLine("");
         }
 
-        public void WriteSharedLibrary(Library lib)
+        internal void WriteSharedLibrary(Library lib)
         {
             _stream.WriteLine("# Writing shared library: " + lib.id);
             _stream.WriteLine("include $(CLEAR_VARS)");
@@ -105,7 +103,7 @@ rwildcard=$(wildcard $1$2) $(foreach d,$(wildcard $1*),$(call rwildcard,$d/,$2))
             _stream.WriteLine("");
         }
 
-        public void WriteSingleFile(Library lib)
+        internal void WriteSingleFile(Library lib)
         {
             _stream.WriteLine("# Writing single library: " + lib.id);
             _stream.WriteLine("include $(CLEAR_VARS)");
@@ -119,12 +117,11 @@ rwildcard=$(wildcard $1$2) $(foreach d,$(wildcard $1*),$(call rwildcard,$d/,$2))
                 _stream.WriteLine("LOCAL_SHARED_LIBRARIES += " + l);
             _stream.WriteLine("LOCAL_LDLIBS := -llog");
             _stream.WriteLine("include $(BUILD_SHARED_LIBRARY)");
-            _stream.WriteLine("");
         }
 
         private static int aggregateIdx = 0;
 
-        public void AggregateStaticLibraries(IEnumerable<Library> libs, int depth = 0)
+        internal void AggregateStaticLibraries(IEnumerable<Library> libs, int depth = 0)
         {
             int innerLibsLength = 0;
             int outterLibsLength = 0;
@@ -163,9 +160,7 @@ rwildcard=$(wildcard $1$2) $(foreach d,$(wildcard $1*),$(call rwildcard,$d/,$2))
             }
             // Upon reaching the end, we should have a list of static libraries that have been created wrapping the provided static libraries.
             if (outterLibsLength >= _config.SharedLibraryCharacterLimit)
-            {
                 AggregateStaticLibraries(outterLibs, depth + 1);
-            }
             else
             {
                 // Otherwise, simply write out the outterLibs directly, and be done!
@@ -185,9 +180,7 @@ rwildcard=$(wildcard $1$2) $(foreach d,$(wildcard $1*),$(call rwildcard,$d/,$2))
             // If we find that this is too long, recurse until we are small enough
         }
 
-        public void Close()
-        {
-            _stream.Close();
-        }
+        public void Close() => _stream.Close();
+        public void Dispose() => Close();
     }
 }

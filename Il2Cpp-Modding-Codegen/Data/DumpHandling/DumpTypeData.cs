@@ -1,12 +1,10 @@
-﻿using Il2Cpp_Modding_Codegen.Config;
-using Il2Cpp_Modding_Codegen.Parsers;
+﻿using Il2CppModdingCodegen.Config;
+using Il2CppModdingCodegen.Parsers;
 using System;
 using System.Collections.Generic;
-using System.IO;
 using System.Linq;
-using System.Text;
 
-namespace Il2Cpp_Modding_Codegen.Data.DumpHandling
+namespace Il2CppModdingCodegen.Data.DumpHandling
 {
     internal class DumpTypeData : ITypeData
     {
@@ -28,7 +26,7 @@ namespace Il2Cpp_Modding_Codegen.Data.DumpHandling
         public List<IProperty> Properties { get; } = new List<IProperty>();
         public List<IMethod> Methods { get; } = new List<IMethod>();
 
-        private DumpConfig _config;
+        private readonly DumpConfig _config;
 
         private void ParseAttributes(PeekableStreamReader fs)
         {
@@ -47,7 +45,7 @@ namespace Il2Cpp_Modding_Codegen.Data.DumpHandling
         {
             string line = fs.ReadLine();
             var split = line.Split(' ');
-            TypeDefIndex = int.Parse(split[split.Length - 1]);
+            TypeDefIndex = int.Parse(split[^1]);
             // : at least 4 from end
             int start = 4;
             bool found = false;
@@ -79,9 +77,8 @@ namespace Il2Cpp_Modding_Codegen.Data.DumpHandling
                 }
             }
             else
-            {
                 start = split.Length - start;
-            }
+
             // -4 is name
             // -5 is type enum
             // all others are specifiers
@@ -89,41 +86,37 @@ namespace Il2Cpp_Modding_Codegen.Data.DumpHandling
             This = new DumpTypeRef(@namespace, DumpTypeRef.FromMultiple(split, start, out int adjusted, -1, " "));
             Type = (TypeEnum)Enum.Parse(typeof(TypeEnum), split[adjusted - 1], true);
             for (int i = 0; i < adjusted - 1; i++)
-            {
                 if (_config.ParseTypeSpecifiers)
                     Specifiers.Add(new DumpSpecifier(split[i]));
-            }
+
             Info = new TypeInfo
             {
-                TypeFlags = Type == TypeEnum.Class || Type == TypeEnum.Interface ? TypeFlags.ReferenceType : TypeFlags.ValueType
+                Refness = Type == TypeEnum.Class || Type == TypeEnum.Interface ? Refness.ReferenceType : Refness.ValueType
             };
+
             if (Parent is null)
-            {
                 // If the type is a value type, it has no parent.
                 // If the type is a reference type, it has parent Il2CppObject
-                if (Info.TypeFlags == TypeFlags.ReferenceType)
+                if (Info.Refness == Refness.ReferenceType)
                     Parent = DumpTypeRef.ObjectType;
-            }
         }
 
         private void ParseFields(PeekableStreamReader fs)
         {
             string line = fs.PeekLine().Trim();
             if (line != "{")
-            {
                 // Nothing in the type
                 return;
-            }
             fs.ReadLine();
+
             line = fs.PeekLine().Trim();
             // Fields should be second line, if it isn't there are no fields.
             if (!line.StartsWith("// Fields"))
-            {
                 // No fields, but other things
                 return;
-            }
             // Read past // Fields
             fs.ReadLine();
+
             while (!string.IsNullOrEmpty(line) && line != "}" && !line.StartsWith("// Properties") && !line.StartsWith("// Methods"))
             {
                 if (_config.ParseTypeFields)
@@ -137,20 +130,19 @@ namespace Il2Cpp_Modding_Codegen.Data.DumpHandling
         private void ParseProperties(PeekableStreamReader fs)
         {
             string line = fs.PeekLine().Trim();
-            if (line == "")
+            if (line.Length == 0)
             {
                 // Spaced after fields
                 fs.ReadLine();
                 line = fs.PeekLine().Trim();
             }
             if (!line.StartsWith("// Properties"))
-            {
                 // No properties
                 return;
-            }
             // Read past // Properties
             fs.ReadLine();
-            while (line != "" && line != "}" && !line.StartsWith("// Methods"))
+
+            while (line.Length != 0 && line != "}" && !line.StartsWith("// Methods"))
             {
                 if (_config.ParseTypeProperties)
                     Properties.Add(new DumpProperty(This, fs));
@@ -163,20 +155,19 @@ namespace Il2Cpp_Modding_Codegen.Data.DumpHandling
         private void ParseMethods(PeekableStreamReader fs)
         {
             string line = fs.PeekLine().Trim();
-            if (line == "")
+            if (line.Length == 0)
             {
                 // Spaced after fields or properties
                 fs.ReadLine();
                 line = fs.PeekLine().Trim();
             }
             if (!line.StartsWith("// Methods"))
-            {
                 // No methods
                 return;
-            }
             // Read past // Methods
             fs.ReadLine();
-            while (line != "" && line != "}")
+
+            while (line.Length != 0 && line != "}")
             {
                 if (_config.ParseTypeMethods)
                     Methods.Add(new DumpMethod(This, fs));
@@ -192,7 +183,7 @@ namespace Il2Cpp_Modding_Codegen.Data.DumpHandling
             Methods.AddRange(methods.Where(m => m.ImplementedFrom != null));
         }
 
-        public DumpTypeData(PeekableStreamReader fs, DumpConfig config)
+        internal DumpTypeData(PeekableStreamReader fs, DumpConfig config)
         {
             _config = config;
             // Extract namespace from line
@@ -210,51 +201,37 @@ namespace Il2Cpp_Modding_Codegen.Data.DumpHandling
             ParseMethods(fs);
             // Read closing brace, if it needs to be read
             if (fs.PeekLine() == "}")
-            {
                 fs.ReadLine();
-            }
         }
 
         public override string ToString()
         {
             var s = $"// Namespace: {This.Namespace}\n";
             foreach (var attr in Attributes)
-            {
                 s += $"{attr}\n";
-            }
             foreach (var spec in Specifiers)
-            {
                 s += $"{spec} ";
-            }
             s += $"{Type.ToString().ToLower()} {This.Name}";
             if (Parent != null)
-            {
                 s += $" : {Parent}";
-            }
             s += "\n{";
             if (Fields.Count > 0)
             {
                 s += "\n\t// Fields\n\t";
                 foreach (var f in Fields)
-                {
                     s += $"{f}\n\t";
-                }
             }
             if (Properties.Count > 0)
             {
                 s += "\n\t// Properties\n\t";
                 foreach (var p in Properties)
-                {
                     s += $"{p}\n\t";
-                }
             }
             if (Methods.Count > 0)
             {
                 s += "\n\t// Methods\n\t";
                 foreach (var m in Methods)
-                {
                     s += $"{m}\n\t";
-                }
             }
             s = s.TrimEnd('\t');
             s += "}";

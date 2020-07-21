@@ -1,10 +1,11 @@
 ﻿using System.Collections.Generic;
 
-namespace Il2Cpp_Modding_Codegen.Data
+namespace Il2CppModdingCodegen.Data
 {
     public interface IMethod
     {
         bool Generic { get; }
+        IReadOnlyList<TypeRef> GenericParameters { get; }
         List<IAttribute> Attributes { get; }
         List<ISpecifier> Specifiers { get; }
         int RVA { get; }

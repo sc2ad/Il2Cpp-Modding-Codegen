@@ -1,14 +1,13 @@
-﻿using Il2Cpp_Modding_Codegen.Data;
+﻿using Il2CppModdingCodegen.Data;
 using System;
-using System.Collections.Generic;
-using System.Text;
 
-namespace Il2Cpp_Modding_Codegen.Serialization
+namespace Il2CppModdingCodegen.Serialization
 {
+#pragma warning disable CA1032 // Implement standard exception constructors
     public class UnresolvedTypeException : Exception
+#pragma warning restore CA1032 // Implement standard exception constructors
     {
-        public UnresolvedTypeException(TypeRef declaringType, TypeRef typeFailed) : base($"{declaringType} could not find reference to type: {typeFailed}")
-        {
-        }
+        internal UnresolvedTypeException(TypeRef declaringType, TypeRef typeFailed) : base($"{declaringType} could not find reference to type: {typeFailed}") { }
+        internal UnresolvedTypeException(TypeRef declaringType, TypeRef typeFailed, Exception innerException) : base($"{declaringType} could not find reference to type: {typeFailed}", innerException) { }
     }
 }

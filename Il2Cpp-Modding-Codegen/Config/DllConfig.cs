@@ -1,19 +1,17 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Text;
+﻿using System.Collections.Generic;
 
-namespace Il2Cpp_Modding_Codegen.Config
+namespace Il2CppModdingCodegen.Config
 {
     public class DllConfig
     {
-        public bool ParseImages { get; set; } = true;
-        public bool ParseTypes { get; set; } = true;
-        public bool ParseTypeAttributes { get; set; } = true;
-        public bool ParseTypeSpecifiers { get; set; } = true;
-        public bool ParseTypeFields { get; set; } = true;
-        public bool ParseTypeProperties { get; set; } = true;
-        public bool ParseTypeMethods { get; set; } = true;
-        public HashSet<string> BlacklistDlls { get; set; } = new HashSet<string>();
-        public HashSet<string> BlacklistTypes { get; set; } = new HashSet<string>();
+        internal bool ParseImages { get; set; } = true;
+        internal bool ParseTypes { get; set; } = true;
+        internal bool ParseTypeAttributes { get; set; } = true;
+        internal bool ParseTypeSpecifiers { get; set; } = true;
+        internal bool ParseTypeFields { get; set; } = true;
+        internal bool ParseTypeProperties { get; set; } = true;
+        internal bool ParseTypeMethods { get; set; } = true;
+        internal HashSet<string> BlacklistDlls { get; set; } = new HashSet<string>();
+        internal HashSet<string> BlacklistTypes { get; set; } = new HashSet<string>();
     }
 }

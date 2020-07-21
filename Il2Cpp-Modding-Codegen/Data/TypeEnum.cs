@@ -1,9 +1,6 @@
-﻿using Mono.Cecil;
-using System;
-using System.Collections.Generic;
-using System.Text;
+﻿using System;
 
-namespace Il2Cpp_Modding_Codegen.Data
+namespace Il2CppModdingCodegen.Data
 {
     public enum TypeEnum
     {
