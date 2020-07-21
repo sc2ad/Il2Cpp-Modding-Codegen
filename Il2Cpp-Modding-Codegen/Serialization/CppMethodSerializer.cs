@@ -76,8 +76,11 @@ namespace Il2Cpp_Modding_Codegen.Serialization
                 if (_nameMap.TryGetValue(m, out var pair))
                 {
                     if (pair.Item2)
-                        // This pair already has a converted name!
-                        Console.WriteLine($"Method: {m.Name} already has rectified name: {pair.Item1}! Was trying new name: {n}");
+                        if (m.BaseMethods.Count == 1)
+                            // This pair already has a converted name!
+                            // We only want to log this for cases where we would actually use the name
+                            // In cases where we have multiple base methods, this does not matter.
+                            Console.WriteLine($"Method: {m.Name} already has rectified name: {pair.Item1}! Was trying new name: {n}");
                     if (isFullName)
                         _nameMap[m] = (n, isFullName);
                 }
@@ -122,12 +125,21 @@ namespace Il2Cpp_Modding_Codegen.Serialization
             {
                 // For each base method, iterate over it and all its implementing methods
                 // Change the name for each of these methods to have the name
+                if (method.BaseMethods.Count > 1)
+                {
+                    // If we have more than 1 base method, we need to avoid renaming (saves time)
+                    // However, if we have a fullName, AND we SOMEHOW have 2 or more base methods, we need to throw a big exception
+                    if (fullName)
+                        throw new InvalidOperationException($"Should not have more than one base method for special name method: {method}!");
+                    break;
+                }
                 FixNames(method, name, fullName, skips);
                 foreach (var m in method.ImplementingMethods)
                 {
                     FixNames(m, name, fullName, skips);
                 }
-                method = method.BaseMethod;
+                // Should only have one or fewer BaseMethods at this point
+                method = method.BaseMethods.FirstOrDefault();
             }
         }
 
@@ -271,7 +283,7 @@ namespace Il2Cpp_Modding_Codegen.Serialization
                 Resolved(method);
         }
 
-        private string WriteMethod(bool staticFunc, IMethod method, bool isHeader)
+        private string WriteMethod(bool staticFunc, IMethod method, bool isHeader, string overrideName)
         {
             var ns = "";
             var preRetStr = "";
@@ -298,9 +310,17 @@ namespace Il2Cpp_Modding_Codegen.Serialization
                 if (_config.OutputStyle == OutputStyle.Normal)
                     retStr = "std::optional<" + retStr + ">";
             }
-            if (!_nameMap.TryGetValue(method, out var namePair))
-                throw new InvalidOperationException($"Could not find method: {method} in _nameMap! Ensure it is PreSerialized first!");
-            var nameStr = namePair.Item1;
+            string nameStr;
+            if (string.IsNullOrEmpty(overrideName))
+            {
+                if (!_nameMap.TryGetValue(method, out var namePair))
+                    throw new InvalidOperationException($"Could not find method: {method} in _nameMap! Ensure it is PreSerialized first!");
+                nameStr = namePair.Item1;
+            }
+            else
+            {
+                nameStr = overrideName;
+            }
 
             string paramString = method.Parameters.FormatParameters(_config.IllegalNames, _parameterMaps[method], FormatParameterMode.Names | FormatParameterMode.Types, header: isHeader);
 
@@ -359,6 +379,10 @@ namespace Il2Cpp_Modding_Codegen.Serialization
                 // Need to create the method ENTIRELY in the header, instead of split between the C++ and the header
                 return;
 
+            string name = null;
+            if (method.BaseMethods.Count > 1)
+                name = _config.SafeMethodName(method.Name).Replace('<', '$').Replace('>', '$').Replace('.', '_');
+
             bool writeContent = !_asHeader || NeedDefinitionInHeader(method);
             if (_asHeader)
             {
@@ -376,13 +400,13 @@ namespace Il2Cpp_Modding_Codegen.Serialization
                 writer.WriteComment($"Offset: 0x{method.Offset:X}");
                 if (method.ImplementedFrom != null)
                     writer.WriteComment("Implemented from: " + method.ImplementedFrom);
-                if (method.BaseMethod != null)
-                    writer.WriteComment($"Base method: {method.BaseMethod.ReturnType} {method.BaseMethod.DeclaringType.Name}::{method.BaseMethod.Name}({method.Parameters.FormatParameters(csharp: true)})");
+                foreach (var bm in method.BaseMethods)
+                    writer.WriteComment($"Base method: {bm.ReturnType} {bm.DeclaringType.Name}::{bm.Name}({method.Parameters.FormatParameters(csharp: true)})");
                 if (!writeContent)
                 {
                     if (_genericArgs.TryGetValue(method, out var types))
                         writer.WriteLine($"template<{string.Join(", ", types.Select(s => "class " + s))}>");
-                    writer.WriteDeclaration(WriteMethod(staticFunc, method, true));
+                    writer.WriteDeclaration(WriteMethod(staticFunc, method, true, name));
                 }
             }
             else
@@ -394,7 +418,7 @@ namespace Il2Cpp_Modding_Codegen.Serialization
             {
                 bool isStatic = method.Specifiers.IsStatic();
                 // Write the qualified name if not in the header
-                var methodStr = WriteMethod(isStatic, method, _asHeader);
+                var methodStr = WriteMethod(isStatic, method, _asHeader, name);
                 if (methodStr.StartsWith("/"))
                 {
                     writer.WriteLine(methodStr);
@@ -411,7 +435,7 @@ namespace Il2Cpp_Modding_Codegen.Serialization
                 {
                     // Always use thisTypeName for the cast type, since we are already within the context of the type.
                     var typeName = _thisTypeName.EndsWith("*") ? _thisTypeName : _thisTypeName + "*";
-                    
+
                     var paramNames = method.Parameters.FormatParameters(_config.IllegalNames, _parameterMaps[method], FormatParameterMode.Names, asHeader);
                     if (!string.IsNullOrEmpty(paramNames))
                         // Prefix , for parameters to New
@@ -462,6 +486,61 @@ namespace Il2Cpp_Modding_Codegen.Serialization
                     writer.WriteLine(s);
                     // Close method
                     writer.CloseDefinition();
+                }
+            }
+            // If we have 2 or more base methods, we need to see if either of our base methods have been renamed.
+            // If any of them have been renamed, we need to create a new method for that and map it to the method we are currently serializing.
+            // Basically, if we have void Clear() with two base methods, one of which is renamed, we create void Clear(), and we create void QUALIFIED_Clear()
+            // Where QUALIFIED_Clear() simply calls Clear()
+            if (method.BaseMethods.Count > 1)
+            {
+                if (!_nameMap.TryGetValue(method, out var namePair))
+                    throw new InvalidOperationException($"Could not find method: {method} in _nameMap! Ensure it is PreSerialized first!");
+                // Original method would have already been created by now.
+                foreach (var bm in method.BaseMethods)
+                {
+                    if (!_nameMap.TryGetValue(bm, out var pair))
+                        throw new InvalidOperationException($"{bm} does not have a name!");
+                    if (pair.Item2)
+                    {
+                        // If we have renamed the base method, we write the method.
+                        // If we are a header, write the comments
+                        if (asHeader)
+                        {
+                            writer.WriteComment("Creating proxy method: " + pair.Item1);
+                            // We want to map it to a method that is NOT renamed!
+                            writer.WriteComment("Maps to method: " + method.Name);
+                        }
+                        bool isStatic = method.Specifiers.IsStatic();
+                        if (!writeContent)
+                        {
+                            // Write method declaration
+                            if (_genericArgs.TryGetValue(method, out var types))
+                                writer.WriteLine($"template<{string.Join(", ", types.Select(s => "class " + s))}>");
+                            writer.WriteDeclaration(WriteMethod(isStatic, method, asHeader, pair.Item1));
+                        }
+                        else
+                        {
+                            // Write method content
+                            if (_genericArgs.ContainsKey(method))
+                                writer.WriteLine("template<>");
+                            var methodStr = WriteMethod(isStatic, method, asHeader, pair.Item1);
+                            if (methodStr.StartsWith("/"))
+                            {
+                                // Comment failures
+                                writer.WriteLine(methodStr);
+                                continue;
+                            }
+                            writer.WriteDefinition(methodStr);
+                            // Call original method (return as necessary)
+                            string s = string.Empty;
+                            if (!method.ReturnType.IsVoid())
+                                s = "return ";
+                            s += method.Name + "(" + method.Parameters.FormatParameters(_config.IllegalNames, _parameterMaps[method], FormatParameterMode.Names, asHeader) + ")";
+                            writer.WriteDeclaration(s);
+                            writer.CloseDefinition();
+                        }
+                    }
                 }
             }
             writer.Flush();

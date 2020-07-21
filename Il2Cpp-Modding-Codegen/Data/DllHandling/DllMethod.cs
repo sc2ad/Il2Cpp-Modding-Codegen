@@ -19,7 +19,7 @@ namespace Il2Cpp_Modding_Codegen.Data.DllHandling
         public TypeRef ReturnType { get; }
         public TypeRef DeclaringType { get; }
         public TypeRef ImplementedFrom { get; } = null;
-        public IMethod BaseMethod { get; private set; }
+        public List<IMethod> BaseMethods { get; private set; } = new List<IMethod>();
         public List<IMethod> ImplementingMethods { get; } = new List<IMethod>();
         public bool HidesBase { get; }
         public string Name { get; private set; }
@@ -62,7 +62,8 @@ namespace Il2Cpp_Modding_Codegen.Data.DllHandling
                 var baseMethod = m.GetSpecialNameBaseMethod(out var iface, idxDot);
                 if (!mappedBaseMethods.Add(baseMethod))
                     throw new InvalidOperationException($"Base method: {baseMethod} has already been overriden!");
-                BaseMethod = From(baseMethod, ref mappedBaseMethods);
+                // Only one base method for special named methods
+                BaseMethods.Add(From(baseMethod, ref mappedBaseMethods));
                 ImplementedFrom = DllTypeRef.From(iface);
             }
             else
@@ -81,23 +82,25 @@ namespace Il2Cpp_Modding_Codegen.Data.DllHandling
                     if (baseMethods.Count > 0)
                         foreach (var baseM in mappedBaseMethods)
                             baseMethods.Remove(baseM);
-                    if (baseMethods.Count > 0)
-                        baseMethod = baseMethods.First();
+                    foreach (var bm in baseMethods)
+                        BaseMethods.Add(From(bm, ref mappedBaseMethods));
                 }
-                if (baseMethod != m)
+                else
                 {
                     if (!mappedBaseMethods.Add(baseMethod))
                         throw new InvalidOperationException($"Base method: {baseMethod} has already been overriden!");
-                    BaseMethod = From(baseMethod, ref mappedBaseMethods);
+                    BaseMethods.Add(From(baseMethod, ref mappedBaseMethods));
                 }
             }
-            if (BaseMethod != null)
+            if (BaseMethods.Count > 0)
             {
                 // TODO: This may not be true for generic methods. Should ensure validity for IEnumerator<T> methods
                 // This method is an implemented/overriden method.
-                ImplementedFrom = BaseMethod.DeclaringType;
+                // TODO: We need to double check to see if we need multiple ImplementedFroms
+                ImplementedFrom = BaseMethods.First().DeclaringType;
                 // Add ourselves to our BaseMethod's ImplementingMethods
-                BaseMethod.ImplementingMethods.Add(this);
+                foreach (var bm in BaseMethods)
+                    bm.ImplementingMethods.Add(this);
             }
 
             ReturnType = DllTypeRef.From(m.ReturnType);

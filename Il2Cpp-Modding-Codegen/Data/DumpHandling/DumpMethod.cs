@@ -17,7 +17,7 @@ namespace Il2Cpp_Modding_Codegen.Data.DumpHandling
         public TypeRef ReturnType { get; }
         public TypeRef DeclaringType { get; }
         public TypeRef ImplementedFrom { get; }
-        public IMethod BaseMethod { get; }
+        public List<IMethod> BaseMethods { get; }
         public List<IMethod> ImplementingMethods { get; } = new List<IMethod>();
         public bool HidesBase { get; }
         public string Name { get; }
