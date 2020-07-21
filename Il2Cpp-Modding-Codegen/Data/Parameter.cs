@@ -8,7 +8,7 @@ namespace Il2CppModdingCodegen.Data
     public class Parameter
     {
         internal TypeRef Type { get; }
-        internal string Name { get; } = null;
+        internal string Name { get; } = "";
         internal ParameterFlags Flags { get; } = ParameterFlags.None;
 
         internal Parameter(string innard)
@@ -79,20 +79,20 @@ namespace Il2CppModdingCodegen.Data
             return s;
         }
 
-        internal static string FormatParameters(this List<Parameter> parameters, HashSet<string> illegalNames = null, List<(MethodTypeContainer, ParameterFlags)> resolvedNames = null, FormatParameterMode mode = FormatParameterMode.Normal, bool header = false, bool csharp = false)
+        internal static string FormatParameters(this List<Parameter> parameters, HashSet<string>? illegalNames = null, List<(MethodTypeContainer, ParameterFlags)>? resolvedNames = null, FormatParameterMode mode = FormatParameterMode.Normal, bool header = false, bool csharp = false)
         {
             var s = "";
             for (int i = 0; i < parameters.Count; i++)
             {
                 if (resolvedNames != null && resolvedNames[i].Item1.Skip)
                     continue;
-                var nameStr = "";
+                string nameStr = "";
                 if (mode != FormatParameterMode.Types)
                 {
                     nameStr = parameters[i].Name;
                     if (mode.HasFlag(FormatParameterMode.Names) && string.IsNullOrWhiteSpace(nameStr))
                         nameStr = $"param_{i}";
-                    while (illegalNames?.Contains(nameStr) is true)
+                    while (illegalNames?.Contains(nameStr) ?? false)
                         nameStr = "_" + nameStr;
                 }
                 nameStr = nameStr.Replace('<', '$').Replace('>', '$');

@@ -12,7 +12,7 @@ APP_CFLAGS := -std=gnu18
 APP_CPPFLAGS := -std=gnu++2a
 APP_SHORT_COMMANDS := true";
 
-        private TextWriter _stream;
+        private TextWriter? _stream;
 
         internal void Write(string filename)
         {
@@ -22,7 +22,7 @@ APP_SHORT_COMMANDS := true";
             _stream.WriteLine(ApplicationMk);
         }
 
-        public void Close() => _stream.Close();
+        public void Close() => _stream?.Close();
         public void Dispose() => Close();
     }
 }

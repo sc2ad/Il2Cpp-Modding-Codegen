@@ -1,7 +1,6 @@
 ﻿using Mono.Cecil;
 using System;
 using System.Collections.Generic;
-using System.Diagnostics.Contracts;
 using System.Linq;
 using System.Text.RegularExpressions;
 
@@ -17,7 +16,7 @@ namespace Il2CppModdingCodegen
             return text.Substring(0, pos) + replace + text.Substring(pos + search.Length);
         }
 
-        internal static TypeDefinition ResolvedBaseType(this TypeDefinition self)
+        internal static TypeDefinition? ResolvedBaseType(this TypeDefinition self)
         {
             var base_type = self?.BaseType;
             if (base_type is null) return null;
@@ -29,13 +28,14 @@ namespace Il2CppModdingCodegen
             var map = new Dictionary<string, TypeReference>();
             if (!self.IsGenericInstance)
                 return map;
-            if (!(self is GenericInstanceType instance) || instance.GenericArguments.Count != templateType.GenericParameters.Count)
+            var instance = (GenericInstanceType)self;
+            if (instance.GenericArguments.Count != templateType.GenericParameters.Count)
                 // Mismatch of generic parameters. Presumably, resolved has some inherited generic parameters that it is not listing, although this should not happen.
                 // Since !0 and !1 will occur in resolved.GenericParameters instead.
                 throw new InvalidOperationException("instance.GenericArguments is either null or of a mismatching count compared to resolved.GenericParameters!");
             for (int i = 0; i < templateType.GenericParameters.Count; i++)
                 // Map from resolved generic parameter to self generic parameter
-                map.Add(templateType.GenericParameters[i].Name, (self as GenericInstanceType).GenericArguments[i]);
+                map.Add(templateType.GenericParameters[i].Name, instance.GenericArguments[i]);
             return map;
         }
 
@@ -77,7 +77,8 @@ namespace Il2CppModdingCodegen
             }
 
             var bType = type.ResolvedBaseType();
-            matches.UnionWith(self.FindIn(bType, type.GetGenerics(bType)));
+            if (bType != null)
+                matches.UnionWith(self.FindIn(bType, type.GetGenerics(bType)));
             foreach (var @interface in type.Interfaces)
             {
                 var resolved = @interface.InterfaceType.Resolve();
@@ -86,7 +87,7 @@ namespace Il2CppModdingCodegen
             return matches;
         }
 
-        private static TypeReference FindInterface(TypeReference type, string find)
+        private static TypeReference? FindInterface(TypeReference? type, string find)
         {
             if (type is null) return null;
             var typeStr = Regex.Replace(type.ToString(), @"`\d+", "").Replace('/', '.');
@@ -103,17 +104,17 @@ namespace Il2CppModdingCodegen
             return FindInterface(def.BaseType, find);
         }
 
-        internal static MethodDefinition GetSpecialNameBaseMethod(this MethodDefinition self, out TypeReference iface, int idxDot = -1)
+        internal static MethodDefinition? GetSpecialNameBaseMethod(this MethodDefinition self, out TypeReference? iface, int idxDot = -1)
         {
+            iface = null;
             if (idxDot == -1)
                 idxDot = self.Name.LastIndexOf('.');
             if (idxDot < 2)
-            {
-                iface = null;
                 return null;
-            }
             var typeStr = self.Name.Substring(0, idxDot);
             iface = FindInterface(self.DeclaringType, typeStr);
+            if (iface is null)
+                return null;
             var tName = self.Name.Substring(idxDot + 1);
             return iface.Resolve().Methods.Where(im => im.Name == tName && self.Parameters.Count == im.Parameters.Count).Single();
         }
@@ -126,7 +127,7 @@ namespace Il2CppModdingCodegen
         /// <returns></returns>
         internal static HashSet<MethodDefinition> GetBaseMethods(this MethodDefinition self)
         {
-            Contract.Requires(self != null);
+            if (self is null) throw new ArgumentNullException(nameof(self));
             // Whenever we call GetBaseMethods, we should explicitly exclude all base methods that are specifically defined by self.DeclaringType via special names already.
             // We would ideally do this by compiling a list of special named methods, and for each of those, explicitly excluding them from our matches.
             // However, this means that we need to be able to convert a special name to a base method, which means we need an extension method for it here.
@@ -134,7 +135,7 @@ namespace Il2CppModdingCodegen
             var specialBaseMethods = self.DeclaringType.Methods.Select(m => m.GetSpecialNameBaseMethod(out var iface)).Where(md => md != null);
             var matches = self.FindIn(self.DeclaringType, self.DeclaringType.GetGenerics(self.DeclaringType.Resolve()));
             foreach (var sbm in specialBaseMethods)
-                matches.Remove(sbm);
+                matches.Remove(sbm!);
             return matches;
         }
     }

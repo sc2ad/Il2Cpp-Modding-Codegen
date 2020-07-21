@@ -7,6 +7,6 @@ namespace Il2CppModdingCodegen.Data
     {
         IEnumerable<ITypeData> Types { get; }
         [ObsoleteAttribute("Please call TypeRef.Resolve(ITypeCollection) instead.")]
-        ITypeData Resolve(TypeRef TypeRef);
+        ITypeData? Resolve(TypeRef? typeRef);
     }
 }

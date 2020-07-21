@@ -26,13 +26,15 @@ namespace Il2CppModdingCodegen.Serialization
             // For Name and Namespace here, we DO want all the `, /, etc
             if (!type.This.IsGeneric)
             {
-                string fullName = context.GetCppName(context.LocalType.This, true, true, CppTypeContext.NeedAs.Definition, CppTypeContext.ForceAsType.Literal);
+                string fullName = context.GetCppName(context.LocalType.This, true, true, CppTypeContext.NeedAs.Definition, CppTypeContext.ForceAsType.Literal)
+                    ?? throw new UnresolvedTypeException(context.LocalType.This, context.LocalType.This);
                 if (context.LocalType.Info.Refness == Refness.ReferenceType) fullName += "*";
                 writer.WriteLine($"DEFINE_IL2CPP_ARG_TYPE({fullName}, \"{ns}\", \"{il2cppName}\");");
             }
             else if (type.This.DeclaringType is null || !type.This.DeclaringType.IsGeneric)
             {
-                string templateName = context.GetCppName(context.LocalType.This, true, false, CppTypeContext.NeedAs.Declaration, CppTypeContext.ForceAsType.Literal);
+                string templateName = context.GetCppName(context.LocalType.This, true, false, CppTypeContext.NeedAs.Declaration, CppTypeContext.ForceAsType.Literal)
+                    ?? throw new UnresolvedTypeException(context.LocalType.This, context.LocalType.This);
                 var structStr = context.LocalType.Info.Refness == Refness.ReferenceType ? "CLASS" : "STRUCT";
                 writer.WriteLine($"DEFINE_IL2CPP_ARG_TYPE_GENERIC_{structStr}({templateName}, \"{ns}\", \"{il2cppName}\");");
             }
@@ -62,16 +64,16 @@ namespace Il2CppModdingCodegen.Serialization
             }
             catch (UnresolvedTypeException e)
             {
-                if (_config.UnresolvedTypeExceptionHandling.TypeHandling == UnresolvedTypeExceptionHandling.DisplayInFile)
+                if (_config.UnresolvedTypeExceptionHandling?.TypeHandling == UnresolvedTypeExceptionHandling.DisplayInFile)
                 {
                     writer.WriteComment("Unresolved type exception!");
                     writer.WriteLine("/*");
                     writer.WriteLine(e);
                     writer.WriteLine("*/");
                 }
-                else if (_config.UnresolvedTypeExceptionHandling.TypeHandling == UnresolvedTypeExceptionHandling.SkipIssue)
+                else if (_config.UnresolvedTypeExceptionHandling?.TypeHandling == UnresolvedTypeExceptionHandling.SkipIssue)
                     return;
-                else if (_config.UnresolvedTypeExceptionHandling.TypeHandling == UnresolvedTypeExceptionHandling.Elevate)
+                else if (_config.UnresolvedTypeExceptionHandling?.TypeHandling == UnresolvedTypeExceptionHandling.Elevate)
                     throw new InvalidOperationException($"Cannot elevate {e} to a parent type- there is no parent type!");
             }
             // End the namespace

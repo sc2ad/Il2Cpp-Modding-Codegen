@@ -28,7 +28,7 @@ namespace Il2CppModdingCodegen.Serialization
         /// This is usually due to including something that (indirectly or directly) ends up including the original type.
         /// Called with: this, current <see cref="CppTypeContext"/>, offending <see cref="TypeRef"/>
         /// </summary>
-        internal event Action<CppContextSerializer, CppTypeContext, TypeRef> DuplicateDefinition;
+        internal event Action<CppContextSerializer, CppTypeContext, TypeRef>? DuplicateDefinition;
 
         internal CppContextSerializer(SerializationConfig config, ITypeCollection collection)
         {
@@ -94,7 +94,7 @@ namespace Il2CppModdingCodegen.Serialization
             {
                 var resolved = td.Resolve(_collection);
                 // Add the resolved context's HeaderFileName to includes
-                if (map.TryGetValue(resolved, out var value))
+                if (resolved != null && map.TryGetValue(resolved, out var value))
                     // this may change defsToGet (if it makes us in-place, our DeclaringType will move from defsToGet to defs)
                     Resolve(value, map, asHeader, stack);
                 else
@@ -105,7 +105,7 @@ namespace Il2CppModdingCodegen.Serialization
             {
                 if (context.Definitions.Contains(td)) continue;
                 var resolved = td.Resolve(_collection);
-                var value = map[resolved];  // any error should have fired in previous loop
+                var value = map[resolved!];  // any error should have fired in previous loop
                 if (!AddIncludeDefinitions(context, defs, value, asHeader, includes))
                 {
                     ForwardToTypeDataSerializer(context, td);

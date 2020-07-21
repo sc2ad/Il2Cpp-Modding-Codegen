@@ -17,7 +17,7 @@ namespace Il2CppModdingCodegen.Data.DllHandling
             if (attribute.Fields.Count == 3)
                 foreach (var f in attribute.Fields)
                     if (f.Name == "Name")
-                        Name = f.Argument.Value as string;
+                        Name = (string)f.Argument.Value;
                     else if (f.Name == "RVA" || f.Name == "Offset" || f.Name == "VA")
                     {
                         var val = Convert.ToInt32(f.Argument.Value as string, 16);

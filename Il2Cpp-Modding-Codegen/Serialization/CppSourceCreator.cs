@@ -33,16 +33,16 @@ namespace Il2CppModdingCodegen.Serialization
             }
             catch (UnresolvedTypeException e)
             {
-                if (_config.UnresolvedTypeExceptionHandling.TypeHandling == UnresolvedTypeExceptionHandling.DisplayInFile)
+                if (_config.UnresolvedTypeExceptionHandling?.TypeHandling == UnresolvedTypeExceptionHandling.DisplayInFile)
                 {
                     writer.WriteLine("// Unresolved type exception!");
                     writer.WriteLine("/*");
                     writer.WriteLine(e);
                     writer.WriteLine("*/");
                 }
-                else if (_config.UnresolvedTypeExceptionHandling.TypeHandling == UnresolvedTypeExceptionHandling.SkipIssue)
+                else if (_config.UnresolvedTypeExceptionHandling?.TypeHandling == UnresolvedTypeExceptionHandling.SkipIssue)
                     return;
-                else if (_config.UnresolvedTypeExceptionHandling.TypeHandling == UnresolvedTypeExceptionHandling.Elevate)
+                else if (_config.UnresolvedTypeExceptionHandling?.TypeHandling == UnresolvedTypeExceptionHandling.Elevate)
                     throw new InvalidOperationException($"Cannot elevate {e} to a parent type- there is no parent type!");
             }
             writer.Flush();

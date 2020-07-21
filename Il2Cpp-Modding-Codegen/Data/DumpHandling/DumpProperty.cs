@@ -17,13 +17,13 @@ namespace Il2CppModdingCodegen.Data.DumpHandling
         internal DumpProperty(TypeRef declaring, PeekableStreamReader fs)
         {
             DeclaringType = declaring;
-            string line = fs.PeekLine().Trim();
-            while (line.StartsWith("["))
+            var line = fs.PeekLine()?.Trim();
+            while (line != null && line.StartsWith("["))
             {
                 Attributes.Add(new DumpAttribute(fs));
-                line = fs.PeekLine().Trim();
+                line = fs.PeekLine()?.Trim();
             }
-            line = fs.ReadLine().Trim();
+            line = fs.ReadLine()?.Trim() ?? "";
             var split = line.Split(' ');
             if (split.Length < 5)
                 throw new InvalidOperationException($"Line {fs.CurrentLineIndex}: Property cannot be created from: \"{line.Trim()}\"");

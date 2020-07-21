@@ -1,7 +1,7 @@
 ﻿using Il2CppModdingCodegen.Config;
 using Il2CppModdingCodegen.Parsers;
+using System;
 using System.Collections.Generic;
-using System.Diagnostics.Contracts;
 using System.IO;
 using System.Linq;
 
@@ -18,7 +18,7 @@ namespace Il2CppModdingCodegen.Data.DumpHandling
         private void ParseImages(PeekableStreamReader fs)
         {
             var line = fs.PeekLine();
-            while (line.StartsWith("// Image"))
+            while (line != null && line.StartsWith("// Image"))
             {
                 if (_config.ParseImages)
                     Images.Add(new DumpImage(fs));
@@ -44,6 +44,8 @@ namespace Il2CppModdingCodegen.Data.DumpHandling
                     if (typeData.This.DeclaringType != null)
                     {
                         var declaringTypeData = Resolve(typeData.This.DeclaringType);
+                        if (declaringTypeData is null)
+                            throw new Exception("Failed to get declaring type ITypeData for newly parsed nested type!");
                         declaringTypeData.NestedTypes.Add(typeData);
                     }
                     _types.Add(typeData);
@@ -83,9 +85,9 @@ namespace Il2CppModdingCodegen.Data.DumpHandling
             return s;
         }
 
-        public ITypeData Resolve(TypeRef typeRef)
+        public ITypeData? Resolve(TypeRef? typeRef)
         {
-            Contract.Requires(typeRef != null);
+            if (typeRef is null) throw new ArgumentNullException(nameof(typeRef));
             // TODO: Resolve only among our types that we actually plan on serializing
             // Basically, check it against our whitelist/blacklist
             var te = Types.LastOrDefault(t => t.This.Equals(typeRef) || t.This.Name == typeRef.Name);

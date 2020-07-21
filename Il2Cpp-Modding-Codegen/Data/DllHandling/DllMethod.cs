@@ -18,7 +18,7 @@ namespace Il2CppModdingCodegen.Data.DllHandling
         public int Slot { get; }
         public TypeRef ReturnType { get; }
         public TypeRef DeclaringType { get; }
-        public TypeRef ImplementedFrom { get; } = null;
+        public TypeRef? ImplementedFrom { get; } = null;
         public List<IMethod> BaseMethods { get; private set; } = new List<IMethod>();
         public List<IMethod> ImplementingMethods { get; } = new List<IMethod>();
         public bool HidesBase { get; }
@@ -53,7 +53,7 @@ namespace Il2CppModdingCodegen.Data.DllHandling
             Specifiers.AddRange(DllSpecifierHelpers.From(m));
             // This is not necessary: m.GenericParameters.Any(param => !m.DeclaringType.GenericParameters.Contains(param));
             Generic = m.HasGenericParameters;
-            GenericParameters = m.GenericParameters?.Select(DllTypeRef.From).ToList();
+            GenericParameters = m.GenericParameters.Select(g => DllTypeRef.From(g)).ToList();
 
             // This may not always be the case, we could have a special name in which case we have to do some sorcery
             // Grab the special name, grab the type from the special name
@@ -62,6 +62,8 @@ namespace Il2CppModdingCodegen.Data.DllHandling
             {
                 // Call a utilities function for converting a special name method to a proper base method
                 var baseMethod = m.GetSpecialNameBaseMethod(out var iface, idxDot);
+                if (baseMethod is null) throw new Exception("Failed to find baseMethod for dotted method name!");
+                if (iface is null) throw new Exception("Failed to get iface for dotted method name!");
                 if (!mappedBaseMethods.Add(baseMethod))
                     throw new InvalidOperationException($"Base method: {baseMethod} has already been overriden!");
                 // Only one base method for special named methods

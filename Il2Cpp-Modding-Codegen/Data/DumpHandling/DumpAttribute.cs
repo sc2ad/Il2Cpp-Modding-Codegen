@@ -12,7 +12,7 @@ namespace Il2CppModdingCodegen.Data.DumpHandling
 
         internal DumpAttribute(PeekableStreamReader fs)
         {
-            var line = fs.ReadLine().Trim();
+            var line = fs.ReadLine()?.Trim() ?? "";
             // Line must start with a [ after being trimmed
             if (!line.StartsWith("["))
                 throw new InvalidOperationException($"Line {fs.CurrentLineIndex}: Could not create attribute from: \"{line.Trim()}\"");

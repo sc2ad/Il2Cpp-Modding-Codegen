@@ -19,22 +19,21 @@ namespace Il2CppModdingCodegen.Data
         public abstract bool IsGenericTemplate { get; }
         public abstract IReadOnlyList<TypeRef> Generics { get; }
 
-        public abstract TypeRef DeclaringType { get; }
+        public abstract TypeRef? DeclaringType { get; }
         public abstract TypeRef? ElementType { get; }
 
-        private ITypeData _resolvedType;
+        private ITypeData? _resolvedType;
 
         public abstract TypeRef MakePointer();
 
         /// <summary>
         /// Resolves the type from the given type collection
         /// </summary>
-        internal ITypeData Resolve(ITypeCollection types)
+        internal ITypeData? Resolve(ITypeCollection types)
         {
 #pragma warning disable 612, 618
             // TODO: if we upgrade to C# 8.0, change this to `_resolvedType ??= types.Resolve(this);`
-            if (_resolvedType == null)
-                _resolvedType = types.Resolve(this);
+            _resolvedType ??= types.Resolve(this);
 #pragma warning restore 612, 618
             return _resolvedType;
         }
@@ -175,12 +174,12 @@ namespace Il2CppModdingCodegen.Data
 
         [ObsoleteAttribute("The argument should be a TypeRef!")]
 #pragma warning disable 809  // "obsolete method extends non-obsolete mehtod object.Equals(object)
-        public override bool Equals(object obj) => Equals(obj as TypeRef);
+        public override bool Equals(object? obj) => Equals(obj as TypeRef);
 #pragma warning restore 809
 
         internal static FastTypeRefComparer fastComparer = new FastTypeRefComparer();
 
-        public bool Equals(TypeRef other)
+        public bool Equals(TypeRef? other)
         {
             return fastComparer.Equals(this, other) &&
                 (DeclaringType?.Equals(other?.DeclaringType) ?? other?.DeclaringType == null) &&
@@ -239,13 +238,13 @@ namespace Il2CppModdingCodegen.Data
             return equal;
         }
 
-        internal static bool PrintEqual(TypeRef a, TypeRef b, bool fast = false)
+        internal static bool PrintEqual(TypeRef? a, TypeRef? b, bool fast = false)
         {
             bool equal = fast ? fastComparer.Equals(a, b) : (a?.Equals(b) ?? b is null);
             if (!equal)
             {
                 Console.WriteLine($"{a} == {b}? {equal}");
-                if (a is null) return equal;
+                if (a is null || b is null) return equal;
                 equal = a.Namespace?.Equals(b.Namespace) ?? (b.Namespace == null);
                 if (!equal)
                 {

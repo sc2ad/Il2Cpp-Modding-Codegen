@@ -17,7 +17,7 @@ namespace Il2CppModdingCodegen.Data.DumpHandling
         public override bool IsGenericTemplate { get; }
         public override IReadOnlyList<TypeRef> Generics { get; }
 
-        public override TypeRef DeclaringType { get; }
+        public override TypeRef? DeclaringType { get; }
         public override TypeRef? ElementType { get; }
 
         public override bool IsPointer()
@@ -29,7 +29,7 @@ namespace Il2CppModdingCodegen.Data.DumpHandling
 
         public override bool IsArray() => Name.EndsWith("[]");
 
-        private DumpTypeRef(DumpTypeRef other, string nameOverride = null)
+        private DumpTypeRef(DumpTypeRef other, string? nameOverride = null)
         {
             Namespace = other.Namespace;
             Name = nameOverride ?? other.Name;

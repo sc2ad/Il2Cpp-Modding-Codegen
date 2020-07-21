@@ -2,6 +2,7 @@
 using Il2CppModdingCodegen.Data;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics.Contracts;
 using System.Linq;
 
@@ -86,7 +87,7 @@ namespace Il2CppModdingCodegen.Serialization
         private readonly Dictionary<IMethod, List<(MethodTypeContainer container, ParameterFlags flags)>> _parameterMaps = new Dictionary<IMethod, List<(MethodTypeContainer container, ParameterFlags flags)>>();
 
         // This dictionary maps from method to a list of real generic parameters.
-        private readonly Dictionary<IMethod, List<string>> _genericArgs = new Dictionary<IMethod, List<string>>();
+        private readonly Dictionary<IMethod, List<string?>> _genericArgs = new Dictionary<IMethod, List<string?>>();
         /// <summary>
         /// This dictionary maps from method to a list of placeholder generic arguments.
         /// These generic arguments are only ever used as replacements for types that should not be included/defined within our context.
@@ -97,9 +98,9 @@ namespace Il2CppModdingCodegen.Serialization
         /// </summary>
         private readonly Dictionary<IMethod, SortedSet<string>> _tempGenerics = new Dictionary<IMethod, SortedSet<string>>();
 
-        private string _declaringNamespace;
-        private string _declaringFullyQualified;
-        private string _thisTypeName;
+        private string? _declaringNamespace;
+        private string? _declaringFullyQualified;
+        private string? _thisTypeName;
 
         private readonly HashSet<(TypeRef, bool, string)> _signatures = new HashSet<(TypeRef, bool, string)>();
         private bool _ignoreSignatureMap;
@@ -177,7 +178,8 @@ namespace Il2CppModdingCodegen.Serialization
             if (idxDot >= 2)
             {
                 var tName = method.Name.Substring(idxDot + 1);
-                name = method.ImplementedFrom.GetQualifiedName().Replace("::", "_") + "_" + tName;
+                var implementedFrom = method.ImplementedFrom ?? throw new InvalidOperationException("Tried to construct name from null ImplementedFrom!");
+                name = implementedFrom.GetQualifiedName().Replace("::", "_") + "_" + tName;
                 fullName = true;
             }
             else
@@ -316,7 +318,8 @@ namespace Il2CppModdingCodegen.Serialization
             // original_return original_name(original_parameters original_names) { ... }
             Contract.Requires(_resolvedReturns.ContainsKey(method));
             Contract.Requires(_parameterMaps.ContainsKey(method));
-            Contract.Requires(_parameterMaps[method].Count == method.Parameters.Count);
+            if (_parameterMaps[method].Count != method.Parameters.Count)
+                throw new ArgumentException("_parameterMaps[method] is incorrect!", nameof(method));
 
             found = 0;
             if (NeedDefinitionInHeader(method))
@@ -352,7 +355,8 @@ namespace Il2CppModdingCodegen.Serialization
 
         public override void PreSerialize(CppTypeContext context, IMethod method)
         {
-            Contract.Requires(context != null && method != null);
+            if (context is null) throw new ArgumentNullException(nameof(context));
+            if (method is null) throw new ArgumentNullException(nameof(method));
             // Get the fully qualified name of the context
             bool success = true;
             // TODO: wrap all .cpp methods in a `namespace [X] {` ?
@@ -360,11 +364,11 @@ namespace Il2CppModdingCodegen.Serialization
             _declaringFullyQualified = context.QualifiedTypeName.TrimStart(':');
             _thisTypeName = context.GetCppName(method.DeclaringType, false, needAs: CppTypeContext.NeedAs.Definition);
             var resolved = context.ResolveAndStore(method.DeclaringType, CppTypeContext.ForceAsType.Literal, CppTypeContext.NeedAs.Definition);
-            _declaringIsValueType = resolved.Info.Refness == Refness.ValueType;
+            _declaringIsValueType = resolved?.Info.Refness == Refness.ValueType;
 
             if (method.Generic)
             {
-                var generics = new List<string>();
+                var generics = new List<string?>();
                 foreach (var g in method.GenericParameters)
                 {
                     var s = context.GetCppName(g, true, needAs: CppTypeContext.NeedAs.Declaration);
@@ -381,13 +385,13 @@ namespace Il2CppModdingCodegen.Serialization
             // We need to forward declare everything used in methods (return types and parameters)
             // If we are writing the definition, we MUST define it
             var resolvedReturn = context.GetCppName(method.ReturnType, true, needAs: NeedTypesAs(method));
+            if (_resolvedReturns.ContainsKey(method))
+                // If this is ignored, we will still (at least) fail on _parameterMaps.Add
+                throw new InvalidOperationException("Method has already been preserialized! Don't preserialize it again! Method: " + method);
             if (resolvedReturn is null)
                 // If we fail to resolve the return type, we will simply add a null item to our dictionary.
                 // However, we should not call Resolved(method)
                 success = false;
-            if (_resolvedReturns.ContainsKey(method))
-                // If this is ignored, we will still (at least) fail on _parameterMaps.Add
-                throw new InvalidOperationException("Method has already been preserialized! Don't preserialize it again! Method: " + method);
             _resolvedReturns.Add(method, new MethodTypeContainer(resolvedReturn));
             var parameterMap = new List<(MethodTypeContainer, ParameterFlags)>();
             foreach (var p in method.Parameters)
@@ -408,7 +412,7 @@ namespace Il2CppModdingCodegen.Serialization
                 Resolved(method);
         }
 
-        private string WriteMethod(MethodScope scope, IMethod method, bool isHeader, string overrideName)
+        private string WriteMethod(MethodScope scope, IMethod method, bool isHeader, string? overrideName)
         {
             var ns = "";
             var preRetStr = "";
@@ -455,6 +459,7 @@ namespace Il2CppModdingCodegen.Serialization
                 else
                 {
                     retStr = !isHeader ? _declaringFullyQualified : _thisTypeName;
+                    if (retStr is null) throw new UnresolvedTypeException(method.DeclaringType, method.DeclaringType);
                     // Force return type to be a pointer
                     retStr = retStr.EndsWith("*") ? retStr : retStr + "*";
                 }
@@ -477,7 +482,7 @@ namespace Il2CppModdingCodegen.Serialization
 
         private static bool IsCtor(IMethod method) => method.Name == "_ctor" || method.Name == ".ctor";
 
-        private bool TemplateString(IMethod method, bool withTemps, out string templateString)
+        private bool TemplateString(IMethod method, bool withTemps, [NotNullWhen(true)] out string? templateString)
         {
             templateString = null;
             var str = "";
@@ -494,14 +499,18 @@ namespace Il2CppModdingCodegen.Serialization
                     str += string.Join(", ", temps.Select(s => "class " + s));
             }
             if (hadGenerics)
+            {
                 templateString = $"template<{str}>";
-            return hadGenerics;
+                return true;
+            }
+            return false;
         }
 
         // Write the method here
         public override void Serialize(CppStreamWriter writer, IMethod method, bool asHeader)
         {
-            Contract.Requires(writer != null && method != null);
+            if (writer is null) throw new ArgumentNullException(nameof(writer));
+            if (method is null) throw new ArgumentNullException(nameof(method));
             if (_asHeader && !asHeader)
                 _ignoreSignatureMap = true;
             _asHeader = asHeader;
@@ -510,6 +519,8 @@ namespace Il2CppModdingCodegen.Serialization
                 return;
             if (_resolvedReturns[method] == null)
                 throw new UnresolvedTypeException(method.DeclaringType, method.ReturnType);
+            if (_thisTypeName == null)
+                throw new UnresolvedTypeException(method.DeclaringType, method.DeclaringType);
             for (int i = 0; i < _parameterMaps[method].Count; i++)
             {
                 var (container, _) = _parameterMaps[method][i];
@@ -522,9 +533,9 @@ namespace Il2CppModdingCodegen.Serialization
                 // Need to create the method ENTIRELY in the header, instead of split between the C++ and the header
                 return;
 
-            string name = null;
+            string? overrideName = null;
             if (method.BaseMethods.Count > 1)
-                name = _config.SafeMethodName(method.Name).Replace('<', '$').Replace('>', '$').Replace('.', '_');
+                overrideName = _config.SafeMethodName(method.Name).Replace('<', '$').Replace('>', '$').Replace('.', '_');
 
             bool writeContent = !_asHeader || NeedDefinitionInHeader(method);
             var scope = Scope[method];
@@ -544,7 +555,7 @@ namespace Il2CppModdingCodegen.Serialization
                     writer.WriteComment($"Base method: {bm.ReturnType} {bm.DeclaringType.Name}::{bm.Name}({method.Parameters.FormatParameters(csharp: true)})");
                 if (!writeContent)
                 {
-                    var methodStr = WriteMethod(scope, method, true, name);
+                    var methodStr = WriteMethod(scope, method, true, overrideName);
                     if (TemplateString(method, true, out var templateStr))
                         writer.WriteLine((methodStr.StartsWith("/") ? "// " : "") + templateStr);
                     writer.WriteDeclaration(methodStr);
@@ -557,7 +568,7 @@ namespace Il2CppModdingCodegen.Serialization
             if (writeContent)
             {
                 // Write the qualified name if not in the header
-                var methodStr = WriteMethod(scope, method, _asHeader, name);
+                var methodStr = WriteMethod(scope, method, _asHeader, overrideName);
                 if (methodStr.StartsWith("/"))
                 {
                     writer.WriteLine(methodStr);

@@ -5,17 +5,17 @@ namespace Il2CppModdingCodegen.Data
 {
     public class MethodTypeContainer
     {
-        private string typeName;
-        private string _suffix;
-        private string templatedName;
+        private string? typeName;
+        private string _suffix = "";
+        private string? templatedName;
 
         internal bool Skip { get; set; } = false;
         internal bool UnPointered { get; private set; }
-        internal bool IsPointer { get => typeName.EndsWith("*"); }
+        internal bool IsPointer { get => typeName?.EndsWith("*") ?? throw new InvalidOperationException("typeName is null!"); }
         // Contains a class or struct
         internal bool IsClassType { get => typeName.Any(char.IsUpper); }
 
-        internal MethodTypeContainer(string t) => typeName = t;
+        internal MethodTypeContainer(string? t) => typeName = t;
 
         internal void Prefix(string prefix) => typeName = prefix + typeName;
 
@@ -24,6 +24,7 @@ namespace Il2CppModdingCodegen.Data
         // Make this parameter no longer a pointer, and use its value as `&val` from now on
         internal bool UnPointer()
         {
+            if (typeName == null) throw new InvalidOperationException("typeName is null!");
             if (!IsPointer) return false;
             typeName = typeName[0..^1];
             return UnPointered = true;
@@ -42,7 +43,7 @@ namespace Il2CppModdingCodegen.Data
 
         [Obsolete("TypeName should be used instead!", true)]
 #pragma warning disable CS0809 // Obsolete member 'MethodTypeContainer.ToString()' overrides non-obsolete member 'object.ToString()'
-        public override string ToString() => null;
+        public override string ToString() => "";
 #pragma warning restore CS0809 // Obsolete member 'MethodTypeContainer.ToString()' overrides non-obsolete member 'object.ToString()'
     }
 }

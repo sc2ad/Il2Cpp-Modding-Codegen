@@ -15,8 +15,8 @@ namespace Il2CppModdingCodegen.Data.DumpHandling
         public int Slot { get; }
         public TypeRef ReturnType { get; }
         public TypeRef DeclaringType { get; }
-        public TypeRef ImplementedFrom { get; }
-        public List<IMethod> BaseMethods { get; }
+        public TypeRef? ImplementedFrom { get; }
+        public List<IMethod> BaseMethods { get; } = new List<IMethod>();
         public List<IMethod> ImplementingMethods { get; } = new List<IMethod>();
         public bool HidesBase { get; }
         public string Name { get; }
@@ -29,14 +29,14 @@ namespace Il2CppModdingCodegen.Data.DumpHandling
         {
             DeclaringType = declaring;
             // Read Attributes
-            string line = fs.PeekLine().Trim();
-            while (line.StartsWith("["))
+            var line = fs.PeekLine()?.Trim();
+            while (line != null && line.StartsWith("["))
             {
                 Attributes.Add(new DumpAttribute(fs));
-                line = fs.PeekLine().Trim();
+                line = fs.PeekLine()?.Trim();
             }
             // Read prefix comment
-            line = fs.ReadLine().Trim();
+            line = fs.ReadLine()?.Trim() ?? "";
             var split = line.Split(' ');
             if (split.Length < 5)
                 throw new InvalidOperationException($"Line {fs.CurrentLineIndex}: Method cannot be created from: \"{line.Trim()}\"");
@@ -70,7 +70,7 @@ namespace Il2CppModdingCodegen.Data.DumpHandling
                     RVA = Convert.ToInt32(split[start], 16);
 
             // Read parameters
-            line = fs.ReadLine().Trim();
+            line = fs.ReadLine()?.Trim() ?? "";
             int end = line.LastIndexOf(')');
             int startSubstr = line.LastIndexOf('(', end - 1);
             string paramLine = line.Substring(startSubstr + 1, end - startSubstr - 1);
@@ -117,6 +117,7 @@ namespace Il2CppModdingCodegen.Data.DumpHandling
 
             // TODO: mark this and populate GenericParameters iff the method's actual params reference any types that cannot be resolved?
             Generic = false;
+            GenericParameters = new List<TypeRef>();
 
             HidesBase = Specifiers.Any(s => s.Override);
             // TODO: Implement BaseMethod, ImplementingMethods

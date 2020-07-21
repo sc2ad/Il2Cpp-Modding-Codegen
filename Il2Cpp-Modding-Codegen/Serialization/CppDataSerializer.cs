@@ -2,7 +2,6 @@
 using Il2CppModdingCodegen.Data;
 using System;
 using System.Collections.Generic;
-using System.Diagnostics.Contracts;
 using System.IO;
 using System.Linq;
 
@@ -17,7 +16,7 @@ namespace Il2CppModdingCodegen.Serialization
 
         private readonly SerializationConfig _config;
 
-        private CppContextSerializer _contextSerializer;
+        private CppContextSerializer? _contextSerializer;
         private static readonly Dictionary<ITypeData, CppTypeContext> _map = new Dictionary<ITypeData, CppTypeContext>();
         internal static IReadOnlyDictionary<ITypeData, CppTypeContext> TypeToContext { get => _map; }
 
@@ -26,7 +25,7 @@ namespace Il2CppModdingCodegen.Serialization
         /// This allows for any delegates of this type to modify each type's context's definitions or declarations before they are considered complete.
         /// This is called for each type that is registered in <see cref="_map"/>, which is each type that is not skipped due to config.
         /// </summary>
-        internal event Action<CppDataSerializer, ITypeData, CppTypeContext> ContextsComplete;
+        internal event Action<CppDataSerializer, ITypeData, CppTypeContext>? ContextsComplete;
 
         /// <summary>
         /// Creates a C++ Serializer with the given type context, which is a wrapper for a list of all types to serialize
@@ -38,16 +37,13 @@ namespace Il2CppModdingCodegen.Serialization
             _config = config;
         }
 
-        private CppTypeContext CreateContext(ITypeData t)
+        private CppTypeContext CreateContext(ITypeData t, CppTypeContext? declaring)
         {
-            var typeContext = new CppTypeContext(_collection, t);
+            var typeContext = new CppTypeContext(_collection, t, declaring);
             foreach (var nt in t.NestedTypes)
             {
                 // For each nested type, we create a context for it
-                var nestedContexts = CreateContext(nt);
-                // Order of these two functions matter, since after we set the declaring context, we can then call AddNestedContext and resolve InPlaces
-                nestedContexts.SetDeclaringContext(typeContext);
-                typeContext.AddNestedContext(nt, nestedContexts);
+                CreateContext(nt, typeContext);
             }
             // Each type is always added to _map (with a non-null header and cpp context)
             _map.Add(t, typeContext);
@@ -56,7 +52,7 @@ namespace Il2CppModdingCodegen.Serialization
 
         public override void PreSerialize(CppTypeContext _unused_, IParsedData data)
         {
-            Contract.Requires(data != null);
+            if (data is null) throw new ArgumentNullException(nameof(data));
             // We create a CppContextSerializer for both headers and .cpp files
             // We create a mapping (either here or in the serializer) of ITypeData --> CppSerializerContext
             // For each type, we create their contexts, preserialize them.
@@ -76,7 +72,7 @@ namespace Il2CppModdingCodegen.Serialization
 
                 // Alright, so. We create only top level types, all nested types are recursively created.
                 if (t.This.DeclaringType is null)
-                    CreateContext(t);
+                    CreateContext(t, null);
 
                 // So, nested types are currently double counted.
                 // That is, we hit them once (or more) in the declaring type when it preserializes the nested types
@@ -102,6 +98,8 @@ namespace Il2CppModdingCodegen.Serialization
 
         public override void Serialize(CppStreamWriter writer, IParsedData data, bool _unused_)
         {
+            if (_contextSerializer is null) throw new InvalidOperationException("Must call PreSerialize first!");
+            if (_config.Id is null) throw new InvalidOperationException("Must supply config.Id!");
             int i = -1;
             int count = _map.Count;
             var mkSerializer = new AndroidMkSerializer(_config);
@@ -144,7 +142,7 @@ namespace Il2CppModdingCodegen.Serialization
                     if (currentPathLength + name.Length >= _config.SourceFileCharacterLimit)
                     {
                         // If we are about to go over, use the names list to create a library and add it to libs.
-                        var newLib = new AndroidMkSerializer.Library { id = _config.Id + "_" + i, isSource = true, toBuild = names };
+                        var newLib = new AndroidMkSerializer.Library(_config.Id + "_" + i, true, names);
                         mkSerializer.WriteStaticLibrary(newLib);
                         libs.Add(newLib);
                         currentPathLength = 0;
@@ -163,7 +161,7 @@ namespace Il2CppModdingCodegen.Serialization
             {
                 if (names.Count > 0)
                 {
-                    var newLib = new AndroidMkSerializer.Library { id = _config.Id + "_" + i, isSource = true, toBuild = names };
+                    var newLib = new AndroidMkSerializer.Library(_config.Id + "_" + i, true, names);
                     libs.Add(newLib);
                     mkSerializer.WriteStaticLibrary(newLib);
                 }
@@ -175,7 +173,7 @@ namespace Il2CppModdingCodegen.Serialization
                 // Don't need to use modloader since this library is not a mod, it has no ModInfo that it uses!
                 // TODO: Configurable bs-hook version
                 mkSerializer.WritePrebuiltSharedLibrary("beatsaber-hook", "./extern/libbeatsaber-hook_0_2_1.so", "./extern/beatsaber-hook/shared/");
-                mkSerializer.WriteSingleFile(new AndroidMkSerializer.Library { id = _config.Id, isSource = false, toBuild = new List<string> { "beatsaber-hook" } });
+                mkSerializer.WriteSingleFile(new AndroidMkSerializer.Library(_config.Id, false, new List<string> { "beatsaber-hook" }));
             }
             mkSerializer.Close();
             // Write the Application.mk after

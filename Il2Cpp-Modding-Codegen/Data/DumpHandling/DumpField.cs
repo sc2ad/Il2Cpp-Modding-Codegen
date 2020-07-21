@@ -16,13 +16,13 @@ namespace Il2CppModdingCodegen.Data.DumpHandling
         internal DumpField(TypeRef declaring, PeekableStreamReader fs)
         {
             DeclaringType = declaring;
-            string line = fs.PeekLine().Trim();
-            while (line.StartsWith("["))
+            var line = fs.PeekLine()?.Trim();
+            while (line != null && line.StartsWith("["))
             {
                 Attributes.Add(new DumpAttribute(fs));
-                line = fs.PeekLine().Trim();
+                line = fs.PeekLine()?.Trim();
             }
-            line = fs.ReadLine().Trim();
+            line = fs.ReadLine()?.Trim() ?? "";
             var split = line.Split(' ');
             // Offset is at the end
             if (split.Length < 4)

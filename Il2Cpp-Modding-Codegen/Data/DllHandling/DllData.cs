@@ -2,7 +2,6 @@
 using Mono.Cecil;
 using System;
 using System.Collections.Generic;
-using System.Diagnostics.Contracts;
 using System.IO;
 using System.Linq;
 
@@ -79,10 +78,9 @@ namespace Il2CppModdingCodegen.Data.DllHandling
 
         public override string ToString() => $"Types: {Types.Count()}";
 
-        public ITypeData? Resolve(TypeRef typeRef)
+        public ITypeData? Resolve(TypeRef? typeRef)
         {
-            var temp = typeRef as DllTypeRef;
-            if (temp is null) throw new Exception();
+            if (!(typeRef is DllTypeRef temp)) throw new ArgumentNullException(nameof(typeRef));
             return Resolve(temp);
         }
 

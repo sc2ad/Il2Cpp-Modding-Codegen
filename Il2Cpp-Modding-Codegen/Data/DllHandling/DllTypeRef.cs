@@ -1,6 +1,7 @@
 ﻿using Mono.Cecil;
 using Mono.Cecil.Rocks;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Linq;
 using System.Text.RegularExpressions;
@@ -24,7 +25,7 @@ namespace Il2CppModdingCodegen.Data.DllHandling
         private readonly List<TypeRef> _generics = new List<TypeRef>();
         public override IReadOnlyList<TypeRef> Generics { get => _generics; }
 
-        public override TypeRef DeclaringType { get => From(This.DeclaringType); }
+        public override TypeRef? DeclaringType { get => From(This.DeclaringType); }
         public override TypeRef? ElementType
         {
             get
@@ -54,18 +55,18 @@ namespace Il2CppModdingCodegen.Data.DllHandling
             if (This.IsByReference)
             {
                 // TODO: Set as ByReference? For method params, the ref keyword is handled by Parameter.cs
-                This = (This as ByReferenceType).ElementType;
+                This = ((ByReferenceType)This).ElementType;
             }
             _name = This.Name;
 
             if (IsGenericInstance)
-                _generics.AddRange((This as GenericInstanceType).GenericArguments.Select(From));
+                _generics.AddRange(((GenericInstanceType)This).GenericArguments.Select(g => From(g)));
             else if (IsGenericTemplate)
-                _generics.AddRange(This.GenericParameters.Select(From));
+                _generics.AddRange(This.GenericParameters.Select(g => From(g)));
             if (IsGeneric && Generics.Count == 0)
                 throw new InvalidDataException($"Wtf? In DllTypeRef constructor, a generic with no generics: {this}, IsGenInst: {this.IsGenericInstance}");
 
-            DllTypeRef refDeclaring = null;
+            DllTypeRef? refDeclaring = null;
             if (!This.IsGenericParameter && This.IsNested)
                 refDeclaring = From(This.DeclaringType);
 
@@ -74,10 +75,11 @@ namespace Il2CppModdingCodegen.Data.DllHandling
 
             _namespace = (refDeclaring?.Namespace ?? This.Namespace) ?? "";
 
-            IsCovariant = IsGenericParameter && (This as GenericParameter).IsCovariant;
+            IsCovariant = IsGenericParameter && ((GenericParameter)This).IsCovariant;
         }
 
-        internal static DllTypeRef From(TypeReference type)
+        [return: NotNullIfNotNull("type")]
+        internal static DllTypeRef? From(TypeReference? type)
         {
             if (type is null) return null;
             if (cache.TryGetValue(type, out var value))

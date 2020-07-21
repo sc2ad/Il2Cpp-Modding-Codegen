@@ -2,6 +2,8 @@
 using Il2CppModdingCodegen.Parsers;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.Contracts;
+using System.IO;
 using System.Linq;
 
 namespace Il2CppModdingCodegen.Data.DumpHandling
@@ -16,7 +18,7 @@ namespace Il2CppModdingCodegen.Data.DumpHandling
         public TypeEnum Type { get; private set; }
         public TypeInfo Info { get; private set; }
         public TypeRef This { get; private set; }
-        public TypeRef Parent { get; private set; }
+        public TypeRef? Parent { get; private set; }
         public HashSet<ITypeData> NestedTypes { get; } = new HashSet<ITypeData>();
         public List<TypeRef> ImplementingInterfaces { get; } = new List<TypeRef>();
         public int TypeDefIndex { get; private set; }
@@ -30,8 +32,8 @@ namespace Il2CppModdingCodegen.Data.DumpHandling
 
         private void ParseAttributes(PeekableStreamReader fs)
         {
-            string line = fs.PeekLine();
-            while (line.StartsWith("["))
+            var line = fs.PeekLine();
+            while (line != null && line.StartsWith("["))
             {
                 if (_config.ParseTypeAttributes)
                     Attributes.Add(new DumpAttribute(fs));
@@ -43,7 +45,7 @@ namespace Il2CppModdingCodegen.Data.DumpHandling
 
         private void ParseTypeName(string @namespace, PeekableStreamReader fs)
         {
-            string line = fs.ReadLine();
+            string line = fs.ReadLine() ?? throw new InvalidDataException();
             var split = line.Split(' ');
             TypeDefIndex = int.Parse(split[^1]);
             // : at least 4 from end
@@ -99,19 +101,21 @@ namespace Il2CppModdingCodegen.Data.DumpHandling
                 // If the type is a reference type, it has parent Il2CppObject
                 if (Info.Refness == Refness.ReferenceType)
                     Parent = DumpTypeRef.ObjectType;
+            Contract.Ensures(Info != null);
+            Contract.Ensures(This != null);
         }
 
         private void ParseFields(PeekableStreamReader fs)
         {
-            string line = fs.PeekLine().Trim();
+            var line = fs.PeekLine()?.Trim();
             if (line != "{")
                 // Nothing in the type
                 return;
             fs.ReadLine();
 
-            line = fs.PeekLine().Trim();
+            line = fs.PeekLine()?.Trim();
             // Fields should be second line, if it isn't there are no fields.
-            if (!line.StartsWith("// Fields"))
+            if (line is null || !line.StartsWith("// Fields"))
                 // No fields, but other things
                 return;
             // Read past // Fields
@@ -123,57 +127,57 @@ namespace Il2CppModdingCodegen.Data.DumpHandling
                     Fields.Add(new DumpField(This, fs));
                 else
                     fs.ReadLine();
-                line = fs.PeekLine().Trim();
+                line = fs.PeekLine()?.Trim();
             }
         }
 
         private void ParseProperties(PeekableStreamReader fs)
         {
-            string line = fs.PeekLine().Trim();
-            if (line.Length == 0)
+            string? line = fs.PeekLine()?.Trim();
+            if (!string.IsNullOrEmpty(line))
             {
                 // Spaced after fields
                 fs.ReadLine();
-                line = fs.PeekLine().Trim();
+                line = fs.PeekLine()?.Trim();
             }
-            if (!line.StartsWith("// Properties"))
+            if (line is null || !line.StartsWith("// Properties"))
                 // No properties
                 return;
             // Read past // Properties
             fs.ReadLine();
 
-            while (line.Length != 0 && line != "}" && !line.StartsWith("// Methods"))
+            while (!string.IsNullOrEmpty(line) && line != "}" && !line.StartsWith("// Methods"))
             {
                 if (_config.ParseTypeProperties)
                     Properties.Add(new DumpProperty(This, fs));
                 else
                     fs.ReadLine();
-                line = fs.PeekLine().Trim();
+                line = fs.PeekLine()?.Trim();
             }
         }
 
         private void ParseMethods(PeekableStreamReader fs)
         {
-            string line = fs.PeekLine().Trim();
-            if (line.Length == 0)
+            string? line = fs.PeekLine()?.Trim();
+            if (string.IsNullOrEmpty(line))
             {
                 // Spaced after fields or properties
                 fs.ReadLine();
-                line = fs.PeekLine().Trim();
+                line = fs.PeekLine()?.Trim();
             }
-            if (!line.StartsWith("// Methods"))
+            if (line is null || !line.StartsWith("// Methods"))
                 // No methods
                 return;
             // Read past // Methods
             fs.ReadLine();
 
-            while (line.Length != 0 && line != "}")
+            while (!string.IsNullOrEmpty(line) && line != "}")
             {
                 if (_config.ParseTypeMethods)
                     Methods.Add(new DumpMethod(This, fs));
                 else
                     fs.ReadLine();
-                line = fs.PeekLine().Trim();
+                line = fs.PeekLine()?.Trim();
             }
 
             // It's important that Foo.IBar.func() goes after func() (if present)
@@ -187,9 +191,15 @@ namespace Il2CppModdingCodegen.Data.DumpHandling
         {
             _config = config;
             // Extract namespace from line
-            var @namespace = fs.ReadLine().Substring(NamespaceStartOffset).Trim();
+            var @namespace = fs.ReadLine()?.Substring(NamespaceStartOffset).Trim() ?? "";
             ParseAttributes(fs);
+
+            This = null!;  // this silences the "uninitialized" warnings
+            Info = null!;  // but these should actually be set in ParseTypeName
             ParseTypeName(@namespace, fs);
+            if (This is null || Info is null)
+                throw new Exception("ParseTypeName failed to properly initialize This and/or Info!");
+
             // Empty type
             if (fs.PeekLine() == "{}")
             {

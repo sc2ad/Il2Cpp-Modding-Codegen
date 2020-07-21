@@ -1,6 +1,5 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Diagnostics.Contracts;
 using System.Linq;
 
 namespace Il2CppModdingCodegen.Data
@@ -12,12 +11,11 @@ namespace Il2CppModdingCodegen.Data
     public class FastTypeRefComparer : IEqualityComparer<TypeRef>
     {
         // TODO: Ensure this behaves as intended for recursive DeclaringTypes (it probably does not)
-        public bool Equals(TypeRef x, TypeRef y)
+        public bool Equals(TypeRef? x, TypeRef? y)
         {
-            if (x is null != y is null)
-                return false;
-            else if (x is null) return true;
-            Contract.Requires(y != null);
+            if (x is null || y is null)
+                return x is null == y is null;
+
             if (x.Namespace != y.Namespace || x.Name != y.Name)
                 return false;
             if (x.IsGeneric && y.IsGeneric)

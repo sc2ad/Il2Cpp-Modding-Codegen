@@ -14,7 +14,7 @@ namespace Il2CppModdingCodegen.Data
         int Slot { get; }
         TypeRef ReturnType { get; }
         TypeRef DeclaringType { get; }
-        TypeRef ImplementedFrom { get; }
+        TypeRef? ImplementedFrom { get; }
         List<IMethod> BaseMethods { get; }
         List<IMethod> ImplementingMethods { get; }
 

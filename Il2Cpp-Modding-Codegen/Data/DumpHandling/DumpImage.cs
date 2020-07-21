@@ -10,7 +10,7 @@ namespace Il2CppModdingCodegen.Data.DumpHandling
 
         internal DumpImage(PeekableStreamReader fs)
         {
-            var line = fs.ReadLine();
+            var line = fs.ReadLine() ?? "";
             var split = line.Split(' ');
             if (split.Length < 6)
                 throw new InvalidOperationException($"Could not create Image out of: \"{line.Trim()}\"");

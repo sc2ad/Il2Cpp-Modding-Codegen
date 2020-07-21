@@ -10,19 +10,20 @@ namespace Il2CppModdingCodegen.Serialization
         private struct State
         {
             internal string type;
-            internal string declaring;
-            internal List<string> parentNames;
+            internal string? declaring;
+            internal List<string?> parentNames;
         }
 
         // Uses TypeRef instead of ITypeData because nested types have different pointers
         private readonly Dictionary<TypeRef, State> map = new Dictionary<TypeRef, State>();
 
-        private CppFieldSerializer fieldSerializer;
-        private CppStaticFieldSerializer staticFieldSerializer;
-        private CppMethodSerializer methodSerializer;
+        private CppFieldSerializer? _fieldSerializer;
+        private CppFieldSerializer FieldSerializer { get => _fieldSerializer ??= new CppFieldSerializer(_config); }
+        private CppStaticFieldSerializer? _staticFieldSerializer;
+        private CppStaticFieldSerializer StaticFieldSerializer { get => _staticFieldSerializer ??= new CppStaticFieldSerializer(_config); }
+        private CppMethodSerializer? _methodSerializer;
+        private CppMethodSerializer MethodSerializer { get => _methodSerializer ??= new CppMethodSerializer(_config); }
         private readonly SerializationConfig _config;
-
-        internal CppTypeContext Context { get; private set; }
 
         internal CppTypeDataSerializer(SerializationConfig config)
         {
@@ -40,7 +41,7 @@ namespace Il2CppModdingCodegen.Serialization
             {
                 type = resolved,
                 declaring = null,
-                parentNames = new List<string>()
+                parentNames = new List<string?>()
             };
             if (string.IsNullOrEmpty(s.type))
             {
@@ -66,32 +67,22 @@ namespace Il2CppModdingCodegen.Serialization
                 s.parentNames.Add(_config.SafeName(context.GetCppName(@interface, true, true, CppTypeContext.NeedAs.Definition, CppTypeContext.ForceAsType.Literal)));
             map.Add(type.This, s);
 
-            // TODO: if we upgrade to C# 8.0, change these to e.x. `fieldSerializer ??= new CppFieldSerializer(_config)`
-            if (fieldSerializer is null)
-                fieldSerializer = new CppFieldSerializer(_config);
-
             if (type.Type != TypeEnum.Interface)
                 // do the non-static fields first
                 foreach (var f in type.Fields)
                     if (!f.Specifiers.IsStatic())
-                        fieldSerializer.PreSerialize(context, f);
+                        FieldSerializer.PreSerialize(context, f);
 
             // then, the static fields
             foreach (var f in type.Fields)
                 // If the field is a static field, we want to create two methods, (get and set for the static field)
                 // and make a call to GetFieldValue and SetFieldValue for those methods
                 if (f.Specifiers.IsStatic())
-                {
-                    if (staticFieldSerializer is null)
-                        staticFieldSerializer = new CppStaticFieldSerializer(_config);
-                    staticFieldSerializer.PreSerialize(context, f);
-                }
+                    StaticFieldSerializer.PreSerialize(context, f);
 
             // then the methods
-            if (methodSerializer is null)
-                methodSerializer = new CppMethodSerializer(_config);
             foreach (var m in type.Methods)
-                methodSerializer.PreSerialize(context, m);
+                MethodSerializer.PreSerialize(context, m);
         }
 
         internal void DuplicateDefinition(CppTypeContext self, TypeRef offendingType)
@@ -106,7 +97,7 @@ namespace Il2CppModdingCodegen.Serialization
             foreach (var m in self.LocalType.Methods)
                 // If it was simply a method, we iterate over all methods and attempt to template them
                 // However, if we cannot fix it, this function will return false, informing us that we have failed.
-                if (!methodSerializer.FixBadDefinition(offendingType, m, out var found))
+                if (!MethodSerializer.FixBadDefinition(offendingType, m, out var found))
                     throw new InvalidOperationException($"Cannot fix duplicate definition for offending type: {offendingType}, it is used in an unfixable method: {m}");
                 else
                     total += found;
@@ -125,7 +116,7 @@ namespace Il2CppModdingCodegen.Serialization
         internal void WriteInitialTypeDefinition(CppStreamWriter writer, ITypeData type, bool isNested)
         {
             if (!map.TryGetValue(type.This, out var state))
-                throw new UnresolvedTypeException(type.This.DeclaringType, type.This);
+                throw new UnresolvedTypeException(type.This, type.This);
             // Write the actual type definition start
             var specifiers = "";
             foreach (var spec in type.Specifiers)
@@ -176,21 +167,21 @@ namespace Il2CppModdingCodegen.Serialization
                 try
                 {
                     if (f.Specifiers.IsStatic())
-                        staticFieldSerializer.Serialize(writer, f, asHeader);
+                        StaticFieldSerializer.Serialize(writer, f, asHeader);
                     else if (asHeader)
                         // Only write standard fields if this is a header
-                        fieldSerializer.Serialize(writer, f, asHeader);
+                        FieldSerializer.Serialize(writer, f, asHeader);
                 }
                 catch (UnresolvedTypeException e)
                 {
-                    if (_config.UnresolvedTypeExceptionHandling.FieldHandling == UnresolvedTypeExceptionHandling.DisplayInFile)
+                    if (_config.UnresolvedTypeExceptionHandling?.FieldHandling == UnresolvedTypeExceptionHandling.DisplayInFile)
                     {
                         writer.WriteLine("/*");
                         writer.WriteLine(e);
                         writer.WriteLine("*/");
                         writer.Flush();
                     }
-                    else if (_config.UnresolvedTypeExceptionHandling.FieldHandling == UnresolvedTypeExceptionHandling.Elevate)
+                    else if (_config.UnresolvedTypeExceptionHandling?.FieldHandling == UnresolvedTypeExceptionHandling.Elevate)
                         throw;
                 }
         }
@@ -206,7 +197,7 @@ namespace Il2CppModdingCodegen.Serialization
                 if (idx >= 0)
                     typeName = typeName.Substring(idx + 2);
             }
-            fieldSerializer?.WriteCtor(writer, type, typeName, true);
+            FieldSerializer.WriteCtor(writer, type, typeName, true);
         }
 
         // Iff namespaced, writes only the namespace-scoped methods. Otherwise, writes only the non-namespace-scoped methods.
@@ -215,19 +206,19 @@ namespace Il2CppModdingCodegen.Serialization
             foreach (var m in type.Methods)
                 try
                 {
-                    if (namespaced == (methodSerializer.Scope[m] == CppMethodSerializer.MethodScope.Namespace))
-                        methodSerializer?.Serialize(writer, m, asHeader);
+                    if (namespaced == (MethodSerializer.Scope[m] == CppMethodSerializer.MethodScope.Namespace))
+                        MethodSerializer.Serialize(writer, m, asHeader);
                 }
                 catch (UnresolvedTypeException e)
                 {
-                    if (_config.UnresolvedTypeExceptionHandling.MethodHandling == UnresolvedTypeExceptionHandling.DisplayInFile)
+                    if (_config.UnresolvedTypeExceptionHandling?.MethodHandling == UnresolvedTypeExceptionHandling.DisplayInFile)
                     {
                         writer.WriteLine("/*");
                         writer.WriteLine(e);
                         writer.WriteLine("*/");
                         writer.Flush();
                     }
-                    else if (_config.UnresolvedTypeExceptionHandling.MethodHandling == UnresolvedTypeExceptionHandling.Elevate)
+                    else if (_config.UnresolvedTypeExceptionHandling?.MethodHandling == UnresolvedTypeExceptionHandling.Elevate)
                         throw;
                 }
         }

@@ -1,4 +1,5 @@
 ﻿using Il2CppModdingCodegen.Config;
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -15,6 +16,12 @@ namespace Il2CppModdingCodegen.Serialization
             internal IEnumerable<string> toBuild;
             internal bool isSource;
             internal string id;
+            public Library(string _id, bool _isSource, IEnumerable<string> _toBuild)
+            {
+                id = _id;
+                isSource = _isSource;
+                toBuild = _toBuild;
+            }
         }
 
         private const string HeaderString = @"# Copyright (C) 2009 The Android Open Source Project
@@ -39,7 +46,7 @@ TARGET_ARCH_ABI := $(APP_ABI)
 rwildcard=$(wildcard $1$2) $(foreach d,$(wildcard $1*),$(call rwildcard,$d/,$2))
 ";
 
-        private TextWriter _stream;
+        private TextWriter? _stream;
         private readonly SerializationConfig _config;
 
         internal AndroidMkSerializer(SerializationConfig config)
@@ -61,6 +68,7 @@ rwildcard=$(wildcard $1$2) $(foreach d,$(wildcard $1*),$(call rwildcard,$d/,$2))
         /// <param name="contexts"></param>
         internal void WriteStaticLibrary(Library lib)
         {
+            if (_stream is null) throw new InvalidOperationException("Must call WriteHeader first!");
             _stream.WriteLine("# Writing static library: " + lib.id);
             _stream.WriteLine("include $(CLEAR_VARS)");
             _stream.WriteLine($"LOCAL_MODULE := {lib.id}");
@@ -76,6 +84,7 @@ rwildcard=$(wildcard $1$2) $(foreach d,$(wildcard $1*),$(call rwildcard,$d/,$2))
 
         internal void WritePrebuiltSharedLibrary(string id, string src, string include)
         {
+            if (_stream is null) throw new InvalidOperationException("Must call WriteHeader first!");
             _stream.WriteLine("# Writing prebuilt shared library: " + id);
             _stream.WriteLine("include $(CLEAR_VARS)");
             _stream.WriteLine($"LOCAL_MODULE := {id}");
@@ -87,6 +96,7 @@ rwildcard=$(wildcard $1$2) $(foreach d,$(wildcard $1*),$(call rwildcard,$d/,$2))
 
         internal void WriteSharedLibrary(Library lib)
         {
+            if (_stream is null) throw new InvalidOperationException("Must call WriteHeader first!");
             _stream.WriteLine("# Writing shared library: " + lib.id);
             _stream.WriteLine("include $(CLEAR_VARS)");
             _stream.WriteLine($"LOCAL_MODULE := {lib.id}");
@@ -105,6 +115,7 @@ rwildcard=$(wildcard $1$2) $(foreach d,$(wildcard $1*),$(call rwildcard,$d/,$2))
 
         internal void WriteSingleFile(Library lib)
         {
+            if (_stream is null) throw new InvalidOperationException("Must call WriteHeader first!");
             _stream.WriteLine("# Writing single library: " + lib.id);
             _stream.WriteLine("include $(CLEAR_VARS)");
             _stream.WriteLine($"LOCAL_MODULE := {lib.id}");
@@ -123,6 +134,7 @@ rwildcard=$(wildcard $1$2) $(foreach d,$(wildcard $1*),$(call rwildcard,$d/,$2))
 
         internal void AggregateStaticLibraries(IEnumerable<Library> libs, int depth = 0)
         {
+            if (_config.Id is null) throw new InvalidOperationException("config.Id should have a value!");
             int innerLibsLength = 0;
             int outterLibsLength = 0;
             var innerLibs = new List<Library>();
@@ -135,7 +147,7 @@ rwildcard=$(wildcard $1$2) $(foreach d,$(wildcard $1*),$(call rwildcard,$d/,$2))
                 if (innerLibsLength + l.id.Length >= _config.StaticLibraryCharacterLimit)
                 {
                     // If the library we are attempting to add would put us over limit, add all the old ones to a shared library
-                    var newLib = new Library { id = _config.Id + "_partial_" + depth + "_" + idx, isSource = false, toBuild = innerNamesOnly };
+                    var newLib = new Library(_config.Id + "_partial_" + depth + "_" + idx, false, innerNamesOnly);
                     WriteStaticLibrary(newLib);
                     // Reset inners
                     innerLibsLength = 0;
@@ -164,7 +176,7 @@ rwildcard=$(wildcard $1$2) $(foreach d,$(wildcard $1*),$(call rwildcard,$d/,$2))
             else
             {
                 // Otherwise, simply write out the outterLibs directly, and be done!
-                var overall = new Library { id = _config.Id + "_complete_" + depth + "_" + aggregateIdx, isSource = false, toBuild = outterLibs.Select(l => l.id) };
+                var overall = new Library(_config.Id + "_complete_" + depth + "_" + aggregateIdx, false, outterLibs.Select(l => l.id));
                 if (depth != 0)
                 {
                     WriteStaticLibrary(overall);
@@ -180,7 +192,7 @@ rwildcard=$(wildcard $1$2) $(foreach d,$(wildcard $1*),$(call rwildcard,$d/,$2))
             // If we find that this is too long, recurse until we are small enough
         }
 
-        public void Close() => _stream.Close();
+        public void Close() => _stream?.Close();
         public void Dispose() => Close();
     }
 }

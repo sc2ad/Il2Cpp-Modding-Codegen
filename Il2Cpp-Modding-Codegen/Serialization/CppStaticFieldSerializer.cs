@@ -3,7 +3,6 @@ using Il2CppModdingCodegen.Data;
 using Il2CppModdingCodegen.Data.DllHandling;
 using System;
 using System.Collections.Generic;
-using System.Diagnostics.Contracts;
 using System.Linq;
 using System.Text.RegularExpressions;
 
@@ -11,9 +10,9 @@ namespace Il2CppModdingCodegen.Serialization
 {
     public class CppStaticFieldSerializer : Serializer<IField>
     {
-        private string _declaringFullyQualified;
-        private string _thisTypeName;
-        private readonly Dictionary<IField, string> _resolvedTypes = new Dictionary<IField, string>();
+        private string? _declaringFullyQualified;
+        private string? _thisTypeName;
+        private readonly Dictionary<IField, string?> _resolvedTypes = new Dictionary<IField, string?>();
         private bool _asHeader;
         private readonly SerializationConfig _config;
 
@@ -34,10 +33,10 @@ namespace Il2CppModdingCodegen.Serialization
             _config = config;
         }
 
-        static string EncodeAtypicalCharacters(string value)
+        static string Encode(string value)
         {
             // This should replace any characters not in the typical ASCII printable range.
-            return Regex.Replace(value, @"[^ -~]", match => $"\\u{(int)match.Value[0]:x4}");
+            return Regex.Replace(value.Replace(@"\", @"\\"), @"[^ -~]", match => $"\\u{(int)match.Value[0]:x4}");
         }
 
         static TypeRef GetEnumUnderlyingType(ITypeData self)
@@ -49,62 +48,66 @@ namespace Il2CppModdingCodegen.Serialization
                 if (!field.Specifiers.IsStatic())
                     return field.Type;
             }
-            throw new ArgumentException("", nameof(self));
+            throw new ArgumentException("should be an Enum type!", nameof(self));
         }
 
-    public override void PreSerialize(CppTypeContext context, IField field)
+        public override void PreSerialize(CppTypeContext context, IField field)
         {
-            Contract.Requires(context != null && field != null);
+            if (context is null) throw new ArgumentNullException(nameof(context));
+            if (field is null) throw new ArgumentNullException(nameof(field));
             _declaringFullyQualified = context.QualifiedTypeName.TrimStart(':');
             _thisTypeName = context.GetCppName(field.DeclaringType, false, needAs: CppTypeContext.NeedAs.Definition);
             var resolvedName = context.GetCppName(field.Type, true);
+            _resolvedTypes.Add(field, resolvedName);
             if (resolvedName != null)
+            {
                 // Add static field to forward declares, since it is used by the static _get and _set methods
                 Resolved(field);
-            _resolvedTypes.Add(field, resolvedName);
 
-            if (field is DllField)
-            {
-                var dllField = field as DllField;
-                if (dllField.This.Constant != null)
-                {
-                    var type = "";
-                    var value = "";
-                    var resolved = context.ResolveAndStore(field.Type, forceAs: CppTypeContext.ForceAsType.None);
-                    if (resolved.Type == TypeEnum.Enum || !resolvedName.Any(char.IsUpper))
+                if (field is DllField dllField)
+                    if (dllField.This.Constant != null)
                     {
-                        var val = $"{dllField.This.Constant}";
-                        if (val == "True" || val == "False" || Regex.IsMatch(val, @"-?(?:[\d\.]|E[\+\-])+"))
+                        string type = "";
+                        string value = "";
+                        var resolved = context.ResolveAndStore(field.Type, forceAs: CppTypeContext.ForceAsType.None);
+                        if (resolved?.Type == TypeEnum.Enum || !resolvedName.Any(char.IsUpper))
                         {
-                            TypeRef typeRef = (resolved.Type == TypeEnum.Enum) ? GetEnumUnderlyingType(resolved) : resolved.This;
-                            type = context.GetCppName(typeRef, true);
-                            value = val.ToLower();
+                            var val = $"{dllField.This.Constant}";
+                            if (val == "True" || val == "False" || Regex.IsMatch(val, @"-?(?:[\d\.]|E[\+\-])+"))
+                            {
+                                var temp = (resolved?.Type == TypeEnum.Enum) ? context.GetCppName(GetEnumUnderlyingType(resolved), true) : resolvedName;
+                                if (temp is null) throw new Exception($"Failed to get C++ type for {field.Type}");
+                                type = temp;
+                                if (type.Contains("uint")) val += "u";
+                                value = val.ToLower();
+                                if (value == Int64.MinValue.ToString())
+                                    value = (Int64.MinValue + 1).ToString() + " - 1";
+                            }
+                            else
+                                Console.WriteLine($"{field.DeclaringType}'s {resolvedName} {field.Name} has constant that is not valid C++: {val}");
+                        }
+                        else if (resolvedName.StartsWith("::Il2CppString"))
+                        {
+                            var str = (string)dllField.This.Constant;
+                            var encodedStr = Encode(str);
+                            type = "char*";
+                            value = $"\"{encodedStr}\"";
+                        }
+                        else if (resolvedName.StartsWith("::Il2CppChar"))
+                        {
+                            char c = (char)dllField.This.Constant;
+                            var encodedStr = Encode(c.ToString());
+                            type = resolvedName;
+                            value = $"u'{encodedStr}'";
                         }
                         else
-                            Console.WriteLine($"{field.DeclaringType}'s {resolvedName} {field.Name} has constant that is not valid C++: {val}");
-                    }
-                    else if (resolvedName.StartsWith("::Il2CppString"))
-                    {
-                        var str = dllField.This.Constant as string;
-                        var encodedStr = EncodeAtypicalCharacters(str);
-                        type = "char*";
-                        value = $"\"{encodedStr}\"";
-                    }
-                    else if (resolvedName.StartsWith("::Il2CppChar"))
-                    {
-                        char c = (char)dllField.This.Constant;
-                        var encodedStr = EncodeAtypicalCharacters(c.ToString());
-                        type = resolvedName;
-                        value = $"u'{encodedStr}'";
-                    }
-                    else
-                        throw new Exception($"Unhandled constant type {resolvedName}!");
+                            throw new Exception($"Unhandled constant type {resolvedName}!");
 
-                    if (!string.IsNullOrEmpty(type) && !string.IsNullOrEmpty(value))
-                        _constants.Add(field, new Constant(type, value));
-
-                } else if (dllField.This.HasDefault)
-                    Console.WriteLine($"TODO for {field.DeclaringType}'s {resolvedName} {field.Name}: figure out how to get default values??");
+                        if (!string.IsNullOrEmpty(type) && !string.IsNullOrEmpty(value))
+                            _constants.Add(field, new Constant(type, value));
+                    }
+                    else if (dllField.This.HasDefault)
+                        Console.WriteLine($"TODO for {field.DeclaringType}'s {resolvedName} {field.Name}: figure out how to get default values??");
             }
         }
 
@@ -138,15 +141,16 @@ namespace Il2CppModdingCodegen.Serialization
 
         public override void Serialize(CppStreamWriter writer, IField field, bool asHeader)
         {
-            Contract.Requires(writer != null && field != null);
+            if (writer is null) throw new ArgumentNullException(nameof(writer));
+            if (field is null) throw new ArgumentNullException(nameof(field));
             _asHeader = asHeader;
-            if (_resolvedTypes[field] == null)
+            if (_resolvedTypes[field] is null)
                 throw new UnresolvedTypeException(field.DeclaringType, field.Type);
+            string resolvedType = _resolvedTypes[field]!;
             var fieldCommentString = "";
             foreach (var spec in field.Specifiers)
                 fieldCommentString += $"{spec} ";
             fieldCommentString += $"{field.Type} {field.Name}";
-            var resolvedType = _resolvedTypes[field];
             if (_asHeader && !field.DeclaringType.IsGenericTemplate)
             {
                 if (_constants.TryGetValue(field, out var constant))
