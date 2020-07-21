@@ -20,7 +20,7 @@ namespace Il2CppModdingCodegen.Data
         public abstract IReadOnlyList<TypeRef> Generics { get; }
 
         public abstract TypeRef DeclaringType { get; }
-        public abstract TypeRef ElementType { get; }
+        public abstract TypeRef? ElementType { get; }
 
         private ITypeData _resolvedType;
 

@@ -11,6 +11,7 @@ namespace Il2CppModdingCodegen.Data.DllHandling
         public TypeInfo Info { get; }
         public TypeRef This { get; }
         public TypeRef Parent { get; }
+        public TypeRef? EnumUnderlyingType { get; }
         public HashSet<ITypeData> NestedTypes { get; } = new HashSet<ITypeData>();
         public List<TypeRef> ImplementingInterfaces { get; } = new List<TypeRef>();
         public int TypeDefIndex { get; }

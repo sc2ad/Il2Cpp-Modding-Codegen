@@ -25,7 +25,7 @@ namespace Il2CppModdingCodegen.Data.DllHandling
         public override IReadOnlyList<TypeRef> Generics { get => _generics; }
 
         public override TypeRef DeclaringType { get => From(This.DeclaringType); }
-        public override TypeRef ElementType
+        public override TypeRef? ElementType
         {
             get
             {

@@ -18,7 +18,7 @@ namespace Il2CppModdingCodegen.Data.DumpHandling
         public override IReadOnlyList<TypeRef> Generics { get; }
 
         public override TypeRef DeclaringType { get; }
-        public override TypeRef ElementType { get; }
+        public override TypeRef? ElementType { get; }
 
         public override bool IsPointer()
         {

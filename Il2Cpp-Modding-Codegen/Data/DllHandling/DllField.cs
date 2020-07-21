@@ -7,6 +7,7 @@ namespace Il2CppModdingCodegen.Data.DllHandling
 {
     internal class DllField : IField
     {
+        internal FieldDefinition This;
         public List<IAttribute> Attributes { get; } = new List<IAttribute>();
         public List<ISpecifier> Specifiers { get; } = new List<ISpecifier>();
         public TypeRef Type { get; }
@@ -32,6 +33,8 @@ namespace Il2CppModdingCodegen.Data.DllHandling
                         Attributes.Add(new DllAttribute(ca));
 
             Specifiers.AddRange(DllSpecifierHelpers.From(f));
+
+            This = f;
         }
 
         public override string ToString() => $"{Type} {DeclaringType}.{Name}; // Offset: 0x{Offset:X}";

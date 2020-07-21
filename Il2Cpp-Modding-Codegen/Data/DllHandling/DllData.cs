@@ -79,14 +79,14 @@ namespace Il2CppModdingCodegen.Data.DllHandling
 
         public override string ToString() => $"Types: {Types.Count()}";
 
-        public ITypeData Resolve(TypeRef typeRef)
+        public ITypeData? Resolve(TypeRef typeRef)
         {
             var temp = typeRef as DllTypeRef;
-            Contract.Requires(temp != null);
+            if (temp is null) throw new Exception();
             return Resolve(temp);
         }
 
-        private ITypeData Resolve(DllTypeRef typeRef)
+        private ITypeData? Resolve(DllTypeRef typeRef)
         {
             // Generic parameters can never "Resolve"
             if (typeRef.IsGenericParameter) return null;
