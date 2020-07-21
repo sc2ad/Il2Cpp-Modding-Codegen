@@ -94,8 +94,8 @@ namespace Il2CppModdingCodegen.Serialization
                     {
                         char c = (char)dllField.This.Constant;
                         var encodedStr = EncodeAtypicalCharacters(c.ToString());
-                        type = "char";
-                        value = $"'{encodedStr}'";
+                        type = resolvedName;
+                        value = $"u'{encodedStr}'";
                     }
                     else
                         throw new Exception($"Unhandled constant type {resolvedName}!");
@@ -152,12 +152,7 @@ namespace Il2CppModdingCodegen.Serialization
                 if (_constants.TryGetValue(field, out var constant))
                 {
                     writer.WriteComment("static field const value: " + fieldCommentString);
-                    string declaration;
-                    if (constant.type.EndsWith("*"))
-                        declaration = $"static constexpr const {constant.type} {SafeName(field)} = {constant.value}";
-                    else
-                        declaration = $"static const {constant.type} {SafeName(field)} = {constant.value}";
-                    writer.WriteDeclaration(declaration);
+                    writer.WriteDeclaration($"static constexpr const {constant.type} {SafeName(field)} = {constant.value}");
                 }
                 // Create two method declarations:
                 // static FIELDTYPE _get_FIELDNAME();
