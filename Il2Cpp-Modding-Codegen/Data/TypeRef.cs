@@ -96,7 +96,7 @@ namespace Il2CppModdingCodegen.Data
                 {
                     foreach (var g in dt.Generics.Reverse())
                     {
-                        if (IsGenericInstance && g.Name.StartsWith("!"))
+                        if (IsGenericInstance && g.Name.StartsWith("!") && lastGenerics != null)
                         {
                             // If we are a generic instance, and we see that the name of our generic parameter starts with a !
                             var idx = int.Parse(g.Name.Substring(1));
@@ -175,6 +175,7 @@ namespace Il2CppModdingCodegen.Data
         [ObsoleteAttribute("The argument should be a TypeRef!")]
 #pragma warning disable 809  // "obsolete method extends non-obsolete mehtod object.Equals(object)
         public override bool Equals(object? obj) => Equals(obj as TypeRef);
+
 #pragma warning restore 809
 
         internal static FastTypeRefComparer fastComparer = new FastTypeRefComparer();

@@ -16,16 +16,18 @@ namespace Il2CppModdingCodegen.Serialization
         private bool _asHeader;
         private readonly SerializationConfig _config;
 
-        struct Constant
+        private struct Constant
         {
             public string type;
             public string value;
+
             public Constant(string type_, string value_)
             {
                 type = type_;
                 value = value_;
             }
         };
+
         private readonly Dictionary<IField, Constant> _constants = new Dictionary<IField, Constant>();
 
         internal CppStaticFieldSerializer(SerializationConfig config)
@@ -33,13 +35,13 @@ namespace Il2CppModdingCodegen.Serialization
             _config = config;
         }
 
-        static string Encode(string value)
+        private static string Encode(string value)
         {
             // This should replace any characters not in the typical ASCII printable range.
             return Regex.Replace(value.Replace(@"\", @"\\"), @"[^ -~]", match => $"\\u{(int)match.Value[0]:x4}");
         }
 
-        static TypeRef GetEnumUnderlyingType(ITypeData self)
+        private static TypeRef GetEnumUnderlyingType(ITypeData self)
         {
             var fields = self.Fields;
             for (int i = 0; i < fields.Count; i++)
@@ -80,8 +82,8 @@ namespace Il2CppModdingCodegen.Serialization
                                 type = temp;
                                 if (type.Contains("uint")) val += "u";
                                 value = val.ToLower();
-                                if (value == Int64.MinValue.ToString())
-                                    value = (Int64.MinValue + 1).ToString() + " - 1";
+                                if (value == long.MinValue.ToString())
+                                    value = (long.MinValue + 1).ToString() + " - 1";
                             }
                             else
                                 Console.WriteLine($"{field.DeclaringType}'s {resolvedName} {field.Name} has constant that is not valid C++: {val}");
@@ -111,7 +113,7 @@ namespace Il2CppModdingCodegen.Serialization
             }
         }
 
-        private static string SafeName(IField field) => field.Name.Replace('<', '$').Replace('>', '$');
+        private string SafeName(IField field) => _config.SafeName(field.Name.Replace('<', '$').Replace('>', '$'));
 
         private string GetGetter(string fieldType, IField field, bool namespaceQualified)
         {
