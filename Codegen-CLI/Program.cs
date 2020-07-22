@@ -76,7 +76,7 @@ namespace Codegen_CLI
                     "private", "protected", "public", "reflexpr", "register", "reinterpret_cast", "requires", "return",
                     "short", "signed", "sizeof", "static", "static_assert", "static_cast", "struct", "switch", "synchronized",
                     "template", "this", "thread_local", "throw", "true", "try", "typedef", "typeid", "typename", "union",
-                    "unsigned", "using", "virtual", "void", "volatile", "wchar_t", "while", "xor", "xor_eq"
+                    "unsigned", "using", "virtual", "void", "volatile", "wchar_t", "while", "xor", "xor_eq", "INT_MAX", "INT_MIN"
                 },
                 IllegalMethodNames = new HashSet<string> {
                     "bzero", "Assert"
@@ -86,7 +86,7 @@ namespace Codegen_CLI
                 OutputSourceDirectory = "src",
                 GenericHandling = GenericHandling.Do,
                 OutputStyle = style,
-                UnresolvedTypeExceptionHandling = new ExceptionHandling
+                UnresolvedTypeExceptionHandling = new UnresolvedTypeExceptionHandlingWrapper
                 {
                     FieldHandling = UnresolvedTypeExceptionHandling.DisplayInFile,
                     MethodHandling = UnresolvedTypeExceptionHandling.DisplayInFile,

@@ -65,7 +65,12 @@ namespace Il2CppModdingCodegen.Config
         /// <summary>
         /// How to handle unresolved type exceptions
         /// </summary>
-        public ExceptionHandling? UnresolvedTypeExceptionHandling { get; set; }
+        public UnresolvedTypeExceptionHandlingWrapper? UnresolvedTypeExceptionHandling { get; set; }
+
+        /// <summary>
+        /// How to handle duplicate methods that are serialized
+        /// </summary>
+        public DuplicateMethodExceptionHandling DuplicateMethodExceptionHandling { get; set; } = DuplicateMethodExceptionHandling.DisplayInFile;
 
         /// <summary>
         /// Types blacklisted are explicitly not converted, even if it causes unresolved type exceptions in other types
@@ -135,7 +140,7 @@ namespace Il2CppModdingCodegen.Config
         }
     }
 
-    public class ExceptionHandling
+    public class UnresolvedTypeExceptionHandlingWrapper
     {
         public UnresolvedTypeExceptionHandling TypeHandling { get; set; }
 
@@ -144,6 +149,14 @@ namespace Il2CppModdingCodegen.Config
 
         // TODO: May not work as intended
         public UnresolvedTypeExceptionHandling MethodHandling { get; set; }
+    }
+
+    public enum DuplicateMethodExceptionHandling
+    {
+        Ignore,
+        DisplayInFile,
+        Skip,
+        Elevate
     }
 
     public enum OutputStyle

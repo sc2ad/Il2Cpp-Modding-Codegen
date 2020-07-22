@@ -113,7 +113,6 @@ namespace Il2CppModdingCodegen.Serialization
         // Holds a mapping of IMethod to the name, as well as if the name has been specifically converted already.
         private static readonly Dictionary<IMethod, (string, bool)> _nameMap = new Dictionary<IMethod, (string, bool)>();
 
-        private bool performedGenericRenames = false;
         private bool _declaringIsValueType;
 
         internal CppMethodSerializer(SerializationConfig config)
@@ -257,56 +256,6 @@ namespace Il2CppModdingCodegen.Serialization
                 // Should only have one or fewer BaseMethods at this point
                 method = method.BaseMethods.FirstOrDefault();
             }
-        }
-
-        private void RenameGenericMethods(CppTypeContext context)
-        {
-            // We want to ONLY do this once, for all methods.
-            // That is because we don't want to end up renaming a bunch of methods multiple times, which is slow.
-            if (performedGenericRenames)
-                return;
-            // During preserialization, if we find that we have a generic method that matches the name of a non-generic method, we need to rename it forcibly.
-            // This is to avoid a possibility of generic methods being called with equivalent arguments as a non-generic method (not allowed in C++)
-            // Sadly, the best way I can think of to do this is to iterate over all methods that match names and check their returns/parameters.
-            // If there are 2 or more, rename all methods that have at least one generic template parameter using some static index, which is reset to 0 after.
-            // Renaming occurs by suffixing _i, and placing the name into the _nameMap with a "false".
-
-            var allMethods = context.LocalType.Methods.Where(m => !m.Generic);
-            // For each method in allMethods
-            // TODO: This is slow: O(N^2) where N is methods
-            var completedMethods = new HashSet<IMethod>();
-            foreach (var m in allMethods)
-            {
-                if (completedMethods.Contains(m))
-                    continue;
-                // Get the overloads
-                var overloads = allMethods.Where(am => am.Name == m.Name).ToList();
-                // If we have two or more, iterate over all of them
-                if (overloads.Count > 2)
-                {
-                    int genericRenameIdx = 0;
-                    foreach (var om in overloads)
-                    {
-                        // If the overload method in question has generic parameters for its return type or parameters
-                        // we suffix its rectified name with _i
-                        // TODO: This probably renames far more than it should
-                        if (context.IsGenericParameter(om.ReturnType) || om.Parameters.FirstOrDefault(p => context.IsGenericParameter(p.Type)) != null)
-                        {
-                            if (_nameMap.TryGetValue(om, out var pair))
-                            {
-                                if (pair.Item2)
-                                    continue;
-                            }
-                            // Only rename a method that has NOT been renamed!
-                            _nameMap[om] = (string.IsNullOrEmpty(pair.Item1) ? om.Name : pair.Item1 + "_" + genericRenameIdx, false);
-                            genericRenameIdx++;
-                        }
-                        completedMethods.Add(om);
-                        // Non generic methods don't need to be renamed at all.
-                    }
-                }
-            }
-            performedGenericRenames = true;
         }
 
         internal bool FixBadDefinition(TypeRef offendingType, IMethod method, out int found)
@@ -475,7 +424,11 @@ namespace Il2CppModdingCodegen.Serialization
 
             if (!_ignoreSignatureMap && !_signatures.Add((method.DeclaringType, isHeader, signature)))
             {
-                preRetStr = "// ABORTED: conflicts with another method. " + preRetStr;
+                if (_config.DuplicateMethodExceptionHandling == DuplicateMethodExceptionHandling.DisplayInFile)
+                    preRetStr = "// ABORTED: conflicts with another method. " + preRetStr;
+                else if (_config.DuplicateMethodExceptionHandling == DuplicateMethodExceptionHandling.Elevate)
+                    throw new DuplicateMethodException(method, preRetStr);
+                // Otherwise, do nothing (Skip/Ignore are identical)
                 _aborted.Add(method);
             }
 
