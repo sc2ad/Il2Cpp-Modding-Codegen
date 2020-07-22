@@ -22,6 +22,7 @@ namespace Il2CppModdingCodegen.Serialization
             NonConstOthers = 8,
             InClassOnly = 16,
         }
+
         private static readonly Dictionary<string, (string, OpFlags)> Operators = new Dictionary<string, (string, OpFlags)>()
         {
             // https://en.cppreference.com/w/cpp/language/converting_constructor OR https://en.cppreference.com/w/cpp/language/cast_operator
@@ -72,12 +73,14 @@ namespace Il2CppModdingCodegen.Serialization
             // https://en.cppreference.com/w/cpp/language/operator_other
             { "op_Comma", ("operator,", OpFlags.RefReturn | OpFlags.ConstSelf | OpFlags.NonConstOthers) },  // returns T2& (aka B&)
         };
+
         internal enum MethodScope
         {
             Class,
             Static,
             Namespace
         }
+
         internal Dictionary<IMethod, MethodScope> Scope = new Dictionary<IMethod, MethodScope>();
 
         private bool _asHeader;
@@ -88,6 +91,7 @@ namespace Il2CppModdingCodegen.Serialization
 
         // This dictionary maps from method to a list of real generic parameters.
         private readonly Dictionary<IMethod, List<string?>> _genericArgs = new Dictionary<IMethod, List<string?>>();
+
         /// <summary>
         /// This dictionary maps from method to a list of placeholder generic arguments.
         /// These generic arguments are only ever used as replacements for types that should not be included/defined within our context.
@@ -533,9 +537,14 @@ namespace Il2CppModdingCodegen.Serialization
                 // Need to create the method ENTIRELY in the header, instead of split between the C++ and the header
                 return;
 
+            if (!_nameMap.TryGetValue(method, out var namePair))
+                throw new InvalidOperationException($"Could not find method: {method} in _nameMap! Ensure it is PreSerialized first!");
+
             string? overrideName = null;
-            if (method.BaseMethods.Count > 1)
-                overrideName = _config.SafeMethodName(method.Name).Replace('<', '$').Replace('>', '$').Replace('.', '_');
+            // If the method is specially named, then we need to print it normally, don't worry about any of this rename garbage
+            bool performProxy = method.BaseMethods.Count >= 1 && method.Il2CppName.IndexOf('.') < 1;
+            if (performProxy)
+                overrideName = _config.SafeMethodName(method.Name.Replace('<', '$').Replace('>', '$').Replace('.', '_'));
 
             bool writeContent = !_asHeader || NeedDefinitionInHeader(method);
             var scope = Scope[method];
@@ -642,10 +651,8 @@ namespace Il2CppModdingCodegen.Serialization
             // If any of them have been renamed, we need to create a new method for that and map it to the method we are currently serializing.
             // Basically, if we have void Clear() with two base methods, one of which is renamed, we create void Clear(), and we create void QUALIFIED_Clear()
             // Where QUALIFIED_Clear() simply calls Clear()
-            if (method.BaseMethods.Count > 1)
+            if (performProxy)
             {
-                if (!_nameMap.TryGetValue(method, out var namePair))
-                    throw new InvalidOperationException($"Could not find method: {method} in _nameMap! Ensure it is PreSerialized first!");
                 // Original method would have already been created by now.
                 foreach (var bm in method.BaseMethods)
                 {
