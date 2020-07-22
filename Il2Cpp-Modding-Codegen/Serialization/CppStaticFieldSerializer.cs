@@ -12,17 +12,20 @@ namespace Il2CppModdingCodegen.Serialization
     {
         private string? _declaringFullyQualified;
         private string? _thisTypeName;
+        private string? _declaringLiteral;
         private readonly Dictionary<IField, string?> _resolvedTypes = new Dictionary<IField, string?>();
         private bool _asHeader;
         private readonly SerializationConfig _config;
 
         private struct Constant
         {
+            public string name;
             public string type;
             public string value;
 
-            public Constant(string type_, string value_)
+            public Constant(string name_, string type_, string value_)
             {
+                name = name_;
                 type = type_;
                 value = value_;
             }
@@ -58,6 +61,7 @@ namespace Il2CppModdingCodegen.Serialization
             if (context is null) throw new ArgumentNullException(nameof(context));
             if (field is null) throw new ArgumentNullException(nameof(field));
             _declaringFullyQualified = context.QualifiedTypeName.TrimStart(':');
+            _declaringLiteral = context.GetCppName(field.DeclaringType, false, false, forceAsType: CppTypeContext.ForceAsType.Literal);
             _thisTypeName = context.GetCppName(field.DeclaringType, false, needAs: CppTypeContext.NeedAs.Definition);
             var resolvedName = context.GetCppName(field.Type, true);
             _resolvedTypes.Add(field, resolvedName);
@@ -69,11 +73,14 @@ namespace Il2CppModdingCodegen.Serialization
                 if (field is DllField dllField)
                     if (dllField.This.Constant != null)
                     {
+                        string name = SafeName(field);
                         string type = "";
                         string value = "";
                         var resolved = context.ResolveAndStore(field.Type, forceAs: CppTypeContext.ForceAsType.None);
                         if (resolved?.Type == TypeEnum.Enum || !resolvedName.Any(char.IsUpper))
                         {
+                            if (resolved?.Type == TypeEnum.Enum && name == "value")
+                                name = "Value";
                             var val = $"{dllField.This.Constant}";
                             if (val == "True" || val == "False" || Regex.IsMatch(val, @"-?(?:[\d\.]|E[\+\-])+"))
                             {
@@ -106,14 +113,22 @@ namespace Il2CppModdingCodegen.Serialization
                             throw new Exception($"Unhandled constant type {resolvedName}!");
 
                         if (!string.IsNullOrEmpty(type) && !string.IsNullOrEmpty(value))
-                            _constants.Add(field, new Constant(type, value));
+                            _constants.Add(field, new Constant(name, type, value));
                     }
                     else if (dllField.This.HasDefault)
                         Console.WriteLine($"TODO for {field.DeclaringType}'s {resolvedName} {field.Name}: figure out how to get default values??");
             }
         }
 
-        private string SafeName(IField field) => _config.SafeName(field.Name.Replace('<', '$').Replace('>', '$'));
+        private string SafeConfigName(string name) => _config.SafeName(name.Replace('<', '$').Replace('>', '$'));
+
+        private string SafeName(IField field)
+        {
+            string name = field.Name;
+            if (name == _declaringLiteral)
+                name = "_" + name;
+            return SafeConfigName(name);
+        }
 
         private string GetGetter(string fieldType, IField field, bool namespaceQualified)
         {
@@ -127,7 +142,7 @@ namespace Il2CppModdingCodegen.Serialization
             if (_asHeader)
                 staticStr = "static ";
             // Collisions with this name are incredibly unlikely.
-            return $"{staticStr + retStr} {ns}_get_{SafeName(field)}()";
+            return $"{staticStr + retStr} {ns}{SafeConfigName($"_get_{field.Name}")}()";
         }
 
         private string GetSetter(string fieldType, IField field, bool namespaceQualified)
@@ -138,7 +153,7 @@ namespace Il2CppModdingCodegen.Serialization
                 ns = _declaringFullyQualified + "::";
             if (_asHeader)
                 staticStr = "static ";
-            return $"{staticStr}void {ns}_set_{SafeName(field)}({fieldType} value)";
+            return $"{staticStr}void {ns}{SafeConfigName($"_set_{field.Name}")}({fieldType} value)";
         }
 
         public override void Serialize(CppStreamWriter writer, IField field, bool asHeader)
@@ -158,7 +173,7 @@ namespace Il2CppModdingCodegen.Serialization
                 if (_constants.TryGetValue(field, out var constant))
                 {
                     writer.WriteComment("static field const value: " + fieldCommentString);
-                    writer.WriteDeclaration($"static constexpr const {constant.type} {SafeName(field)} = {constant.value}");
+                    writer.WriteDeclaration($"static constexpr const {constant.type} {constant.name} = {constant.value}");
                 }
                 // Create two method declarations:
                 // static FIELDTYPE _get_FIELDNAME();
