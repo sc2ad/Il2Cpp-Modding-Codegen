@@ -120,7 +120,7 @@ namespace Il2CppModdingCodegen.Serialization
             _config = config;
         }
 
-        private static bool NeedDefinitionInHeader(IMethod method) => method.DeclaringType.IsGenericTemplate;
+        private static bool NeedDefinitionInHeader(IMethod method) => method.DeclaringType.IsGenericTemplate || method.Generic;
 
         /// <summary>
         /// Returns whether the given method should be written as a definition or a declaration
@@ -463,6 +463,11 @@ namespace Il2CppModdingCodegen.Serialization
             return false;
         }
 
+        private string Il2CppNoArgClass(string t)
+        {
+            return $"il2cpp_utils::il2cpp_type_check::il2cpp_no_arg_class<{t}>::get()";
+        }
+
         // Write the method here
         public override void Serialize(CppStreamWriter writer, IMethod method, bool asHeader)
         {
@@ -486,7 +491,7 @@ namespace Il2CppModdingCodegen.Serialization
             }
             if (IgnoredMethods.Contains(method.Il2CppName) || _config.BlacklistMethods.Contains(method.Il2CppName) || _aborted.Contains(method))
                 return;
-            if (method.DeclaringType.IsGeneric && !_asHeader)
+            if (!_asHeader && NeedDefinitionInHeader(method))
                 // Need to create the method ENTIRELY in the header, instead of split between the C++ and the header
                 return;
 
@@ -545,7 +550,7 @@ namespace Il2CppModdingCodegen.Serialization
                 var (@namespace, @class) = method.DeclaringType.GetIl2CppName();
                 var classArgs = $"\"{@namespace}\", \"{@class}\"";
                 if (method.DeclaringType.IsGeneric)
-                    classArgs = $"il2cpp_utils::il2cpp_type_check::il2cpp_no_arg_class<{_thisTypeName}>::get()";
+                    classArgs = Il2CppNoArgClass(_thisTypeName);
                 if (IsCtor(method))
                 {
                     // Always use thisTypeName for the cast type, since we are already within the context of the type.
@@ -624,15 +629,15 @@ namespace Il2CppModdingCodegen.Serialization
                         if (!writeContent)
                         {
                             // Write method declaration
-                            if (_genericArgs.TryGetValue(method, out var types))
-                                writer.WriteLine($"template<{string.Join(", ", types.Select(s => "class " + s))}>");
+                            if (TemplateString(method, true, out var templateStr))
+                                writer.WriteLine(templateStr);
                             writer.WriteDeclaration(WriteMethod(scope, method, asHeader, pair.Item1));
                         }
                         else
                         {
                             // Write method content
-                            if (_genericArgs.ContainsKey(method))
-                                writer.WriteLine("template<>");
+                            if (TemplateString(method, false, out var templateStr))
+                                writer.WriteLine(templateStr);
                             var methodStr = WriteMethod(scope, method, asHeader, pair.Item1);
                             if (methodStr.StartsWith("/"))
                             {
