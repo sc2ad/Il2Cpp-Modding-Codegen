@@ -629,9 +629,10 @@ namespace Il2CppModdingCodegen.Serialization
                         if (!writeContent)
                         {
                             // Write method declaration
+                            var methodStr = WriteMethod(scope, method, asHeader, pair.Item1);
                             if (TemplateString(method, true, out var templateStr))
-                                writer.WriteLine(templateStr);
-                            writer.WriteDeclaration(WriteMethod(scope, method, asHeader, pair.Item1));
+                                writer.WriteLine((methodStr.StartsWith("/") ? "// " : "") + templateStr);
+                            writer.WriteDeclaration(methodStr);
                         }
                         else
                         {
