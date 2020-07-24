@@ -102,6 +102,9 @@ namespace Il2CppModdingCodegen.Serialization
         /// </summary>
         private readonly Dictionary<IMethod, SortedSet<string>> _tempGenerics = new Dictionary<IMethod, SortedSet<string>>();
 
+        // This dictionary maps from method to a list of real generic parameters.
+        private readonly Dictionary<IMethod, CppTypeDataSerializer.GenParamConstraintStrings> _genParamConstraints = new Dictionary<IMethod, CppTypeDataSerializer.GenParamConstraintStrings>();
+
         private string? _declaringNamespace;
         private string? _declaringFullyQualified;
         private string? _thisTypeName;
@@ -322,6 +325,7 @@ namespace Il2CppModdingCodegen.Serialization
             if (method.Generic)
             {
                 var generics = new List<string>();
+                var genParamConstraints = new CppTypeDataSerializer.GenParamConstraintStrings();
                 foreach (var g in method.GenericParameters)
                 {
                     var s = context.GetCppName(g, true, needAs: CppTypeContext.NeedAs.Declaration);
@@ -331,8 +335,13 @@ namespace Il2CppModdingCodegen.Serialization
                         s = g.Name;
                     }
                     generics.Add(s);
+
+                    var constraintStrs = g.GenericParameterConstraints.Select(c => context.GetCppName(c, true) ?? c.GetName()).ToList();
+                    if (constraintStrs.Count > 0)
+                        genParamConstraints.Add(context.GetCppName(g, false) ?? g.GetName(), constraintStrs);
                 }
                 _genericArgs.Add(method, generics);
+                _genParamConstraints.Add(method, genParamConstraints);
             }
 
             var needAs = NeedTypesAs(method);
@@ -552,6 +561,9 @@ namespace Il2CppModdingCodegen.Serialization
                 if (TemplateString(method, _asHeader, out var templateStr))
                     writer.WriteLine(templateStr);
                 writer.WriteDefinition(methodStr);
+
+                if (_genParamConstraints.TryGetValue(method, out var genParamConstraints))
+                    CppTypeDataSerializer.WriteGenericTypeConstraints(writer, genParamConstraints);
 
                 var (@namespace, @class) = method.DeclaringType.GetIl2CppName();
                 var classArgs = $"\"{@namespace}\", \"{@class}\"";

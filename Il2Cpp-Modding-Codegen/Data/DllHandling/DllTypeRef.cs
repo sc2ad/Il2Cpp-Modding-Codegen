@@ -1,5 +1,6 @@
 ﻿using Mono.Cecil;
 using Mono.Cecil.Rocks;
+using System;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.IO;
@@ -19,11 +20,11 @@ namespace Il2CppModdingCodegen.Data.DllHandling
 
         public override bool IsGenericParameter { get => This.IsGenericParameter; }
         public override bool IsCovariant { get; set; }
+        public override IReadOnlyList<TypeRef> GenericParameterConstraints { get; } = new List<TypeRef>();
         public override bool IsGenericInstance { get => This.IsGenericInstance; }
         public override bool IsGenericTemplate { get => This.HasGenericParameters; }
 
-        private readonly List<TypeRef> _generics = new List<TypeRef>();
-        public override IReadOnlyList<TypeRef> Generics { get => _generics; }
+        public override IReadOnlyList<TypeRef> Generics { get; }
 
         public override TypeRef? DeclaringType { get => From(This.DeclaringType); }
         public override TypeRef? ElementType
@@ -50,6 +51,7 @@ namespace Il2CppModdingCodegen.Data.DllHandling
         // Should use DllTypeRef.From instead!
         private DllTypeRef(TypeReference reference)
         {
+            cache.Add(reference, this);
             This = reference;
 
             if (This.IsByReference)
@@ -60,9 +62,12 @@ namespace Il2CppModdingCodegen.Data.DllHandling
             _name = This.Name;
 
             if (IsGenericInstance)
-                _generics.AddRange(((GenericInstanceType)This).GenericArguments.Select(g => From(g)));
+                Generics = ((GenericInstanceType)This).GenericArguments.Select(g => From(g)).ToList();
             else if (IsGenericTemplate)
-                _generics.AddRange(This.GenericParameters.Select(g => From(g)));
+                Generics = This.GenericParameters.Select(g => From(g)).ToList();
+            else
+                Generics = new List<TypeRef>();
+
             if (IsGeneric && Generics.Count == 0)
                 throw new InvalidDataException($"Wtf? In DllTypeRef constructor, a generic with no generics: {this}, IsGenInst: {this.IsGenericInstance}");
 
@@ -75,7 +80,21 @@ namespace Il2CppModdingCodegen.Data.DllHandling
 
             _namespace = (refDeclaring?.Namespace ?? This.Namespace) ?? "";
 
-            IsCovariant = IsGenericParameter && ((GenericParameter)This).IsCovariant;
+            if (IsGenericParameter && (This is GenericParameter genParam))
+            {
+                IsCovariant = genParam.IsCovariant;
+                if (genParam.HasConstraints)
+                {
+                    GenericParameterConstraints = genParam.Constraints.Select(c => From(c.ConstraintType)).ToList();
+                    if (genParam.Constraints.Any(c => c.HasCustomAttributes))
+                    {
+                        var declaring = genParam.DeclaringType is null ? $"method {genParam.DeclaringMethod}" : $"{genParam.DeclaringType}";
+                        Console.WriteLine($"Constraints on {genParam} (in {declaring}): ");
+                        Console.WriteLine(string.Join(", ",
+                            genParam.Constraints.Select(c => $"({c.ConstraintType}, {{{string.Join(", ", c.CustomAttributes)}}})")));
+                    }
+                }
+            }
         }
 
         [return: NotNullIfNotNull("type")]
@@ -91,7 +110,6 @@ namespace Il2CppModdingCodegen.Data.DllHandling
 
             // Creates new TypeRef and add it to map
             value = new DllTypeRef(type);
-            cache.Add(type, value);
             return value;
         }
 

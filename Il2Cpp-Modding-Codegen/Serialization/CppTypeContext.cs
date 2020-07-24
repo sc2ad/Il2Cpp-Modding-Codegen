@@ -288,6 +288,8 @@ namespace Il2CppModdingCodegen.Serialization
                 DeclarationsToMake.Add(def);
         }
 
+        private static NeedAs NeedAsForGeneric(NeedAs _) => NeedAs.BestMatch;
+
         /// <summary>
         /// Gets the C++ fully qualified name for the TypeRef.
         /// </summary>
@@ -366,13 +368,13 @@ namespace Il2CppModdingCodegen.Serialization
                                     declaringGenericParams += ", ";
                                 string? str;
                                 if (data.IsGenericInstance)
-                                    str = GetCppName(argMapping![g], true, true);
+                                    str = GetCppName(argMapping![g], true, true, NeedAsForGeneric(needAs));
                                 else
                                     // Here we need to ensure that we are actually getting this from the right place.
                                     // When data is NOT a generic instance, that means that this type has a generic template type.
                                     // If it is a generic parameter it should be gotten from declType
                                     // Or, we need to forward all of the generic parameters our declaring types have onto ourselves, thus allowing for resolution.
-                                    str = GetCppName(g, true, true);
+                                    str = GetCppName(g, true, true, NeedAsForGeneric(needAs));
                                 if (str is null)
                                 {
                                     Console.WriteLine($"Failed to get name for generic {g} while resolving type {data}!");
@@ -420,7 +422,7 @@ namespace Il2CppModdingCodegen.Serialization
                             name += g.Name;
                         else if (data.IsGenericInstance)
                             // If this is a generic instance, call each of the generic's GetCppName
-                            name += GetCppName(g, qualified, true);
+                            name += GetCppName(g, qualified, true, NeedAsForGeneric(needAs));
                         first = false;
                     }
                     name += ">";

@@ -1,7 +1,5 @@
 ﻿using Il2CppModdingCodegen.Data;
 using System;
-using System.Collections.Generic;
-using System.Text;
 
 namespace Il2CppModdingCodegen.Serialization
 {

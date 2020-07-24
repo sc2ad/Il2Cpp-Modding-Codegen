@@ -14,6 +14,7 @@ namespace Il2CppModdingCodegen.Data
 
         public abstract bool IsGenericParameter { get; }
         public abstract bool IsCovariant { get; set; }
+        public virtual IReadOnlyList<TypeRef> GenericParameterConstraints { get; } = new List<TypeRef>();
         internal bool IsGeneric { get => IsGenericInstance || IsGenericTemplate; }
         public abstract bool IsGenericInstance { get; }
         public abstract bool IsGenericTemplate { get; }

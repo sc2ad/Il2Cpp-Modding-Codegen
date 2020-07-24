@@ -2,16 +2,21 @@
 using Il2CppModdingCodegen.Data;
 using System;
 using System.Collections.Generic;
+using System.Data;
+using System.Linq;
 
 namespace Il2CppModdingCodegen.Serialization
 {
     public class CppTypeDataSerializer
     {
+        internal class GenParamConstraintStrings : Dictionary<string, List<string>> { }
+
         private struct State
         {
             internal string type;
             internal string? declaring;
             internal List<string?> parentNames;
+            internal GenParamConstraintStrings genParamConstraints;
         }
 
         // Uses TypeRef instead of ITypeData because nested types have different pointers
@@ -41,7 +46,8 @@ namespace Il2CppModdingCodegen.Serialization
             {
                 type = resolved,
                 declaring = null,
-                parentNames = new List<string?>()
+                parentNames = new List<string?>(),
+                genParamConstraints = new GenParamConstraintStrings()
             };
             if (string.IsNullOrEmpty(s.type))
             {
@@ -65,6 +71,16 @@ namespace Il2CppModdingCodegen.Serialization
 
             foreach (var @interface in type.ImplementingInterfaces)
                 s.parentNames.Add(_config.SafeName(context.GetCppName(@interface, true, true, CppTypeContext.NeedAs.Definition, CppTypeContext.ForceAsType.Literal)));
+
+            foreach (var g in type.This.Generics)
+            {
+                if (g.DeclaringType != type.This)
+                    continue;
+                var constraintStrs = g.GenericParameterConstraints.Select(c => context.GetCppName(c, true) ?? c.GetName()).ToList();
+                if (constraintStrs.Count > 0)
+                    s.genParamConstraints.Add(context.GetCppName(g, false) ?? g.GetName(), constraintStrs);
+            }
+
             map.Add(type.This, s);
 
             if (type.Type != TypeEnum.Interface)
@@ -154,6 +170,9 @@ namespace Il2CppModdingCodegen.Serialization
                     typeName = typeName.Substring(idx + 2);
             }
             writer.WriteDefinition(type.Type.TypeName() + " " + typeName + s);
+            // TODO: re-enable
+            // WriteGenericTypeConstraints(writer, state.genParamConstraints);
+
             if (type.Fields.Count > 0 || type.Methods.Count > 0 || type.NestedTypes.Count > 0)
                 writer.WriteLine("public:");
             if (state.declaring != null)
@@ -224,5 +243,14 @@ namespace Il2CppModdingCodegen.Serialization
         }
 
         internal static void CloseDefinition(CppStreamWriter writer, ITypeData type) => writer.CloseDefinition($"; // {type.This}");
+
+        internal static void WriteGenericTypeConstraints(CppStreamWriter writer, GenParamConstraintStrings generics)
+        {
+            foreach (var p in generics)
+            {
+                var constraintStrs = p.Value.Select(c => $"std::is_convertible_v<{p.Key}, {c}>");
+                writer.WriteDeclaration($"static_assert({string.Join(" && ", constraintStrs)})");
+            }
+        }
     }
 }
