@@ -90,7 +90,7 @@ namespace Il2CppModdingCodegen.Serialization
         private readonly Dictionary<IMethod, List<(MethodTypeContainer container, ParameterFlags flags)>> _parameterMaps = new Dictionary<IMethod, List<(MethodTypeContainer container, ParameterFlags flags)>>();
 
         // This dictionary maps from method to a list of real generic parameters.
-        private readonly Dictionary<IMethod, List<string?>> _genericArgs = new Dictionary<IMethod, List<string?>>();
+        private readonly Dictionary<IMethod, List<string>> _genericArgs = new Dictionary<IMethod, List<string>>();
 
         /// <summary>
         /// This dictionary maps from method to a list of placeholder generic arguments.
@@ -321,14 +321,15 @@ namespace Il2CppModdingCodegen.Serialization
 
             if (method.Generic)
             {
-                var generics = new List<string?>();
+                var generics = new List<string>();
                 foreach (var g in method.GenericParameters)
                 {
                     var s = context.GetCppName(g, true, needAs: CppTypeContext.NeedAs.Declaration);
                     if (s is null)
-                        // If we fail to resolve a parameter, we will simply add a (null, p.Flags) item to our mapping.
-                        // However, we should not call Resolved(method)
-                        success = false;
+                    {
+                        Console.Error.WriteLine($"context.GetCppName failed for generic parameter {g}, using g.Name instead.");
+                        s = g.Name;
+                    }
                     generics.Add(s);
                 }
                 _genericArgs.Add(method, generics);
@@ -381,10 +382,9 @@ namespace Il2CppModdingCodegen.Serialization
             // stringify the return type
             var retStr = _resolvedReturns[method].TypeName(isHeader);
             if (!method.ReturnType.IsVoid())
-            {
                 if (_config.OutputStyle == OutputStyle.Normal)
                     retStr = "std::optional<" + retStr + ">";
-            }
+
             string nameStr;
             if (string.IsNullOrEmpty(overrideName))
             {
@@ -393,9 +393,7 @@ namespace Il2CppModdingCodegen.Serialization
                 nameStr = namePair.Item1;
             }
             else
-            {
                 nameStr = overrideName;
-            }
 
             string paramString = method.Parameters.FormatParameters(_config.IllegalNames, _parameterMaps[method],
                 FormatParameterMode.Names | FormatParameterMode.Types, header: isHeader);
@@ -463,9 +461,20 @@ namespace Il2CppModdingCodegen.Serialization
             return false;
         }
 
-        private string Il2CppNoArgClass(string t)
+        private static string Il2CppNoArgClass(string t)
         {
             return $"il2cpp_utils::il2cpp_type_check::il2cpp_no_arg_class<{t}>::get()";
+        }
+
+        private string GenericTypesList(IMethod method)
+        {
+            if (_genericArgs.TryGetValue(method, out var generics))
+            {
+                var str = string.Join(", ", generics.Select(Il2CppNoArgClass));
+                if (!string.IsNullOrEmpty(str))
+                    return $", {{{str}}}";
+            }
+            return "";
         }
 
         // Write the method here
@@ -495,9 +504,6 @@ namespace Il2CppModdingCodegen.Serialization
                 // Need to create the method ENTIRELY in the header, instead of split between the C++ and the header
                 return;
 
-            if (!_nameMap.TryGetValue(method, out var namePair))
-                throw new InvalidOperationException($"Could not find method: {method} in _nameMap! Ensure it is PreSerialized first!");
-
             string? overrideName = null;
             // If the method is specially named, then we need to print it normally, don't worry about any of this rename garbage
             bool performProxy = method.BaseMethods.Count >= 1 && method.Il2CppName.IndexOf('.') < 1;
@@ -522,8 +528,8 @@ namespace Il2CppModdingCodegen.Serialization
                     writer.WriteComment($"Base method: {bm.ReturnType} {bm.DeclaringType.Name}::{bm.Name}({method.Parameters.FormatParameters(csharp: true)})");
                 if (!writeContent)
                 {
-                    var methodStr = WriteMethod(scope, method, true, overrideName);
-                    if (TemplateString(method, true, out var templateStr))
+                    var methodStr = WriteMethod(scope, method, _asHeader, overrideName);
+                    if (TemplateString(method, _asHeader, out var templateStr))
                         writer.WriteLine((methodStr.StartsWith("/") ? "// " : "") + templateStr);
                     writer.WriteDeclaration(methodStr);
                 }
@@ -543,7 +549,7 @@ namespace Il2CppModdingCodegen.Serialization
                     return;
                 }
 
-                if (TemplateString(method, false, out var templateStr))
+                if (TemplateString(method, _asHeader, out var templateStr))
                     writer.WriteLine(templateStr);
                 writer.WriteDefinition(methodStr);
 
@@ -551,6 +557,8 @@ namespace Il2CppModdingCodegen.Serialization
                 var classArgs = $"\"{@namespace}\", \"{@class}\"";
                 if (method.DeclaringType.IsGeneric)
                     classArgs = Il2CppNoArgClass(_thisTypeName);
+
+                var genTypesList = GenericTypesList(method);
                 if (IsCtor(method))
                 {
                     // Always use thisTypeName for the cast type, since we are already within the context of the type.
@@ -587,9 +595,10 @@ namespace Il2CppModdingCodegen.Serialization
                     }
 
                     // TODO: Replace with RET_NULLOPT_UNLESS or another equivalent (perhaps literally just the ret)
-                    s += $"{macro}il2cpp_utils::RunMethod{innard}(";
+                    var utilFunc = method.Generic ? "RunGenericMethod" : "RunMethod";
+                    s += $"{macro}il2cpp_utils::{utilFunc}{innard}(";
                     if (scope == MethodScope.Class)
-                        s += (_declaringIsValueType ? "*" : "") + "this, ";
+                        s += (_declaringIsValueType ? "*" : "") + $"this, ";
                     else
                         // TODO: Check to ensure this works with non-generic methods in a generic type
                         s += $"{classArgs}, ";
@@ -598,7 +607,7 @@ namespace Il2CppModdingCodegen.Serialization
                     if (!string.IsNullOrEmpty(paramString))
                         paramString = ", " + paramString;
                     // Macro string should use Il2CppName (of course, without _, $ replacement)
-                    s += $"\"{method.Il2CppName}\"{paramString}){macroEnd};";
+                    s += $"\"{method.Il2CppName}\"{genTypesList}{paramString}){macroEnd};";
                     // Write method with return
                     writer.WriteLine(s);
                     // Close method
