@@ -109,7 +109,8 @@ namespace Il2CppModdingCodegen.Serialization
         private string? _declaringFullyQualified;
         private string? _thisTypeName;
 
-        private readonly HashSet<(TypeRef, bool, string)> _signatures = new HashSet<(TypeRef, bool, string)>();
+        // The int is the number of generic parameters that the method has
+        private readonly Dictionary<int, HashSet<(TypeRef, bool, string)>> _signatures = new Dictionary<int, HashSet<(TypeRef, bool, string)>>();
         private bool _ignoreSignatureMap;
         private readonly HashSet<IMethod> _aborted = new HashSet<IMethod>();
 
@@ -252,10 +253,6 @@ namespace Il2CppModdingCodegen.Serialization
                     break;
                 }
                 FixNames(method, name, fullName, skips);
-                foreach (var m in method.ImplementingMethods)
-                {
-                    FixNames(m, name, fullName, skips);
-                }
                 // Should only have one or fewer BaseMethods at this point
                 method = method.BaseMethods.FirstOrDefault();
             }
@@ -429,7 +426,9 @@ namespace Il2CppModdingCodegen.Serialization
 
             var signature = $"{nameStr}({paramString})";
 
-            if (!_ignoreSignatureMap && !_signatures.Add((method.DeclaringType, isHeader, signature)))
+            if (!_signatures.ContainsKey(method.GenericParameters.Count))
+                _signatures[method.GenericParameters.Count] = new HashSet<(TypeRef, bool, string)>();
+            if (!_ignoreSignatureMap && !_signatures[method.GenericParameters.Count].Add((method.DeclaringType, isHeader, signature)))
             {
                 if (_config.DuplicateMethodExceptionHandling == DuplicateMethodExceptionHandling.DisplayInFile)
                     preRetStr = "// ABORTED: conflicts with another method. " + preRetStr;

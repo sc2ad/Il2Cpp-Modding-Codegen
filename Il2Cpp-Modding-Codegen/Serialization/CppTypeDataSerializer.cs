@@ -170,8 +170,7 @@ namespace Il2CppModdingCodegen.Serialization
                     typeName = typeName.Substring(idx + 2);
             }
             writer.WriteDefinition(type.Type.TypeName() + " " + typeName + s);
-            // TODO: re-enable
-            // WriteGenericTypeConstraints(writer, state.genParamConstraints);
+            WriteGenericTypeConstraints(writer, state.genParamConstraints, true);
 
             if (type.Fields.Count > 0 || type.Methods.Count > 0 || type.NestedTypes.Count > 0)
                 writer.WriteLine("public:");
@@ -244,11 +243,23 @@ namespace Il2CppModdingCodegen.Serialization
 
         internal static void CloseDefinition(CppStreamWriter writer, ITypeData type) => writer.CloseDefinition($"; // {type.This}");
 
-        internal static void WriteGenericTypeConstraints(CppStreamWriter writer, GenParamConstraintStrings generics)
+        internal static void WriteGenericTypeConstraints(CppStreamWriter writer, GenParamConstraintStrings generics, bool forTypeDef = false)
         {
             foreach (var p in generics)
             {
-                var constraintStrs = p.Value.Select(c => $"std::is_convertible_v<{p.Key}, {c}>");
+                IEnumerable<string>? constraintStrs;
+                string ToConstraintString(string constraintType)
+                {
+                    string ret;
+                    if (constraintType.TrimEnd('*') == "System::ValueType")
+                        ret = $"is_value_type_v<{p.Key}>";
+                    else
+                        ret = $"std::is_convertible_v<{p.Key}, {constraintType}>";
+                    if (forTypeDef)
+                        ret = $"({ret} || !std::is_complete_v<std::remove_pointer_t<{p.Key}>>)";
+                    return ret;
+                }
+                constraintStrs = p.Value.Select(ToConstraintString);
                 writer.WriteDeclaration($"static_assert({string.Join(" && ", constraintStrs)})");
             }
         }
