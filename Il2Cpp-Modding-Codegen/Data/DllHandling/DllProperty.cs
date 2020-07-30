@@ -1,11 +1,8 @@
-﻿using Il2Cpp_Modding_Codegen.Parsers;
-using Mono.Cecil;
-using System;
+﻿using Mono.Cecil;
 using System.Collections.Generic;
 using System.Linq;
-using System.Text;
 
-namespace Il2Cpp_Modding_Codegen.Data.DllHandling
+namespace Il2CppModdingCodegen.Data.DllHandling
 {
     internal class DllProperty : IProperty
     {
@@ -17,7 +14,7 @@ namespace Il2Cpp_Modding_Codegen.Data.DllHandling
         public bool GetMethod { get; }
         public bool SetMethod { get; }
 
-        public DllProperty(PropertyDefinition p)
+        internal DllProperty(PropertyDefinition p)
         {
             DeclaringType = DllTypeRef.From(p.DeclaringType);
             Type = DllTypeRef.From(p.PropertyType);
@@ -34,13 +31,9 @@ namespace Il2Cpp_Modding_Codegen.Data.DllHandling
             var s = $"{Type} {Name}";
             s += " { ";
             if (GetMethod)
-            {
                 s += "get; ";
-            }
             if (SetMethod)
-            {
                 s += "set; ";
-            }
             s += "}";
             return s;
         }

@@ -1,25 +1,24 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Text;
 
-namespace Il2Cpp_Modding_Codegen.Data.DumpHandling
+namespace Il2CppModdingCodegen.Data.DumpHandling
 {
     public class DumpTypeRef : TypeRef
     {
-        public static readonly DumpTypeRef ObjectType = new DumpTypeRef("object");
+        internal static readonly DumpTypeRef ObjectType = new DumpTypeRef("object");
+
         public override string Namespace { get; } = string.Empty;
         public override string Name { get; }
+
         public override bool IsGenericParameter => throw new NotImplementedException();
+        public override bool IsCovariant { get => throw new NotImplementedException(); set => throw new NotImplementedException(); }
         public override bool IsGenericInstance { get; }
         public override bool IsGenericTemplate { get; }
-
         public override IReadOnlyList<TypeRef> Generics { get; }
 
-        public override TypeRef DeclaringType { get; }
-        public override TypeRef ElementType { get; }
-
-        public override bool IsCovariant { get => throw new NotImplementedException(); set => throw new NotImplementedException(); }
+        public override TypeRef? DeclaringType { get; }
+        public override TypeRef? ElementType { get; }
 
         public override bool IsPointer()
         {
@@ -28,18 +27,9 @@ namespace Il2Cpp_Modding_Codegen.Data.DumpHandling
             return base.IsPointer();
         }
 
-        public override bool IsArray()
-        {
-            return Name.EndsWith("[]");
-        }
+        public override bool IsArray() => Name.EndsWith("[]");
 
-        public override bool IsPrimitive()
-        {
-            // TODO
-            return Name.Equals("void", StringComparison.OrdinalIgnoreCase);
-        }
-
-        private DumpTypeRef(DumpTypeRef other, string nameOverride = null)
+        private DumpTypeRef(DumpTypeRef other, string? nameOverride = null)
         {
             Namespace = other.Namespace;
             Name = nameOverride ?? other.Name;
@@ -84,7 +74,7 @@ namespace Il2Cpp_Modding_Codegen.Data.DumpHandling
             return direction > 0 ? s.Substring(sep.Length) : s.Substring(0, s.Length - sep.Length);
         }
 
-        public DumpTypeRef(string @namespace, string typeName)
+        internal DumpTypeRef(string @namespace, string typeName)
         {
             Namespace = @namespace;
 
@@ -129,13 +119,11 @@ namespace Il2Cpp_Modding_Codegen.Data.DumpHandling
             Name = typeName.Replace('.', '/');
             if (IsArray())
             {
-                ElementType = new DumpTypeRef(Name.Substring(0, Name.Length - 2));
+                ElementType = new DumpTypeRef(Name[0..^2]);
                 // TODO: else set ElementType to `this` as Mono.Cecil does?
             }
         }
 
-        public DumpTypeRef(string qualifiedName) : this("", qualifiedName)
-        {
-        }
+        internal DumpTypeRef(string qualifiedName) : this("", qualifiedName) { }
     }
 }

@@ -1,17 +1,16 @@
-﻿using Il2Cpp_Modding_Codegen.Data;
+﻿using Il2CppModdingCodegen.Data;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics.Contracts;
-using System.IO;
 using System.Linq;
-using System.Net;
-using System.Text;
 
-namespace Il2Cpp_Modding_Codegen.Serialization
+namespace Il2CppModdingCodegen.Serialization
 {
     public class CppTypeContext
     {
+#pragma warning disable CA1717 // Only FlagsAttribute enums should have plural names
         public enum NeedAs
+#pragma warning restore CA1717 // Only FlagsAttribute enums should have plural names
         {
             Definition,
             Declaration,
@@ -25,61 +24,54 @@ namespace Il2Cpp_Modding_Codegen.Serialization
         }
 
         // Declarations that should be made by our includes (DefinitionsToGet)
-        public HashSet<TypeRef> Declarations { get; } = new HashSet<TypeRef>();
+        internal HashSet<TypeRef> Declarations { get; } = new HashSet<TypeRef>();
+        internal HashSet<TypeRef> DeclarationsToMake { get; } = new HashSet<TypeRef>();
+        internal HashSet<TypeRef> Definitions { get; } = new HashSet<TypeRef>();
+        internal HashSet<TypeRef> DefinitionsToGet { get; } = new HashSet<TypeRef>();
 
-        public HashSet<TypeRef> DeclarationsToMake { get; } = new HashSet<TypeRef>();
-        public HashSet<TypeRef> Definitions { get; } = new HashSet<TypeRef>();
-        public HashSet<TypeRef> DefinitionsToGet { get; } = new HashSet<TypeRef>();
-        public CppTypeContext DeclaringContext { get; private set; }
-        public bool InPlace { get; private set; } = false;
-        public IReadOnlyList<CppTypeContext> NestedContexts { get => _nestedContexts; }
+        internal CppTypeContext? DeclaringContext { get; private set; }
+        internal bool InPlace { get; private set; } = false;
+        internal IReadOnlyList<CppTypeContext> NestedContexts { get => _nestedContexts; }
 
         private CppTypeContext _rootContext;
-
         private CppTypeContext RootContext
         {
             get
             {
                 while (_rootContext.InPlace && _rootContext.DeclaringContext != null)
-                {
                     _rootContext = _rootContext.DeclaringContext;
-                }
                 return _rootContext;
             }
         }
 
-        public string HeaderFileName { get => RootContext.LocalType.This.GetIncludeLocation() + ".hpp"; }
+        internal string HeaderFileName { get => RootContext.LocalType.This.GetIncludeLocation() + ".hpp"; }
+        internal string CppFileName { get => LocalType.This.GetIncludeLocation() + ".cpp"; }
 
-        public string CppFileName { get => LocalType.This.GetIncludeLocation() + ".cpp"; }
-
-        public string TypeNamespace { get; }
-        public string TypeName { get; }
-        public string QualifiedTypeName { get; }
-        public ITypeData LocalType { get; }
+        internal string TypeNamespace { get; }
+        internal string TypeName { get; }
+        internal string QualifiedTypeName { get; }
+        internal ITypeData LocalType { get; }
 
         /// <summary>
         /// Returns true if this context uses primitive il2cpp types.
         /// </summary>
-        public bool NeedPrimitives { get; private set; }
+        internal bool NeedPrimitives { get; private set; }
 
         // Holds generic types (ex: T1, T2, ...) defined by the type
-        private HashSet<TypeRef> _genericTypes = new HashSet<TypeRef>(TypeRef.fastComparer);
+        private readonly HashSet<TypeRef> _genericTypes = new HashSet<TypeRef>(TypeRef.fastComparer);
+        private readonly List<CppTypeContext> _nestedContexts = new List<CppTypeContext>();
+        private readonly ITypeCollection _types;
 
-        private List<CppTypeContext> _nestedContexts = new List<CppTypeContext>();
-
-        private ITypeCollection _types;
-
-        private void AddGenericTypes(TypeRef type)
+        private void AddGenericTypes(TypeRef? type)
         {
-            if (type is null)
-                return;
+            if (type is null) return;
             if (type.IsGenericTemplate)
                 foreach (var g in type.Generics)
                     _genericTypes.Add(g);
             AddGenericTypes(type.DeclaringType);
         }
 
-        public CppTypeContext(ITypeCollection types, ITypeData data)
+        internal CppTypeContext(ITypeCollection types, ITypeData data, CppTypeContext? declaring)
         {
             _rootContext = this;
             _types = types;
@@ -93,23 +85,37 @@ namespace Il2Cpp_Modding_Codegen.Serialization
 
             // Types need a definition of their parent type
             if (data.Parent != null)
-            {
                 // If the parent is a primitive, like System::Object or something, this should still work out.
                 AddDefinition(data.Parent);
-            }
+
             // Nested types need to define their declaring type
             if (data.This.DeclaringType != null)
-            {
                 AddDefinition(data.This.DeclaringType);
-            }
 
             // Check all declaring types (and ourselves) if we have generic arguments/parameters. If we do, add them to _genericTypes.
             AddGenericTypes(data.This);
 
             // Requiring it as a definition here simply makes it easier to remove (because we are asking for a definition of ourself, which we have)
-            QualifiedTypeName = GetCppName(data.This, true, true, NeedAs.Definition, ForceAsType.Literal);
+            QualifiedTypeName = GetCppName(data.This, true, true, NeedAs.Definition, ForceAsType.Literal) ?? throw new Exception($"Could not get QualifiedTypeName for {data.This}");
             TypeNamespace = data.This.GetNamespace();
             TypeName = data.This.GetName();
+
+            DeclaringContext = declaring;
+            if (declaring != null)
+                declaring.AddNestedContext(LocalType, this);
+        }
+
+        // Must be called by constructor
+        internal void AddNestedContext(ITypeData type, CppTypeContext context)
+        {
+            Contract.Requires(LocalType.This.Equals(type.This.DeclaringType));
+            // Add the type, context pair to our immediately nested contexts
+            // TODO: Add a mapping from type --> context so we can search our immediate nesteds faster
+            // atm, just add it because we can be lazy
+            _nestedContexts.Add(context);
+            // If this context is a generic template, then we need to InPlace the new nested context.
+            if (LocalType.This.IsGenericTemplate)
+                InPlaceNestedType(context);
         }
 
         /// <summary>
@@ -117,12 +123,9 @@ namespace Il2Cpp_Modding_Codegen.Serialization
         /// </summary>
         /// <param name="type"></param>
         /// <returns></returns>
-        public bool IsGenericParameter(TypeRef type)
-        {
-            return _genericTypes.Contains(type);
-        }
+        internal bool IsGenericParameter(TypeRef type) => _genericTypes.Contains(type) || type.IsGenericParameter;
 
-        public string GetTemplateLine(bool localOnly = true)
+        internal string GetTemplateLine(bool localOnly = true)
         {
             var s = "";
             if (LocalType.This.IsGeneric)
@@ -145,9 +148,9 @@ namespace Il2Cpp_Modding_Codegen.Serialization
             return s;
         }
 
-        public static string GetTemplateLine(ITypeData type, bool localOnly = true) => CppDataSerializer.TypeToContext[type].GetTemplateLine(localOnly);
+        internal static string GetTemplateLine(ITypeData type, bool localOnly = true) => CppDataSerializer.TypeToContext[type].GetTemplateLine(localOnly);
 
-        public void AbsorbInPlaceNeeds()
+        internal void AbsorbInPlaceNeeds()
         {
             // inherit DefinitionsToGet, Declarations from in-place NestedContexts
             var prevInPlace = new HashSet<CppTypeContext>();
@@ -171,32 +174,6 @@ namespace Il2Cpp_Modding_Codegen.Serialization
                 AddDeclaration(dec, null);
             foreach (var def in nested.DefinitionsToGet.Except(Definitions))
                 AddDefinition(def);
-        }
-
-        // Must be called AFTER context.SetDeclaringContext(this)
-        public void AddNestedContext(ITypeData type, CppTypeContext context)
-        {
-            Contract.Requires(type != null);
-            Contract.Requires(type.This.DeclaringType.Equals(LocalType.This));
-            Contract.Requires(context != null);
-            // Add the type, context pair to our immediately nested contexts
-            // TODO: Add a mapping from type --> context so we can search our immediate nesteds faster
-            // atm, just add it because we can be lazy
-            _nestedContexts.Add(context);
-            // If this context is a generic template, then we need to InPlace the new nested context.
-            if (LocalType.This.IsGenericTemplate)
-                InPlaceNestedType(context);
-        }
-
-        // Must be called AFTER DeclaringContext.AddNestedContext(this)
-        public void SetDeclaringContext(CppTypeContext context)
-        {
-            Contract.Requires(DeclaringContext is null);
-            Contract.Requires(context != null);
-            // Set our declaring context to be the one provided. Our original declaring context should always be null before-hand.
-            // There shouldn't be too much sorcery here, instead, when we add definitions, we ensure we check our inheritance tree.
-            DeclaringContext = context;
-            Contract.Ensures(DeclaringContext != null);
         }
 
         internal bool HasInNestedHierarchy(TypeRef type)
@@ -237,7 +214,6 @@ namespace Il2Cpp_Modding_Codegen.Serialization
                 {
                     defContext.InPlace = true;
                     if (defContext.DeclaringContext != null)
-                    {
                         foreach (var d in defContext.DeclaringContext.Definitions)
                         {
                             // Add each definition that exists in the declaring context to the InPlace nested context since they share definitions
@@ -245,16 +221,15 @@ namespace Il2Cpp_Modding_Codegen.Serialization
                             // Remove each definition that exists in the declaring context from the InPlace nested context since they share definitions
                             defContext.DefinitionsToGet.Remove(d);
                         }
-                    }
                 }
                 // Add the now InPlace type to our own Definitions
                 RootContext.Definitions.Add(defContext.LocalType.This);
                 // Go to the DeclaringContext of the type we just InPlace'd into ourselves, and continue inplacing DeclaringContexts until we hit ourselves.
-                defContext = defContext.DeclaringContext;
+                defContext = defContext.DeclaringContext!;
             }
         }
 
-        private void AddDefinition(TypeRef def, ITypeData resolved = null)
+        private void AddDefinition(TypeRef def, ITypeData? resolved = null)
         {
             if (Definitions.Contains(def)) return;
             if (DefinitionsToGet.Contains(def)) return;
@@ -279,16 +254,16 @@ namespace Il2Cpp_Modding_Codegen.Serialization
                 InPlaceNestedType(defContext);
         }
 
-        private void AddNestedDeclaration(TypeRef def, ITypeData resolved)
+        private void AddNestedDeclaration(TypeRef def, ITypeData? resolved)
         {
-            Contract.Requires(!def.IsVoid());
-            Contract.Requires(def.DeclaringType != null);
-            Contract.Requires(resolved != null);
-            Contract.Requires(resolved.This.DeclaringType.Equals(LocalType));
+            if (def.IsVoid()) throw new ArgumentException("cannot be void!", nameof(def));
+            if (def.DeclaringType is null) throw new ArgumentException("DeclaringType cannot be void!", nameof(def));
+            if (resolved is null) throw new ArgumentNullException(nameof(resolved));
+            Contract.Requires(LocalType.Equals(resolved.This.DeclaringType));
             DeclarationsToMake.Add(def);
         }
 
-        private void AddDeclaration(TypeRef def, ITypeData resolved)
+        private void AddDeclaration(TypeRef def, ITypeData? resolved)
         {
             Contract.Requires(!def.IsVoid());
 
@@ -313,12 +288,15 @@ namespace Il2Cpp_Modding_Codegen.Serialization
                 DeclarationsToMake.Add(def);
         }
 
+        private static NeedAs NeedAsForGeneric(NeedAs _) => NeedAs.BestMatch;
+
         /// <summary>
         /// Gets the C++ fully qualified name for the TypeRef.
         /// </summary>
         /// <returns>Null if the type has not been resolved (and is not a generic parameter or primitive)</returns>
-        public string GetCppName(TypeRef data, bool qualified, bool generics = true, NeedAs needAs = NeedAs.BestMatch, ForceAsType forceAsType = ForceAsType.None)
+        public string? GetCppName(TypeRef? data, bool qualified, bool generics = true, NeedAs needAs = NeedAs.BestMatch, ForceAsType forceAsType = ForceAsType.None)
         {
+            if (data is null) throw new ArgumentNullException(nameof(data));
             // First we check if the type is a primitive type. If it is, we return the converted name.
             // This must happen first because we can have T* and T[] which need to be converted correctly.
             if (forceAsType != ForceAsType.Literal || !data.Equals(LocalType.This))
@@ -330,7 +308,7 @@ namespace Il2Cpp_Modding_Codegen.Serialization
             }
 
             // If the TypeRef is a generic parameter, return its name
-            if (_genericTypes.Contains(data))
+            if (IsGenericParameter(data))
                 return data.Name;
 
             var resolved = ResolveAndStore(data, forceAsType, needAs);
@@ -360,7 +338,7 @@ namespace Il2Cpp_Modding_Codegen.Serialization
                     throw new InvalidOperationException($"{nameof(genericParams)}.Count != {nameof(genericArgs)}.Count, {count} != {genericArgs.Count}");
                 // Create a mapping from generic parameter to generic argument
                 // If data is not a generic instance, no need to bother
-                Dictionary<TypeRef, TypeRef> argMapping = null;
+                Dictionary<TypeRef, TypeRef>? argMapping = null;
                 if (data.IsGenericInstance)
                 {
                     argMapping = new Dictionary<TypeRef, TypeRef>(TypeRef.fastComparer);
@@ -377,32 +355,38 @@ namespace Il2Cpp_Modding_Codegen.Serialization
                     // Recurse upwards starting at ourselves
                     string declaringGenericParams = "";
                     if (genericMap.TryGetValue(declType, out var declaringGenerics))
-                    {
                         // If we are thisType AND we DO NOT want generics, we should not write any generics.
                         // Otherwise, we write out the generics defined in this type.
                         if (!isThisType || generics)
                         {
                             declaringGenericParams += "<";
                             bool first = true;
+                            bool allSuccess = true;
                             foreach (var g in declaringGenerics)
                             {
                                 if (!first)
                                     declaringGenericParams += ", ";
+                                string? str;
                                 if (data.IsGenericInstance)
-                                    declaringGenericParams += GetCppName(argMapping[g], true, true);
+                                    str = GetCppName(argMapping![g], true, true, NeedAsForGeneric(needAs));
                                 else
                                     // Here we need to ensure that we are actually getting this from the right place.
                                     // When data is NOT a generic instance, that means that this type has a generic template type.
                                     // If it is a generic parameter it should be gotten from declType
                                     // Or, we need to forward all of the generic parameters our declaring types have onto ourselves, thus allowing for resolution.
-                                    declaringGenericParams += GetCppName(g, true, true);
+                                    str = GetCppName(g, true, true, NeedAsForGeneric(needAs));
+                                if (str is null)
+                                {
+                                    Console.WriteLine($"Failed to get name for generic {g} while resolving type {data}!");
+                                    allSuccess = false;
+                                }
+                                declaringGenericParams += str;
                                 first = false;
                             }
                             declaringGenericParams += ">";
-                            if (declaringGenericParams.Length == 2)
-                                Console.Error.WriteLine($"Attempted to write generic parameters, but actually wrote <>! for type being resolved: {data} type with generics: {declType}");
+                            if (!allSuccess)
+                                throw new Exception($"Attempted to write generic parameters, but actually wrote <>! for type being resolved: {data} type with generics: {declType}");
                         }
-                    }
 
                     var temp = declType.GetName() + declaringGenericParams;
                     if (!isThisType)
@@ -410,11 +394,9 @@ namespace Il2Cpp_Modding_Codegen.Serialization
                     isThisType = false;
 
                     declString = temp;
-                    // AddDefinition(declType);
-                    if (declType.DeclaringType is null)
+                    if (declType.DeclaringType is null && qualified)
                         // Grab namespace for name here
-                        if (qualified)
-                            name = declType.GetNamespace() + "::";
+                        name = declType.GetNamespace() + "::";
                     declType = declType.DeclaringType;
                 }
                 name += declString;
@@ -434,14 +416,14 @@ namespace Il2Cpp_Modding_Codegen.Serialization
                         var g = data.Generics[i];
                         if (!first)
                             name += ", ";
-                        else
-                            first = false;
+
                         if (data.IsGenericTemplate)
                             // If this is a generic template, use literal names for our generic parameters
                             name += g.Name;
                         else if (data.IsGenericInstance)
                             // If this is a generic instance, call each of the generic's GetCppName
-                            name += GetCppName(g, qualified, true);
+                            name += GetCppName(g, qualified, true, NeedAsForGeneric(needAs));
+                        first = false;
                     }
                     name += ">";
                 }
@@ -454,7 +436,7 @@ namespace Il2Cpp_Modding_Codegen.Serialization
                 return name;
             if (resolved.This.DeclaringType?.IsGeneric ?? false)  // note: it's important that ForceAsType.Literal is ruled out first
                 name = "typename " + name;
-            if (resolved.Info.TypeFlags == TypeFlags.ReferenceType)
+            if (resolved.Info.Refness == Refness.ReferenceType)
                 return name + "*";
             return name;
         }
@@ -466,14 +448,15 @@ namespace Il2Cpp_Modding_Codegen.Serialization
         /// <param name="typeRef"></param>
         /// <param name="needAs"></param>
         /// <returns>A bool representing if the type was resolved successfully</returns>
-        public ITypeData ResolveAndStore(TypeRef typeRef, ForceAsType forceAs, NeedAs needAs = NeedAs.BestMatch)
+        internal ITypeData? ResolveAndStore(TypeRef typeRef, ForceAsType forceAs, NeedAs needAs = NeedAs.BestMatch)
         {
-            if (_genericTypes.Contains(typeRef))
+            if (_genericTypes.Contains(typeRef) || typeRef.IsGenericParameter)
                 // Generic parameters are resolved to nothing and shouldn't even attempted to be resolved.
                 return null;
             var resolved = typeRef.Resolve(_types);
             if (resolved is null)
                 return null;
+
             switch (needAs)
             {
                 case NeedAs.Declaration:
@@ -481,7 +464,7 @@ namespace Il2Cpp_Modding_Codegen.Serialization
                     break;
 
                 case NeedAs.BestMatch:
-                    if (forceAs != ForceAsType.Literal && (typeRef.IsPointer() || resolved.Info.TypeFlags == TypeFlags.ReferenceType))
+                    if (forceAs != ForceAsType.Literal && (typeRef.IsPointer() || resolved.Info.Refness == Refness.ReferenceType))
                         AddDeclaration(typeRef, resolved);
                     else
                         AddDefinition(typeRef, resolved);
@@ -493,32 +476,27 @@ namespace Il2Cpp_Modding_Codegen.Serialization
                     AddDefinition(typeRef, resolved);
                     break;
             }
+
             if (typeRef.IsGenericTemplate && typeRef.Generics != null)
-            {
                 // Resolve and store each generic argument
                 foreach (var g in typeRef.Generics)
                     // Only need them as declarations, since we don't need the literal pointers.
                     ResolveAndStore(g, forceAs, NeedAs.Declaration);
-            }
+
             return resolved;
         }
 
         // We only need a declaration for the element type (if we aren't needed as a definition)
-        private NeedAs NeedAsForPrimitiveEtype(NeedAs needAs) => needAs == NeedAs.Definition ? needAs : NeedAs.Declaration;
+        private static NeedAs NeedAsForPrimitiveEtype(NeedAs needAs) => needAs == NeedAs.Definition ? needAs : NeedAs.Declaration;
 
-        private string ConvertPrimitive(TypeRef def, ForceAsType forceAs, NeedAs needAs)
+        private string? ConvertPrimitive(TypeRef def, ForceAsType forceAs, NeedAs needAs)
         {
-            string s = null;
+            string? s = null;
             if (def.IsArray())
-            {
                 // We should ensure we aren't attemping to force it to something it shouldn't be, so it should still be ForceAsType.None
-                var eName = GetCppName(def.ElementType, true, true, NeedAsForPrimitiveEtype(needAs));
-                s = $"Array<{eName}>";
-            }
+                s = $"Array<{GetCppName(def.ElementType, true, true, NeedAsForPrimitiveEtype(needAs))}>";
             else if (def.IsPointer())
-            {
                 s = GetCppName(def.ElementType, true, true, NeedAsForPrimitiveEtype(needAs)) + "*";
-            }
             else if (string.IsNullOrEmpty(def.Namespace) || def.Namespace == "System")
             {
                 var name = def.Name.ToLower();
@@ -532,9 +510,9 @@ namespace Il2Cpp_Modding_Codegen.Serialization
                     s = "Il2CppChar";
                 else if (def.Name == "bool" || def.Name == "Boolean")
                     s = "bool";
-                else if (name == "byte")
-                    s = "int8_t";
                 else if (name == "sbyte")
+                    s = "int8_t";
+                else if (name == "byte")
                     s = "uint8_t";
                 else if (def.Name == "short" || def.Name == "Int16")
                     s = "int16_t";
@@ -557,14 +535,11 @@ namespace Il2Cpp_Modding_Codegen.Serialization
                 return null;
             if (s.StartsWith("Il2Cpp") || s.StartsWith("Array<"))
             {
-                bool defaultPtr = false;
-                if (s != "Il2CppChar")
-                    defaultPtr = true;
+                bool defaultPtr = (s != "Il2CppChar");
+                s = "::" + s;
                 // For Il2CppTypes, should refer to type as :: to avoid ambiguity
-                if (forceAs == ForceAsType.Literal)
-                    s = "::" + s;
-                else
-                    s = "::" + s + (defaultPtr ? "*" : "");
+                if (forceAs != ForceAsType.Literal && defaultPtr)
+                    s += "*";
                 NeedPrimitives = true;
             }
             return s;

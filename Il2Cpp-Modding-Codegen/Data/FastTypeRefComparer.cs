@@ -1,9 +1,8 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Text;
 
-namespace Il2Cpp_Modding_Codegen.Data
+namespace Il2CppModdingCodegen.Data
 {
     /// <summary>
     /// Compares <see cref="TypeRef"/> objects WITHOUT comparing their DeclaringTypes.
@@ -12,10 +11,11 @@ namespace Il2Cpp_Modding_Codegen.Data
     public class FastTypeRefComparer : IEqualityComparer<TypeRef>
     {
         // TODO: Ensure this behaves as intended for recursive DeclaringTypes (it probably does not)
-        public bool Equals(TypeRef x, TypeRef y)
+        public bool Equals(TypeRef? x, TypeRef? y)
         {
-            if (x is null != y is null)
-                return false;
+            if (x is null || y is null)
+                return x is null == y is null;
+
             if (x.Namespace != y.Namespace || x.Name != y.Name)
                 return false;
             if (x.IsGeneric && y.IsGeneric)

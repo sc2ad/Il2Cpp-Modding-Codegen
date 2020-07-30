@@ -1,41 +1,42 @@
-﻿using Il2Cpp_Modding_Codegen.Config;
-using Il2Cpp_Modding_Codegen.Data;
-using Il2Cpp_Modding_Codegen.Serialization;
+﻿using Il2CppModdingCodegen.Config;
+using Il2CppModdingCodegen.Data;
 using System;
-using System.CodeDom.Compiler;
 using System.Collections.Generic;
-using System.Diagnostics.Contracts;
-using System.IO;
+using System.Data;
 using System.Linq;
-using System.Text;
+using System.Text.RegularExpressions;
 
-namespace Il2Cpp_Modding_Codegen.Serialization
+namespace Il2CppModdingCodegen.Serialization
 {
     public class CppTypeDataSerializer
     {
+        internal class GenParamConstraintStrings : Dictionary<string, List<string>> { }
+
         private struct State
         {
             internal string type;
-            internal string declaring;
-            internal List<string> parentNames;
+            internal string? declaring;
+            internal List<string?> parentNames;
+            internal GenParamConstraintStrings genParamConstraints;
         }
 
         // Uses TypeRef instead of ITypeData because nested types have different pointers
-        private Dictionary<TypeRef, State> map = new Dictionary<TypeRef, State>();
+        private readonly Dictionary<TypeRef, State> map = new Dictionary<TypeRef, State>();
 
-        private CppFieldSerializer fieldSerializer;
-        private CppStaticFieldSerializer staticFieldSerializer;
-        private CppMethodSerializer methodSerializer;
-        private SerializationConfig _config;
+        private CppFieldSerializer? _fieldSerializer;
+        private CppFieldSerializer FieldSerializer { get => _fieldSerializer ??= new CppFieldSerializer(_config); }
+        private CppStaticFieldSerializer? _staticFieldSerializer;
+        private CppStaticFieldSerializer StaticFieldSerializer { get => _staticFieldSerializer ??= new CppStaticFieldSerializer(_config); }
+        private CppMethodSerializer? _methodSerializer;
+        private CppMethodSerializer MethodSerializer { get => _methodSerializer ??= new CppMethodSerializer(_config); }
+        private readonly SerializationConfig _config;
 
-        public CppTypeContext Context { get; private set; }
-
-        public CppTypeDataSerializer(SerializationConfig config)
+        internal CppTypeDataSerializer(SerializationConfig config)
         {
             _config = config;
         }
 
-        public void Resolve(CppTypeContext context, ITypeData type)
+        internal void Resolve(CppTypeContext context, ITypeData type)
         {
             // Asking for ourselves as a definition will simply make things easier when resolving ourselves.
             var resolved = _config.SafeName(context.GetCppName(type.This, false, false, CppTypeContext.NeedAs.Definition, CppTypeContext.ForceAsType.Literal));
@@ -46,7 +47,8 @@ namespace Il2Cpp_Modding_Codegen.Serialization
             {
                 type = resolved,
                 declaring = null,
-                parentNames = new List<string>()
+                parentNames = new List<string?>(),
+                genParamConstraints = new GenParamConstraintStrings()
             };
             if (string.IsNullOrEmpty(s.type))
             {
@@ -55,14 +57,12 @@ namespace Il2Cpp_Modding_Codegen.Serialization
             }
 
             if (type.Parent != null)
-            {
                 // System::ValueType should be the 1 type where we want to extend System::Object without the Il2CppObject fields
                 if (type.This.Namespace == "System" && type.This.Name == "ValueType")
                     s.parentNames.Add("System::Object");
                 else
                     // TODO: just use type.Parent's QualifiedTypeName instead?
                     s.parentNames.Add(_config.SafeName(context.GetCppName(type.Parent, true, true, CppTypeContext.NeedAs.Definition, CppTypeContext.ForceAsType.Literal)));
-            }
 
             if (type.This.DeclaringType != null && type.This.DeclaringType.IsGeneric)
             {
@@ -71,40 +71,38 @@ namespace Il2Cpp_Modding_Codegen.Serialization
             }
 
             foreach (var @interface in type.ImplementingInterfaces)
-                s.parentNames.Add("virtual " + _config.SafeName(context.GetCppName(@interface, true, true, CppTypeContext.NeedAs.Definition, CppTypeContext.ForceAsType.Literal)));
+                s.parentNames.Add(_config.SafeName(context.GetCppName(@interface, true, true, CppTypeContext.NeedAs.Definition, CppTypeContext.ForceAsType.Literal)));
+
+            foreach (var g in type.This.Generics)
+            {
+                if (g.DeclaringType != type.This)
+                    continue;
+                var constraintStrs = g.GenericParameterConstraints.Select(c => context.GetCppName(c, true) ?? c.GetName()).ToList();
+                if (constraintStrs.Count > 0)
+                    s.genParamConstraints.Add(context.GetCppName(g, false) ?? g.GetName(), constraintStrs);
+            }
+
             map.Add(type.This, s);
 
-            if (fieldSerializer is null)
-                fieldSerializer = new CppFieldSerializer(_config);
-
             if (type.Type != TypeEnum.Interface)
-            {
                 // do the non-static fields first
                 foreach (var f in type.Fields)
                     if (!f.Specifiers.IsStatic())
-                        fieldSerializer.PreSerialize(context, f);
-                // then, the static fields
-                foreach (var f in type.Fields)
-                {
-                    // If the field is a static field, we want to create two methods, (get and set for the static field)
-                    // and make a call to GetFieldValue and SetFieldValue for those methods
-                    if (f.Specifiers.IsStatic())
-                    {
-                        if (staticFieldSerializer is null)
-                            staticFieldSerializer = new CppStaticFieldSerializer(_config);
-                        staticFieldSerializer.PreSerialize(context, f);
-                    }
-                }
-            }
+                        FieldSerializer.PreSerialize(context, f);
+
+            // then, the static fields
+            foreach (var f in type.Fields)
+                // If the field is a static field, we want to create two methods, (get and set for the static field)
+                // and make a call to GetFieldValue and SetFieldValue for those methods
+                if (f.Specifiers.IsStatic())
+                    StaticFieldSerializer.PreSerialize(context, f);
 
             // then the methods
-            if (methodSerializer is null)
-                methodSerializer = new CppMethodSerializer(_config);
             foreach (var m in type.Methods)
-                methodSerializer.PreSerialize(context, m);
+                MethodSerializer.PreSerialize(context, m);
         }
 
-        public void DuplicateDefinition(CppTypeContext self, TypeRef offendingType)
+        internal void DuplicateDefinition(CppTypeContext self, TypeRef offendingType)
         {
             int total = 0;
             // If we ever have a duplicate definition, this should be called.
@@ -114,14 +112,13 @@ namespace Il2Cpp_Modding_Codegen.Serialization
                     // If it was a field at all, we throw (this is unsolvable)
                     throw new InvalidOperationException($"Cannot fix duplicate definition for offending type: {offendingType}, it is used as field: {f} in: {self.LocalType.This}");
             foreach (var m in self.LocalType.Methods)
-            {
                 // If it was simply a method, we iterate over all methods and attempt to template them
                 // However, if we cannot fix it, this function will return false, informing us that we have failed.
-                if (!methodSerializer.FixBadDefinition(offendingType, m, out var found))
+                if (!MethodSerializer.FixBadDefinition(offendingType, m, out var found))
                     throw new InvalidOperationException($"Cannot fix duplicate definition for offending type: {offendingType}, it is used in an unfixable method: {m}");
                 else
                     total += found;
-            }
+
             if (total <= 0)
                 throw new InvalidOperationException($"Failed to find any occurrences of offendingType {offendingType} in {self.LocalType.This}!");
             Console.WriteLine($"CppTypeDataSerializer has successfully replaced {total} occurrences of {offendingType} in {self.LocalType.This}!");
@@ -133,10 +130,10 @@ namespace Il2Cpp_Modding_Codegen.Serialization
         /// </summary>
         /// <param name="writer"></param>
         /// <param name="type"></param>
-        public void WriteInitialTypeDefinition(CppStreamWriter writer, ITypeData type, bool isNested)
+        internal void WriteInitialTypeDefinition(CppStreamWriter writer, ITypeData type, bool isNested)
         {
             if (!map.TryGetValue(type.This, out var state))
-                throw new UnresolvedTypeException(type.This.DeclaringType, type.This);
+                throw new UnresolvedTypeException(type.This, type.This);
             // Write the actual type definition start
             var specifiers = "";
             foreach (var spec in type.Specifiers)
@@ -174,6 +171,8 @@ namespace Il2Cpp_Modding_Codegen.Serialization
                     typeName = typeName.Substring(idx + 2);
             }
             writer.WriteDefinition(type.Type.TypeName() + " " + typeName + s);
+            WriteGenericTypeConstraints(writer, state.genParamConstraints, true);
+
             if (type.Fields.Count > 0 || type.Methods.Count > 0 || type.NestedTypes.Count > 0)
                 writer.WriteLine("public:");
             if (state.declaring != null)
@@ -181,64 +180,92 @@ namespace Il2Cpp_Modding_Codegen.Serialization
             writer.Flush();
         }
 
-        public void WriteFields(CppStreamWriter writer, ITypeData type, bool asHeader)
+        internal void WriteFields(CppStreamWriter writer, ITypeData type, bool asHeader)
         {
-            if (type.Type == TypeEnum.Interface)
-                // Don't write fields for interfaces
-                return;
-            // Write fields if not an interface
             foreach (var f in type.Fields)
-            {
                 try
                 {
                     if (f.Specifiers.IsStatic())
-                        staticFieldSerializer.Serialize(writer, f, asHeader);
+                        StaticFieldSerializer.Serialize(writer, f, asHeader);
                     else if (asHeader)
                         // Only write standard fields if this is a header
-                        fieldSerializer.Serialize(writer, f, asHeader);
+                        FieldSerializer.Serialize(writer, f, asHeader);
                 }
                 catch (UnresolvedTypeException e)
                 {
-                    if (_config.UnresolvedTypeExceptionHandling.FieldHandling == UnresolvedTypeExceptionHandling.DisplayInFile)
+                    if (_config.UnresolvedTypeExceptionHandling?.FieldHandling == UnresolvedTypeExceptionHandling.DisplayInFile)
                     {
                         writer.WriteLine("/*");
                         writer.WriteLine(e);
                         writer.WriteLine("*/");
                         writer.Flush();
                     }
-                    else if (_config.UnresolvedTypeExceptionHandling.FieldHandling == UnresolvedTypeExceptionHandling.Elevate)
+                    else if (_config.UnresolvedTypeExceptionHandling?.FieldHandling == UnresolvedTypeExceptionHandling.Elevate)
                         throw;
                 }
-            }
         }
 
-        public void WriteMethods(CppStreamWriter writer, ITypeData type, bool asHeader)
+        internal void WriteSpecialCtors(CppStreamWriter writer, ITypeData type, bool isNested)
         {
-            // Finally, we write the methods
-            foreach (var m in type.Methods)
+            // Write the special constructor
+            var state = map[type.This];
+            var typeName = state.type;
+            if (isNested)
             {
+                int idx = typeName.LastIndexOf("::");
+                if (idx >= 0)
+                    typeName = typeName.Substring(idx + 2);
+            }
+            FieldSerializer.WriteCtor(writer, type, typeName, true);
+        }
+
+        // Iff namespaced, writes only the namespace-scoped methods. Otherwise, writes only the non-namespace-scoped methods.
+        internal void WriteMethods(CppStreamWriter writer, ITypeData type, bool asHeader, bool namespaced = false)
+        {
+            foreach (var m in type.Methods)
                 try
                 {
-                    methodSerializer?.Serialize(writer, m, asHeader);
+                    if (namespaced == (MethodSerializer.Scope[m] == CppMethodSerializer.MethodScope.Namespace))
+                        MethodSerializer.Serialize(writer, m, asHeader);
                 }
                 catch (UnresolvedTypeException e)
                 {
-                    if (_config.UnresolvedTypeExceptionHandling.MethodHandling == UnresolvedTypeExceptionHandling.DisplayInFile)
+                    if (_config.UnresolvedTypeExceptionHandling?.MethodHandling == UnresolvedTypeExceptionHandling.DisplayInFile)
                     {
                         writer.WriteLine("/*");
                         writer.WriteLine(e);
                         writer.WriteLine("*/");
                         writer.Flush();
                     }
-                    else if (_config.UnresolvedTypeExceptionHandling.MethodHandling == UnresolvedTypeExceptionHandling.Elevate)
+                    else if (_config.UnresolvedTypeExceptionHandling?.MethodHandling == UnresolvedTypeExceptionHandling.Elevate)
                         throw;
                 }
-            }
         }
 
-        public void CloseDefinition(CppStreamWriter writer, ITypeData type)
+        internal static void CloseDefinition(CppStreamWriter writer, ITypeData type) => writer.CloseDefinition($"; // {type.This}");
+
+        internal static void WriteGenericTypeConstraints(CppStreamWriter writer, GenParamConstraintStrings generics, bool forTypeDef = false)
         {
-            writer.CloseDefinition($"; // {type.This}");
+            foreach (var p in generics)
+            {
+                IEnumerable<string>? constraintStrs;
+                string ToConstraintString(string constraintType)
+                {
+                    string ret;
+                    if (constraintType.TrimEnd('*') == "System::ValueType")
+                        ret = $"is_value_type_v<{p.Key}>";
+                    else if (Regex.IsMatch(constraintType, "::I[A-Z]")) // TODO: use actual interface checking
+                        // note: because of the "inaccessible base" issue caused by lack of virtual inheritance, it may not be convertible to Iface*
+                        ret = $"std::is_base_of_v<{constraintType.TrimEnd('*')}, std::remove_pointer_t<{p.Key}>>";
+                    else
+                        ret = $"std::is_convertible_v<{p.Key}, {constraintType}>";
+                    if (forTypeDef)
+                        ret = $"(!std::is_complete_v<std::remove_pointer_t<{p.Key}>> || {ret})";
+                    return ret;
+                }
+                constraintStrs = p.Value.Select(ToConstraintString);
+                writer.WriteDeclaration($"static_assert({string.Join(" && ", constraintStrs)})");
+            }
         }
     }
 }

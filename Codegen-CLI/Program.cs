@@ -1,8 +1,8 @@
-using Il2Cpp_Modding_Codegen;
-using Il2Cpp_Modding_Codegen.Config;
-using Il2Cpp_Modding_Codegen.Data;
-using Il2Cpp_Modding_Codegen.Parsers;
-using Il2Cpp_Modding_Codegen.Serialization;
+using Il2CppModdingCodegen;
+using Il2CppModdingCodegen.Config;
+using Il2CppModdingCodegen.Data;
+using Il2CppModdingCodegen.Parsers;
+using Il2CppModdingCodegen.Serialization;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -24,17 +24,13 @@ namespace Codegen_CLI
             IParser parser;
             if (Directory.Exists(path))
             {
-                var parseConfig = new DllConfig()
-                {
-                };
+                var parseConfig = new DllConfig() { };
                 parser = new DllParser(parseConfig);
                 parseDlls = true;
             }
             else
             {
-                var parseConfig = new DumpConfig()
-                {
-                };
+                var parseConfig = new DumpConfig() { };
                 parser = new DumpParser(parseConfig);
             }
 
@@ -57,9 +53,7 @@ namespace Codegen_CLI
             var input = Console.ReadLine();
             // TODO: strip non-alphabetic characters out of input before parsing it
             if (Enum.TryParse(input, true, out OutputStyle style))
-            {
                 Console.WriteLine($"Parsed style '{style}'");
-            }
 
             var libIl2cpp = "C:/Program Files/Unity/Editor/Data/il2cpp/libil2cpp";
             if (!Directory.Exists(libIl2cpp))
@@ -82,10 +76,9 @@ namespace Codegen_CLI
                     "private", "protected", "public", "reflexpr", "register", "reinterpret_cast", "requires", "return",
                     "short", "signed", "sizeof", "static", "static_assert", "static_cast", "struct", "switch", "synchronized",
                     "template", "this", "thread_local", "throw", "true", "try", "typedef", "typeid", "typename", "union",
-                    "unsigned", "using", "virtual", "void", "volatile", "wchar_t", "while", "xor", "xor_eq"
+                    "unsigned", "using", "virtual", "void", "volatile", "wchar_t", "while", "xor", "xor_eq", "INT_MAX", "INT_MIN"
                 },
-                IllegalMethodNames = new HashSet<string>
-                {
+                IllegalMethodNames = new HashSet<string> {
                     "bzero", "Assert"
                 },
                 OutputDirectory = Path.Combine(Environment.CurrentDirectory, "output"),
@@ -93,7 +86,7 @@ namespace Codegen_CLI
                 OutputSourceDirectory = "src",
                 GenericHandling = GenericHandling.Do,
                 OutputStyle = style,
-                UnresolvedTypeExceptionHandling = new ExceptionHandling
+                UnresolvedTypeExceptionHandling = new UnresolvedTypeExceptionHandlingWrapper
                 {
                     FieldHandling = UnresolvedTypeExceptionHandling.DisplayInFile,
                     MethodHandling = UnresolvedTypeExceptionHandling.DisplayInFile,
@@ -125,6 +118,7 @@ namespace Codegen_CLI
             {
                 Console.WriteLine(e);
             }
+
             Console.WriteLine("Serializing...");
             try
             {
@@ -137,6 +131,7 @@ namespace Codegen_CLI
             {
                 Console.WriteLine(e);
             }
+            Console.WriteLine(string.Join(", ", SerializationConfig.SpecialMethodNames));
             Console.ReadLine();
         }
     }

@@ -1,16 +1,13 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Runtime.CompilerServices;
-using System.Text;
+﻿using System.Collections.Generic;
 
-namespace Il2Cpp_Modding_Codegen.Data
+namespace Il2CppModdingCodegen.Data
 {
     public interface ITypeData
     {
         TypeRef This { get; }
         TypeEnum Type { get; }
         TypeInfo Info { get; }
-        TypeRef Parent { get; }
+        TypeRef? Parent { get; }
         HashSet<ITypeData> NestedTypes { get; }
         List<TypeRef> ImplementingInterfaces { get; }
         int TypeDefIndex { get; }

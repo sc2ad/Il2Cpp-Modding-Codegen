@@ -1,13 +1,23 @@
-﻿using Il2Cpp_Modding_Codegen.Data;
+﻿using Il2CppModdingCodegen.Data;
 using System;
-using System.Collections.Generic;
-using System.Text;
 
-namespace Il2Cpp_Modding_Codegen.Serialization
+namespace Il2CppModdingCodegen.Serialization
 {
     public class UnresolvedTypeException : Exception
     {
-        public UnresolvedTypeException(TypeRef declaringType, TypeRef typeFailed) : base($"{declaringType} could not find reference to type: {typeFailed}")
+        internal UnresolvedTypeException(TypeRef declaringType, TypeRef typeFailed) : this($"{declaringType} could not find reference to type: {typeFailed}")
+        {
+        }
+
+        private UnresolvedTypeException()
+        {
+        }
+
+        private UnresolvedTypeException(string message) : base(message)
+        {
+        }
+
+        private UnresolvedTypeException(string message, Exception innerException) : base(message, innerException)
         {
         }
     }

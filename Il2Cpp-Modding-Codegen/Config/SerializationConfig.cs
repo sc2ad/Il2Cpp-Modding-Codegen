@@ -1,29 +1,34 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Text;
+using System.Diagnostics.CodeAnalysis;
 
-namespace Il2Cpp_Modding_Codegen.Config
+namespace Il2CppModdingCodegen.Config
 {
     public class SerializationConfig
     {
-        public string OutputDirectory { get; set; }
-        public string OutputHeaderDirectory { get; set; }
-        public string OutputSourceDirectory { get; set; }
+        public string? OutputDirectory { get; set; }
+        public string? OutputHeaderDirectory { get; set; }
+        public string? OutputSourceDirectory { get; set; }
 
         /// <summary>
         /// Id for the mod to use, also the resultant library name
         /// </summary>
-        public string Id { get; set; }
+        public string? Id { get; set; }
 
         /// <summary>
         /// The (ideally SemVer) version of the library being created
         /// </summary>
-        public string Version { get; set; }
+        public string? Version { get; set; }
 
         /// <summary>
         /// Libil2cpp path, necessary for proper building of Android.mk
         /// </summary>
-        public string Libil2cpp { get; set; }
+        public string? Libil2cpp { get; set; }
+
+        /// <summary>
+        /// To create multiple shared/static libraries or a single file
+        /// </summary>
+        public bool MultipleLibraries { get; set; } = false;
 
         /// <summary>
         /// The maximum amount of characters (not including additional characters added by make) for shared libraries
@@ -44,13 +49,13 @@ namespace Il2Cpp_Modding_Codegen.Config
         /// A set of illegal method, field, or type names that must be renamed.
         /// The renaming approach is to simply prefix with a _ until it is no longer within this set.
         /// </summary>
-        public HashSet<string> IllegalNames { get; set; }
+        public HashSet<string>? IllegalNames { get; set; }
 
         /// <summary>
         /// A set of illegal method names that must be renamed.
         /// The renaming approach is to simply suffix with a _ until it is no longer within this set.
         /// </summary>
-        public HashSet<string> IllegalMethodNames { get; set; }
+        public HashSet<string>? IllegalMethodNames { get; set; }
 
         /// <summary>
         /// How to output the created methods
@@ -60,12 +65,17 @@ namespace Il2Cpp_Modding_Codegen.Config
         /// <summary>
         /// How to handle unresolved type exceptions
         /// </summary>
-        public ExceptionHandling UnresolvedTypeExceptionHandling { get; set; }
+        public UnresolvedTypeExceptionHandlingWrapper? UnresolvedTypeExceptionHandling { get; set; }
+
+        /// <summary>
+        /// How to handle duplicate methods that are serialized
+        /// </summary>
+        public DuplicateMethodExceptionHandling DuplicateMethodExceptionHandling { get; set; } = DuplicateMethodExceptionHandling.DisplayInFile;
 
         /// <summary>
         /// Types blacklisted are explicitly not converted, even if it causes unresolved type exceptions in other types
         /// </summary>
-        public List<string> BlacklistTypes { get; set; }
+        public List<string>? BlacklistTypes { get; set; }
 
         /// <summary>
         /// Methods blacklisted are explicitly not converted
@@ -75,7 +85,7 @@ namespace Il2Cpp_Modding_Codegen.Config
         /// <summary>
         /// Types whitelisted are explicitly converted, even if some have unresolved type exceptions
         /// </summary>
-        public List<string> WhitelistTypes { get; set; }
+        public List<string>? WhitelistTypes { get; set; }
 
         /// <summary>
         /// Will attempt to resolve all type exceptions (ignores blacklists and whitelists to look through full context)
@@ -102,16 +112,27 @@ namespace Il2Cpp_Modding_Codegen.Config
         /// </summary>
         /// <param name="name"></param>
         /// <returns></returns>
-        public string SafeName(string name)
+        [return: NotNullIfNotNull("name")]
+        public string? SafeName(string? name)
         {
-            if (!string.IsNullOrEmpty(name))
-                while (IllegalNames?.Contains(name) is true)
-                    name = "_" + name;
+            if (name is null) return null;
+            while (IllegalNames?.Contains(name) is true)
+                name = "_" + name;
             return name;
         }
 
+        public static Dictionary<string, int> SpecialMethodNames { get; private set; } = new Dictionary<string, int>();
+
         public string SafeMethodName(string name)
         {
+            if (name is null) throw new ArgumentNullException(nameof(name));
+            if (name.StartsWith("op_"))
+            {
+                if (SpecialMethodNames.ContainsKey(name))
+                    SpecialMethodNames[name]++;
+                else
+                    SpecialMethodNames.Add(name, 1);
+            }
             if (!string.IsNullOrEmpty(name))
                 while (IllegalNames?.Contains(name) is true || IllegalMethodNames?.Contains(name) is true)
                     name += "_";
@@ -119,7 +140,7 @@ namespace Il2Cpp_Modding_Codegen.Config
         }
     }
 
-    public struct ExceptionHandling
+    public class UnresolvedTypeExceptionHandlingWrapper
     {
         public UnresolvedTypeExceptionHandling TypeHandling { get; set; }
 
@@ -128,6 +149,14 @@ namespace Il2Cpp_Modding_Codegen.Config
 
         // TODO: May not work as intended
         public UnresolvedTypeExceptionHandling MethodHandling { get; set; }
+    }
+
+    public enum DuplicateMethodExceptionHandling
+    {
+        Ignore,
+        DisplayInFile,
+        Skip,
+        Elevate
     }
 
     public enum OutputStyle

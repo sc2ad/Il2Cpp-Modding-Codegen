@@ -1,8 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Text;
-
-namespace Il2Cpp_Modding_Codegen.Data.DumpHandling
+﻿namespace Il2CppModdingCodegen.Data.DumpHandling
 {
     internal class DumpSpecifier : ISpecifier
     {
@@ -16,14 +12,7 @@ namespace Il2Cpp_Modding_Codegen.Data.DumpHandling
         public bool Readonly => Value == "readonly";
         public bool Const => Value == "const";
 
-        public DumpSpecifier(string specifier)
-        {
-            Value = specifier;
-        }
-
-        public override string ToString()
-        {
-            return Value;
-        }
+        internal DumpSpecifier(string specifier) => Value = specifier;
+        public override string ToString() => Value;
     }
 }

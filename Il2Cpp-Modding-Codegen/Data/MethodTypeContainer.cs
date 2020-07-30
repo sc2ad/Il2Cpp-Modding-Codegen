@@ -1,17 +1,33 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Text;
+using System.Linq;
 
-namespace Il2Cpp_Modding_Codegen.Data
+namespace Il2CppModdingCodegen.Data
 {
     public class MethodTypeContainer
     {
-        private string typeName;
-        private string templatedName;
+        private string? typeName;
+        private string _suffix = "";
+        private string? templatedName;
 
-        internal MethodTypeContainer(string t)
+        internal bool Skip { get; set; } = false;
+        internal bool UnPointered { get; private set; }
+        internal bool IsPointer { get => typeName?.EndsWith("*") ?? throw new InvalidOperationException("typeName is null!"); }
+        // Contains a class or struct
+        internal bool IsClassType { get => typeName.Any(char.IsUpper); }
+
+        internal MethodTypeContainer(string? t) => typeName = t;
+
+        internal void Prefix(string prefix) => typeName = prefix + typeName;
+
+        internal void Suffix(string suffix) => _suffix += suffix;
+
+        // Make this parameter no longer a pointer, and use its value as `&val` from now on
+        internal bool UnPointer()
         {
-            typeName = t;
+            if (typeName == null) throw new InvalidOperationException("typeName is null!");
+            if (!IsPointer) return false;
+            typeName = typeName[0..^1];
+            return UnPointered = true;
         }
 
         internal string TypeName(bool header)
@@ -20,14 +36,14 @@ namespace Il2Cpp_Modding_Codegen.Data
             // Otherwise, we should never return a templated typename.
             if (!string.IsNullOrEmpty(templatedName) && header)
                 return templatedName;
-            return typeName;
+            return typeName + _suffix;
         }
 
-        internal void Template(string newName)
-        {
-            templatedName = newName;
-        }
+        internal void Template(string newName) => templatedName = newName;
 
-        public override string ToString() => throw new NotSupportedException("Not implemented! Did you mean to use TypeName( ?");
+        [Obsolete("TypeName should be used instead!", true)]
+#pragma warning disable CS0809 // Obsolete member 'MethodTypeContainer.ToString()' overrides non-obsolete member 'object.ToString()'
+        public override string ToString() => "";
+#pragma warning restore CS0809 // Obsolete member 'MethodTypeContainer.ToString()' overrides non-obsolete member 'object.ToString()'
     }
 }

@@ -1,60 +1,55 @@
-﻿using Mono.Cecil;
-using System;
-using System.Collections;
+﻿using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using System.Security.Principal;
 
-namespace Il2Cpp_Modding_Codegen.Data
+namespace Il2CppModdingCodegen.Data
 {
     public abstract class TypeRef : IEquatable<TypeRef>
     {
         private const string NoNamespace = "GlobalNamespace";
+
         public abstract string Namespace { get; }
         public abstract string Name { get; }
 
         public abstract bool IsGenericParameter { get; }
-        public bool IsGeneric { get => IsGenericInstance || IsGenericTemplate; }
+        public abstract bool IsCovariant { get; set; }
+        public virtual IReadOnlyList<TypeRef> GenericParameterConstraints { get; } = new List<TypeRef>();
+        internal bool IsGeneric { get => IsGenericInstance || IsGenericTemplate; }
         public abstract bool IsGenericInstance { get; }
         public abstract bool IsGenericTemplate { get; }
         public abstract IReadOnlyList<TypeRef> Generics { get; }
-        public abstract TypeRef DeclaringType { get; }
-        public abstract TypeRef ElementType { get; }
-        public abstract bool IsCovariant { get; set; }
 
-        private ITypeData _resolvedType;
+        public abstract TypeRef? DeclaringType { get; }
+        public abstract TypeRef? ElementType { get; }
+
+        private ITypeData? _resolvedType;
 
         public abstract TypeRef MakePointer();
 
         /// <summary>
         /// Resolves the type from the given type collection
         /// </summary>
-        public ITypeData Resolve(ITypeCollection types)
+        internal ITypeData? Resolve(ITypeCollection types)
         {
 #pragma warning disable 612, 618
-            if (_resolvedType == null)
-                _resolvedType = types.Resolve(this);
+            // TODO: if we upgrade to C# 8.0, change this to `_resolvedType ??= types.Resolve(this);`
+            _resolvedType ??= types.Resolve(this);
 #pragma warning restore 612, 618
             return _resolvedType;
         }
 
-        public virtual bool IsVoid()
-        {
-            return Name.Equals("void", StringComparison.OrdinalIgnoreCase);
-        }
+        public virtual bool IsVoid() => Name.Equals("void", StringComparison.OrdinalIgnoreCase);
 
         public virtual bool IsPointer()
         {
             // If type is not a value type, it is a pointer
-            return _resolvedType?.Info.TypeFlags == TypeFlags.ReferenceType;
+            return _resolvedType?.Info.Refness == Refness.ReferenceType;
         }
-
-        public abstract bool IsPrimitive();
 
         public abstract bool IsArray();
 
-        public string GetNamespace() => !string.IsNullOrEmpty(Namespace) ? Namespace.Replace(".", "::") : NoNamespace;
+        public string GetNamespace() => string.IsNullOrEmpty(Namespace) ? NoNamespace : Namespace.Replace(".", "::");
 
         public string GetName()
         {
@@ -76,7 +71,7 @@ namespace Il2Cpp_Modding_Codegen.Data
             return dt.GetNamespace() + "::" + name;
         }
 
-        public (string @namespace, string name) GetIl2CppName()
+        public (string, string) GetIl2CppName()
         {
             var name = Name;
             var dt = this;
@@ -102,7 +97,7 @@ namespace Il2Cpp_Modding_Codegen.Data
                 {
                     foreach (var g in dt.Generics.Reverse())
                     {
-                        if (IsGenericInstance && g.Name.StartsWith("!"))
+                        if (IsGenericInstance && g.Name.StartsWith("!") && lastGenerics != null)
                         {
                             // If we are a generic instance, and we see that the name of our generic parameter starts with a !
                             var idx = int.Parse(g.Name.Substring(1));
@@ -122,11 +117,11 @@ namespace Il2Cpp_Modding_Codegen.Data
             return genericsDefined.Distinct(fastComparer);
         }
 
-        internal bool ContainsOrEquals(TypeRef other)
+        internal bool ContainsOrEquals(TypeRef offendingType)
         {
-            if (Equals(other)) return true;
-            if (ElementType != null && ElementType.ContainsOrEquals(other)) return true;
-            if (DeclaringType != null && DeclaringType.ContainsOrEquals(other)) return true;
+            if (Equals(offendingType)) return true;
+            if (ElementType != null && ElementType.ContainsOrEquals(offendingType)) return true;
+            if (DeclaringType != null && DeclaringType.ContainsOrEquals(offendingType)) return true;
             return false;
         }
 
@@ -144,13 +139,9 @@ namespace Il2Cpp_Modding_Codegen.Data
             while (dt != null)
             {
                 if (dt.IsGeneric)
-                {
                     foreach (var g in dt.Generics)
-                    {
                         // Overwrite existing declaring type and add it to genericParamToDeclaring
                         genericParamToDeclaring[g] = dt;
-                    }
-                }
                 dt = dt.DeclaringType;
             }
             // Iterate over each generic param to declaring type and convert it to a mapping of declaring type to generic parameters
@@ -164,33 +155,14 @@ namespace Il2Cpp_Modding_Codegen.Data
             return genericMap;
         }
 
-        private const int MaxIncludeLength = -1;
-        private static int longFileCount = 0;
-
-        private string cachedInclude;
-
         internal string GetIncludeLocation()
         {
-            if (string.IsNullOrEmpty(cachedInclude))
-            {
-                var fileName = string.Join("-", GetName().Split(Path.GetInvalidFileNameChars())).Replace('$', '-');
-                if (DeclaringType != null)
-                    return DeclaringType.GetIncludeLocation() + "_" + fileName;
-                // Splits multiple namespaces into nested directories
-                var directory = string.Join("-", string.Join("/", GetNamespace().Split(new string[] { "::" }, StringSplitOptions.RemoveEmptyEntries)).Split(Path.GetInvalidPathChars()));
-                var ret = directory + "/" + fileName;
-                // Guess for too long of a file path, chances are it can probably be longer, but at this point...
-                if (MaxIncludeLength > 0 && ret.Length >= MaxIncludeLength)
-                {
-                    ret = directory + "/" + "_" + longFileCount;
-                    longFileCount++;
-                    Console.WriteLine($"Changing filename: {directory}/{fileName} to: {ret}");
-                }
-                cachedInclude = ret;
-                if (MaxIncludeLength > 0 && cachedInclude.Length >= MaxIncludeLength)
-                    Console.Error.WriteLine("File too long: " + cachedInclude);
-            }
-            return cachedInclude;
+            var fileName = string.Join("-", GetName().Split(Path.GetInvalidFileNameChars())).Replace('$', '-');
+            if (DeclaringType != null)
+                return DeclaringType.GetIncludeLocation() + "_" + fileName;
+            // Splits multiple namespaces into nested directories
+            var directory = string.Join("-", string.Join("/", GetNamespace().Split(new string[] { "::" }, StringSplitOptions.RemoveEmptyEntries)).Split(Path.GetInvalidPathChars()));
+            return directory + "/" + fileName;
         }
 
         public override string ToString()
@@ -201,21 +173,19 @@ namespace Il2Cpp_Modding_Codegen.Data
             return ret;
         }
 
-        [Obsolete("The argument should be a TypeRef!")]
+        [ObsoleteAttribute("The argument should be a TypeRef!")]
 #pragma warning disable 809  // "obsolete method extends non-obsolete mehtod object.Equals(object)
-        public override bool Equals(object obj)
+        public override bool Equals(object? obj) => Equals(obj as TypeRef);
+
 #pragma warning restore 809
-        {
-            return Equals(obj as TypeRef);
-        }
 
         internal static FastTypeRefComparer fastComparer = new FastTypeRefComparer();
 
-        public bool Equals(TypeRef other)
+        public bool Equals(TypeRef? other)
         {
             return fastComparer.Equals(this, other) &&
-                (DeclaringType?.Equals(other.DeclaringType) ?? other.DeclaringType == null) &&
-                (ElementType?.Equals(other.ElementType) ?? other.ElementType == null);
+                (DeclaringType?.Equals(other?.DeclaringType) ?? other?.DeclaringType == null) &&
+                (ElementType?.Equals(other?.ElementType) ?? other?.ElementType == null);
         }
 
         public override int GetHashCode()
@@ -270,13 +240,13 @@ namespace Il2Cpp_Modding_Codegen.Data
             return equal;
         }
 
-        internal static bool PrintEqual(TypeRef a, TypeRef b, bool fast = false)
+        internal static bool PrintEqual(TypeRef? a, TypeRef? b, bool fast = false)
         {
             bool equal = fast ? fastComparer.Equals(a, b) : (a?.Equals(b) ?? b is null);
             if (!equal)
             {
                 Console.WriteLine($"{a} == {b}? {equal}");
-                if (a is null) return equal;
+                if (a is null || b is null) return equal;
                 equal = a.Namespace?.Equals(b.Namespace) ?? (b.Namespace == null);
                 if (!equal)
                 {

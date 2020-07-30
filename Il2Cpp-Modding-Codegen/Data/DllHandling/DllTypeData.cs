@@ -1,20 +1,17 @@
-﻿using Il2Cpp_Modding_Codegen.Config;
-using Il2Cpp_Modding_Codegen.Parsers;
+﻿using Il2CppModdingCodegen.Config;
 using Mono.Cecil;
-using System;
 using System.Collections.Generic;
-using System.IO;
 using System.Linq;
-using System.Text;
 
-namespace Il2Cpp_Modding_Codegen.Data.DllHandling
+namespace Il2CppModdingCodegen.Data.DllHandling
 {
     internal class DllTypeData : ITypeData
     {
         public TypeEnum Type { get; }
         public TypeInfo Info { get; }
         public TypeRef This { get; }
-        public TypeRef Parent { get; }
+        public TypeRef? Parent { get; }
+        public TypeRef? EnumUnderlyingType { get; }
         public HashSet<ITypeData> NestedTypes { get; } = new HashSet<ITypeData>();
         public List<TypeRef> ImplementingInterfaces { get; } = new List<TypeRef>();
         public int TypeDefIndex { get; }
@@ -24,21 +21,19 @@ namespace Il2Cpp_Modding_Codegen.Data.DllHandling
         public List<IProperty> Properties { get; } = new List<IProperty>();
         public List<IMethod> Methods { get; } = new List<IMethod>();
 
-        private DllConfig _config;
+        private readonly DllConfig _config;
 
-        public DllTypeData(TypeDefinition def, DllConfig config)
+        internal DllTypeData(TypeDefinition def, DllConfig config)
         {
             _config = config;
             foreach (var i in def.Interfaces)
-            {
                 ImplementingInterfaces.Add(DllTypeRef.From(i.InterfaceType));
-            }
 
             This = DllTypeRef.From(def);
             Type = def.IsEnum ? TypeEnum.Enum : (def.IsInterface ? TypeEnum.Interface : (def.IsValueType ? TypeEnum.Struct : TypeEnum.Class));
             Info = new TypeInfo
             {
-                TypeFlags = def.IsValueType ? TypeFlags.ValueType : TypeFlags.ReferenceType
+                Refness = def.IsValueType ? Refness.ValueType : Refness.ReferenceType
             };
 
             if (def.BaseType != null)
@@ -67,42 +62,30 @@ namespace Il2Cpp_Modding_Codegen.Data.DllHandling
         {
             var s = $"// Namespace: {This.Namespace}\n";
             foreach (var attr in Attributes)
-            {
                 s += $"{attr}\n";
-            }
             foreach (var spec in Specifiers)
-            {
                 s += $"{spec} ";
-            }
             s += $"{Type.ToString().ToLower()} {This.Name}";
             if (Parent != null)
-            {
                 s += $" : {Parent}";
-            }
             s += "\n{";
             if (Fields.Count > 0)
             {
                 s += "\n\t// Fields\n\t";
                 foreach (var f in Fields)
-                {
                     s += $"{f}\n\t";
-                }
             }
             if (Properties.Count > 0)
             {
                 s += "\n\t// Properties\n\t";
                 foreach (var p in Properties)
-                {
                     s += $"{p}\n\t";
-                }
             }
             if (Methods.Count > 0)
             {
                 s += "\n\t// Methods\n\t";
                 foreach (var m in Methods)
-                {
                     s += $"{m}\n\t";
-                }
             }
             s = s.TrimEnd('\t');
             s += "}";

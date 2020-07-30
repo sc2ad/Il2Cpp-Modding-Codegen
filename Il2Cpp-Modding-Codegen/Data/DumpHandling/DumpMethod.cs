@@ -1,10 +1,9 @@
-﻿using Il2Cpp_Modding_Codegen.Parsers;
+﻿using Il2CppModdingCodegen.Parsers;
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Text;
 
-namespace Il2Cpp_Modding_Codegen.Data.DumpHandling
+namespace Il2CppModdingCodegen.Data.DumpHandling
 {
     internal class DumpMethod : IMethod
     {
@@ -16,36 +15,36 @@ namespace Il2Cpp_Modding_Codegen.Data.DumpHandling
         public int Slot { get; }
         public TypeRef ReturnType { get; }
         public TypeRef DeclaringType { get; }
-        public TypeRef ImplementedFrom { get; }
-        public IMethod BaseMethod { get; }
+        public TypeRef? ImplementedFrom { get; }
+        public List<IMethod> BaseMethods { get; } = new List<IMethod>();
         public List<IMethod> ImplementingMethods { get; } = new List<IMethod>();
         public bool HidesBase { get; }
         public string Name { get; }
         public string Il2CppName { get; }
         public List<Parameter> Parameters { get; } = new List<Parameter>();
         public bool Generic { get; }
+        public IReadOnlyList<TypeRef> GenericParameters { get; }
 
-        public DumpMethod(TypeRef declaring, PeekableStreamReader fs)
+        internal DumpMethod(TypeRef declaring, PeekableStreamReader fs)
         {
             DeclaringType = declaring;
             // Read Attributes
-            string line = fs.PeekLine().Trim();
-            while (line.StartsWith("["))
+            var line = fs.PeekLine()?.Trim();
+            while (line != null && line.StartsWith("["))
             {
                 Attributes.Add(new DumpAttribute(fs));
-                line = fs.PeekLine().Trim();
+                line = fs.PeekLine()?.Trim();
             }
             // Read prefix comment
-            line = fs.ReadLine().Trim();
+            line = fs.ReadLine()?.Trim() ?? "";
             var split = line.Split(' ');
             if (split.Length < 5)
-            {
                 throw new InvalidOperationException($"Line {fs.CurrentLineIndex}: Method cannot be created from: \"{line.Trim()}\"");
-            }
+
             int start = split.Length - 1;
-            if (split[split.Length - 2] == "Slot:")
+            if (split[^2] == "Slot:")
             {
-                Slot = int.Parse(split[split.Length - 1]);
+                Slot = int.Parse(split[^1]);
                 start = split.Length - 3;
             }
             if (split[start - 1] == "VA:")
@@ -65,14 +64,13 @@ namespace Il2Cpp_Modding_Codegen.Data.DumpHandling
                 start -= 2;
             }
             if (split[start - 1] == "RVA")
-            {
                 if (split[start] == "-1")
                     RVA = -1;
                 else
                     RVA = Convert.ToInt32(split[start], 16);
-            }
+
             // Read parameters
-            line = fs.ReadLine().Trim();
+            line = fs.ReadLine()?.Trim() ?? "";
             int end = line.LastIndexOf(')');
             int startSubstr = line.LastIndexOf('(', end - 1);
             string paramLine = line.Substring(startSubstr + 1, end - startSubstr - 1);
@@ -90,10 +88,10 @@ namespace Il2Cpp_Modding_Codegen.Data.DumpHandling
             var methodSplit = line.Substring(0, startSubstr).Split(' ');
             int startIndex = -1;
             int nameIdx = methodSplit.Length - 1;
-            if (!methodSplit[methodSplit.Length - 1].StartsWith("."))
+            if (!methodSplit[^1].StartsWith("."))
             {
                 // Not a special name, should have an implementing type
-                startIndex = methodSplit[methodSplit.Length - 1].LastIndexOf(".");
+                startIndex = methodSplit[^1].LastIndexOf(".");
                 if (startIndex != -1)
                 {
                     var typeStr = DumpTypeRef.FromMultiple(methodSplit, methodSplit.Length - 1, out nameIdx, -1, " ");
@@ -104,22 +102,22 @@ namespace Il2Cpp_Modding_Codegen.Data.DumpHandling
                 }
                 else
                 {
-                    Name = methodSplit[methodSplit.Length - 1];
+                    Name = methodSplit[^1];
                     Il2CppName = Name;
                 }
             }
             else
             {
-                Name = methodSplit[methodSplit.Length - 1].Substring(startIndex + 1);
+                Name = methodSplit[^1].Substring(startIndex + 1);
                 Il2CppName = Name;
             }
             ReturnType = new DumpTypeRef(DumpTypeRef.FromMultiple(methodSplit, nameIdx - 1, out nameIdx, -1, " "));
             for (int i = 0; i < nameIdx - 1; i++)
-            {
                 Specifiers.Add(new DumpSpecifier(methodSplit[i]));
-            }
-            // TODO: Implement Generic
+
+            // TODO: mark this and populate GenericParameters iff the method's actual params reference any types that cannot be resolved?
             Generic = false;
+            GenericParameters = new List<TypeRef>();
 
             HidesBase = Specifiers.Any(s => s.Override);
             // TODO: Implement BaseMethod, ImplementingMethods
@@ -129,14 +127,10 @@ namespace Il2Cpp_Modding_Codegen.Data.DumpHandling
         {
             var s = "";
             foreach (var atr in Attributes)
-            {
                 s += $"{atr}\n\t";
-            }
             s += $"// Offset: 0x{Offset:X}\n\t";
             foreach (var spec in Specifiers)
-            {
                 s += $"{spec} ";
-            }
             s += $"{ReturnType} {Name}({Parameters.FormatParameters()}) ";
             s += "{}";
             return s;

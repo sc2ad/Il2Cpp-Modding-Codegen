@@ -1,36 +1,22 @@
-﻿using Il2Cpp_Modding_Codegen.Config;
-using Il2Cpp_Modding_Codegen.Data;
-using Il2Cpp_Modding_Codegen.Data.DllHandling;
-using Il2Cpp_Modding_Codegen.Parsers;
+﻿using Il2CppModdingCodegen.Config;
+using Il2CppModdingCodegen.Data;
+using Il2CppModdingCodegen.Data.DllHandling;
+using Il2CppModdingCodegen.Parsers;
 using System;
-using System.Collections.Generic;
 using System.IO;
-using System.Text;
 
-namespace Il2Cpp_Modding_Codegen
+namespace Il2CppModdingCodegen
 {
     public class DllParser : IParser
     {
-        private DllConfig _config;
+        private readonly DllConfig _config;
 
-        public DllParser(DllConfig config)
-        {
-            _config = config;
-        }
+        public DllParser(DllConfig config) => _config = config;
 
-        public IParsedData Parse(string dirname)
-        {
-            return new DllData(dirname, _config);
-        }
+        public IParsedData Parse(string dirname) => new DllData(dirname, _config);
 
-        public IParsedData Parse(Stream stream)
-        {
-            throw new InvalidOperationException("Cannot DllParse a stream! Must DllParse a directory!");
-        }
+        public IParsedData Parse(Stream stream) => throw new InvalidOperationException("Cannot DllParse a stream! Must DllParse a directory!");
 
-        public bool ValidFile(string filename)
-        {
-            return Directory.Exists(filename);
-        }
+        public bool ValidFile(string filename) => Directory.Exists(filename);
     }
 }

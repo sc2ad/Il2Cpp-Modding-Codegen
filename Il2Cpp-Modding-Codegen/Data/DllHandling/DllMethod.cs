@@ -3,13 +3,13 @@ using Mono.Cecil.Rocks;
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Text.RegularExpressions;
 
-namespace Il2Cpp_Modding_Codegen.Data.DllHandling
+namespace Il2CppModdingCodegen.Data.DllHandling
 {
     internal class DllMethod : IMethod
     {
-        private MethodDefinition This;  // just to aid with debugging
+        [System.Diagnostics.CodeAnalysis.SuppressMessage("CodeQuality", "IDE0052:Remove unread private members", Justification = "aids with debugging")]
+        private readonly MethodDefinition This;
         public List<IAttribute> Attributes { get; } = new List<IAttribute>();
         public List<ISpecifier> Specifiers { get; } = new List<ISpecifier>();
         public int RVA { get; }
@@ -18,21 +18,22 @@ namespace Il2Cpp_Modding_Codegen.Data.DllHandling
         public int Slot { get; }
         public TypeRef ReturnType { get; }
         public TypeRef DeclaringType { get; }
-        public TypeRef ImplementedFrom { get; } = null;
-        public IMethod BaseMethod { get; private set; }
+        public TypeRef? ImplementedFrom { get; } = null;
+        public List<IMethod> BaseMethods { get; private set; } = new List<IMethod>();
         public List<IMethod> ImplementingMethods { get; } = new List<IMethod>();
         public bool HidesBase { get; }
         public string Name { get; private set; }
         public string Il2CppName { get; }
         public List<Parameter> Parameters { get; } = new List<Parameter>();
         public bool Generic { get; }
+        public IReadOnlyList<TypeRef> GenericParameters { get; }
 
         // Use the specific hash comparer to ensure validity!
         private static readonly DllMethodDefinitionHash comparer = new DllMethodDefinitionHash();
 
         private static readonly Dictionary<MethodDefinition, DllMethod> cache = new Dictionary<MethodDefinition, DllMethod>(comparer);
 
-        public static DllMethod From(MethodDefinition def, ref HashSet<MethodDefinition> mappedBaseMethods)
+        internal static DllMethod From(MethodDefinition def, ref HashSet<MethodDefinition> mappedBaseMethods)
         {
             // Note that TryGetValue is now significantly slower due to hash collisions and equality checks being expensive.
             // Before, it was simply pointers.
@@ -52,6 +53,7 @@ namespace Il2Cpp_Modding_Codegen.Data.DllHandling
             Specifiers.AddRange(DllSpecifierHelpers.From(m));
             // This is not necessary: m.GenericParameters.Any(param => !m.DeclaringType.GenericParameters.Contains(param));
             Generic = m.HasGenericParameters;
+            GenericParameters = m.GenericParameters.Select(g => DllTypeRef.From(g)).ToList();
 
             // This may not always be the case, we could have a special name in which case we have to do some sorcery
             // Grab the special name, grab the type from the special name
@@ -60,9 +62,12 @@ namespace Il2Cpp_Modding_Codegen.Data.DllHandling
             {
                 // Call a utilities function for converting a special name method to a proper base method
                 var baseMethod = m.GetSpecialNameBaseMethod(out var iface, idxDot);
+                if (baseMethod is null) throw new Exception("Failed to find baseMethod for dotted method name!");
+                if (iface is null) throw new Exception("Failed to get iface for dotted method name!");
                 if (!mappedBaseMethods.Add(baseMethod))
                     throw new InvalidOperationException($"Base method: {baseMethod} has already been overriden!");
-                BaseMethod = From(baseMethod, ref mappedBaseMethods);
+                // Only one base method for special named methods
+                BaseMethods.Add(From(baseMethod, ref mappedBaseMethods));
                 ImplementedFrom = DllTypeRef.From(iface);
             }
             else
@@ -81,23 +86,25 @@ namespace Il2Cpp_Modding_Codegen.Data.DllHandling
                     if (baseMethods.Count > 0)
                         foreach (var baseM in mappedBaseMethods)
                             baseMethods.Remove(baseM);
-                    if (baseMethods.Count > 0)
-                        baseMethod = baseMethods.First();
+                    foreach (var bm in baseMethods)
+                        BaseMethods.Add(From(bm, ref mappedBaseMethods));
                 }
-                if (baseMethod != m)
+                else
                 {
                     if (!mappedBaseMethods.Add(baseMethod))
                         throw new InvalidOperationException($"Base method: {baseMethod} has already been overriden!");
-                    BaseMethod = From(baseMethod, ref mappedBaseMethods);
+                    BaseMethods.Add(From(baseMethod, ref mappedBaseMethods));
                 }
             }
-            if (BaseMethod != null)
+            if (BaseMethods.Count > 0)
             {
                 // TODO: This may not be true for generic methods. Should ensure validity for IEnumerator<T> methods
                 // This method is an implemented/overriden method.
-                ImplementedFrom = BaseMethod.DeclaringType;
+                // TODO: We need to double check to see if we need multiple ImplementedFroms
+                ImplementedFrom = BaseMethods.First().DeclaringType;
                 // Add ourselves to our BaseMethod's ImplementingMethods
-                BaseMethod.ImplementingMethods.Add(this);
+                foreach (var bm in BaseMethods)
+                    bm.ImplementingMethods.Add(this);
             }
 
             ReturnType = DllTypeRef.From(m.ReturnType);
@@ -111,13 +118,11 @@ namespace Il2Cpp_Modding_Codegen.Data.DllHandling
             VA = -1;
             Slot = -1;
             if (m.HasCustomAttributes)
-            {
                 foreach (var ca in m.CustomAttributes)
                 {
                     if (ca.AttributeType.Name == "AddressAttribute")
                     {
                         if (ca.Fields.Count >= 3)
-                        {
                             for (int i = 0; i < ca.Fields.Count; i++)
                             {
                                 var f = ca.Fields[i];
@@ -131,20 +136,13 @@ namespace Il2Cpp_Modding_Codegen.Data.DllHandling
                                 else if (f.Name == "Slot")
                                     Slot = Convert.ToInt32(f.Argument.Value as string);
                             }
-                        }
                     }
                     else
-                    {
                         // Ignore the DummyDll attributes
                         Attributes.Add(new DllAttribute(ca));
-                    }
                 }
-            }
         }
 
-        public override string ToString()
-        {
-            return $"{ReturnType} {Name}({Parameters.FormatParameters()})";
-        }
+        public override string ToString() => $"{ReturnType} {Name}({Parameters.FormatParameters()})";
     }
 }
