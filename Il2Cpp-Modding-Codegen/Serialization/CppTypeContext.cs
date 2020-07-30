@@ -97,8 +97,8 @@ namespace Il2CppModdingCodegen.Serialization
 
             // Requiring it as a definition here simply makes it easier to remove (because we are asking for a definition of ourself, which we have)
             QualifiedTypeName = GetCppName(data.This, true, true, NeedAs.Definition, ForceAsType.Literal) ?? throw new Exception($"Could not get QualifiedTypeName for {data.This}");
-            TypeNamespace = data.This.GetNamespace();
-            TypeName = data.This.GetName();
+            TypeNamespace = data.This.CppNamespace();
+            TypeName = data.This.CppName();
 
             DeclaringContext = declaring;
             if (declaring != null)
@@ -139,7 +139,7 @@ namespace Il2CppModdingCodegen.Serialization
                 {
                     if (!first)
                         s += ", ";
-                    s += "typename " + g.GetName();
+                    s += "typename " + g.CppName();
                     first = false;
                 }
             }
@@ -388,7 +388,7 @@ namespace Il2CppModdingCodegen.Serialization
                                 throw new Exception($"Attempted to write generic parameters, but actually wrote <>! for type being resolved: {data} type with generics: {declType}");
                         }
 
-                    var temp = declType.GetName() + declaringGenericParams;
+                    var temp = declType.CppName() + declaringGenericParams;
                     if (!isThisType)
                         temp += "::" + declString;
                     isThisType = false;
@@ -396,7 +396,7 @@ namespace Il2CppModdingCodegen.Serialization
                     declString = temp;
                     if (declType.DeclaringType is null && qualified)
                         // Grab namespace for name here
-                        name = declType.GetNamespace() + "::";
+                        name = declType.CppNamespace() + "::";
                     declType = declType.DeclaringType;
                 }
                 name += declString;
@@ -404,7 +404,7 @@ namespace Il2CppModdingCodegen.Serialization
             else
             {
                 if (qualified)
-                    name = resolved.This.GetNamespace() + "::";
+                    name = resolved.This.CppNamespace() + "::";
                 name += data.Name;
                 name = name.Replace('`', '_').Replace('<', '$').Replace('>', '$');
                 if (generics && data.Generics.Count > 0)
@@ -450,7 +450,7 @@ namespace Il2CppModdingCodegen.Serialization
         /// <returns>A bool representing if the type was resolved successfully</returns>
         internal ITypeData? ResolveAndStore(TypeRef typeRef, ForceAsType forceAs, NeedAs needAs = NeedAs.BestMatch)
         {
-            if (_genericTypes.Contains(typeRef) || typeRef.IsGenericParameter)
+            if (IsGenericParameter(typeRef))
                 // Generic parameters are resolved to nothing and shouldn't even attempted to be resolved.
                 return null;
             var resolved = typeRef.Resolve(_types);

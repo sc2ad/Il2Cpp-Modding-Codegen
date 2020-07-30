@@ -12,8 +12,8 @@ namespace Il2CppModdingCodegen.Data
         public abstract string Namespace { get; }
         public abstract string Name { get; }
 
-        public abstract bool IsGenericParameter { get; }
-        public abstract bool IsCovariant { get; set; }
+        public virtual bool IsGenericParameter { get; } = false;
+        public virtual bool IsCovariant { get; } = false;
         public virtual IReadOnlyList<TypeRef> GenericParameterConstraints { get; } = new List<TypeRef>();
         internal bool IsGeneric { get => IsGenericInstance || IsGenericTemplate; }
         public abstract bool IsGenericInstance { get; }
@@ -49,26 +49,26 @@ namespace Il2CppModdingCodegen.Data
 
         public abstract bool IsArray();
 
-        public string GetNamespace() => string.IsNullOrEmpty(Namespace) ? NoNamespace : Namespace.Replace(".", "::");
+        public string CppNamespace() => string.IsNullOrEmpty(Namespace) ? NoNamespace : Namespace.Replace(".", "::");
 
-        public string GetName()
+        public string CppName()
         {
             if (Name.StartsWith("!"))
                 throw new InvalidOperationException("Tried to get the name of a copied generic parameter!");
             return Name.Replace('`', '_').Replace('<', '$').Replace('>', '$');
         }
 
-        public string GetQualifiedName()
+        public string GetQualifiedCppName()
         {
-            var name = GetName();
+            var name = CppName();
             var dt = this;
             while (dt.DeclaringType != null)
             {
-                name = dt.DeclaringType.GetName() + "::" + name;
+                name = dt.DeclaringType.CppName() + "::" + name;
                 dt = dt.DeclaringType;
             }
             // Namespace obtained from final declaring type
-            return dt.GetNamespace() + "::" + name;
+            return dt.CppNamespace() + "::" + name;
         }
 
         public (string, string) GetIl2CppName()
@@ -157,17 +157,17 @@ namespace Il2CppModdingCodegen.Data
 
         internal string GetIncludeLocation()
         {
-            var fileName = string.Join("-", GetName().Split(Path.GetInvalidFileNameChars())).Replace('$', '-');
+            var fileName = string.Join("-", CppName().Split(Path.GetInvalidFileNameChars())).Replace('$', '-');
             if (DeclaringType != null)
                 return DeclaringType.GetIncludeLocation() + "_" + fileName;
             // Splits multiple namespaces into nested directories
-            var directory = string.Join("-", string.Join("/", GetNamespace().Split(new string[] { "::" }, StringSplitOptions.RemoveEmptyEntries)).Split(Path.GetInvalidPathChars()));
+            var directory = string.Join("-", string.Join("/", CppNamespace().Split(new string[] { "::" }, StringSplitOptions.RemoveEmptyEntries)).Split(Path.GetInvalidPathChars()));
             return directory + "/" + fileName;
         }
 
         public override string ToString()
         {
-            var ret = GetNamespace() + "::" + GetName();
+            var ret = CppNamespace() + "::" + CppName();
             if (IsGeneric)
                 ret += "<" + string.Join(", ", Generics) + ">";
             return ret;

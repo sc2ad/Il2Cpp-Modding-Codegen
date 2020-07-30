@@ -77,9 +77,9 @@ namespace Il2CppModdingCodegen.Serialization
             {
                 if (g.DeclaringType != type.This)
                     continue;
-                var constraintStrs = g.GenericParameterConstraints.Select(c => context.GetCppName(c, true) ?? c.GetName()).ToList();
+                var constraintStrs = g.GenericParameterConstraints.Select(c => context.GetCppName(c, true) ?? c.CppName()).ToList();
                 if (constraintStrs.Count > 0)
-                    s.genParamConstraints.Add(context.GetCppName(g, false) ?? g.GetName(), constraintStrs);
+                    s.genParamConstraints.Add(context.GetCppName(g, false) ?? g.CppName(), constraintStrs);
             }
 
             map.Add(type.This, s);

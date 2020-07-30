@@ -122,7 +122,7 @@ namespace Il2CppModdingCodegen.Serialization
                 foreach (var td in context.DeclarationsToMake)
                 {
                     // Stratify by namespace
-                    var ns = td.GetNamespace();
+                    var ns = td.CppNamespace();
                     if (forwardDeclares.TryGetValue(ns, out var set))
                         set.Add(td);
                     else
@@ -158,14 +158,14 @@ namespace Il2CppModdingCodegen.Serialization
                         // Ideally, this means that for a given type, if we find a cycle, we need to remove an include that our type was performing in order to fix it.
                         // TODO: Basically read this
                         allGood = false;
-                        Console.Error.WriteLine($"Cannot add definition: {newDef} from context {newContext.LocalType.This} to context: {context.LocalType.This} because it is the same type!\nDefinitions to get: ({string.Join(", ", context.DefinitionsToGet.Select(d => d.GetQualifiedName()))})");
+                        Console.Error.WriteLine($"Cannot add definition: {newDef} from context {newContext.LocalType.This} to context: {context.LocalType.This} because it is the same type!\nDefinitions to get: ({string.Join(", ", context.DefinitionsToGet.Select(d => d.GetQualifiedCppName()))})");
                         // DuplicateDefinition?.Invoke(this, context, newDef);
                     }
                     else if (context.HasInNestedHierarchy(newDef))
                     {
                         allGood = false;
                         // Cannot include something that claims to define our nested type!
-                        Console.Error.WriteLine($"Cannot add definition: {newDef} from context {newContext.LocalType.This} to context: {context.LocalType.This} because it is a nested type of the context!\nDefinitions to get: ({string.Join(", ", context.DefinitionsToGet.Select(d => d.GetQualifiedName()))})");
+                        Console.Error.WriteLine($"Cannot add definition: {newDef} from context {newContext.LocalType.This} to context: {context.LocalType.This} because it is a nested type of the context!\nDefinitions to get: ({string.Join(", ", context.DefinitionsToGet.Select(d => d.GetQualifiedCppName()))})");
                     }
 
             if (allGood)
@@ -184,14 +184,14 @@ namespace Il2CppModdingCodegen.Serialization
             {
                 // If the type being resolved is generic, we must template it.
                 var genericStr = CppTypeContext.GetTemplateLine(typeData);
-                writer.WriteComment(comment + "<" + string.Join(", ", resolved.Generics.Select(tr => tr.GetName())) + ">");
+                writer.WriteComment(comment + "<" + string.Join(", ", resolved.Generics.Select(tr => tr.CppName())) + ">");
                 if (!string.IsNullOrEmpty(genericStr))
                     writer.WriteLine(genericStr);
             }
             else
                 writer.WriteComment(comment);
             // Write forward declarations
-            writer.WriteDeclaration(typeData.Type.TypeName() + " " + resolved.GetName());
+            writer.WriteDeclaration(typeData.Type.TypeName() + " " + resolved.CppName());
         }
 
         private void WriteIncludes(CppStreamWriter writer, CppTypeContext context, HashSet<CppTypeContext> defs, bool asHeader)
@@ -285,7 +285,7 @@ namespace Il2CppModdingCodegen.Serialization
         /// <param name="nested"></param>
         private static void AddNestedDeclare(CppStreamWriter writer, CppTypeContext nested)
         {
-            var comment = "Nested type: " + nested.LocalType.This.GetQualifiedName();
+            var comment = "Nested type: " + nested.LocalType.This.GetQualifiedCppName();
             var typeStr = nested.LocalType.Type.TypeName();
             if (nested.LocalType.This.IsGenericTemplate)
             {
@@ -298,7 +298,7 @@ namespace Il2CppModdingCodegen.Serialization
             }
             else
                 writer.WriteComment(comment);
-            writer.WriteDeclaration(typeStr + " " + nested.LocalType.This.GetName());
+            writer.WriteDeclaration(typeStr + " " + nested.LocalType.This.CppName());
         }
 
         private void WriteNamespacedMethods(CppStreamWriter writer, CppTypeContext context, bool asHeader)

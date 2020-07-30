@@ -11,8 +11,6 @@ namespace Il2CppModdingCodegen.Data.DumpHandling
         public override string Namespace { get; } = string.Empty;
         public override string Name { get; }
 
-        public override bool IsGenericParameter => throw new NotImplementedException();
-        public override bool IsCovariant { get => throw new NotImplementedException(); set => throw new NotImplementedException(); }
         public override bool IsGenericInstance { get; }
         public override bool IsGenericTemplate { get; }
         public override IReadOnlyList<TypeRef> Generics { get; }
@@ -40,7 +38,7 @@ namespace Il2CppModdingCodegen.Data.DumpHandling
             ElementType = other.ElementType;
         }
 
-        public override TypeRef MakePointer() => new DumpTypeRef(this, this.Name + "*");
+        public override TypeRef MakePointer() => new DumpTypeRef(this, Name + "*");
 
         /// <summary>
         /// For use with text dumps. Takes a given split array that contains a type at index ind and
@@ -97,7 +95,7 @@ namespace Il2CppModdingCodegen.Data.DumpHandling
                         s += ", " + spl[i];
                         i++;
                     }
-                    // TODO: if this DumpTypeRef is the This for a DumpTypeData, mark these IsGenericParameter, and if they are "out ", mark IsCovariant
+                    // TODO: if this DumpTypeRef is the This for a DumpTypeData, mark these IsGenericParameter. "out" is not in dump.cs.
                     GenericTypes.Add(new DumpTypeRef(s));
                 }
             }

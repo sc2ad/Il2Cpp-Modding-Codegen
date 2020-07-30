@@ -19,7 +19,7 @@ namespace Il2CppModdingCodegen.Data.DllHandling
         public override string Name { get => _name; }
 
         public override bool IsGenericParameter { get => This.IsGenericParameter; }
-        public override bool IsCovariant { get; set; }
+        public override bool IsCovariant { get; }
         public override IReadOnlyList<TypeRef> GenericParameterConstraints { get; } = new List<TypeRef>();
         public override bool IsGenericInstance { get => This.IsGenericInstance; }
         public override bool IsGenericTemplate { get => This.HasGenericParameters; }

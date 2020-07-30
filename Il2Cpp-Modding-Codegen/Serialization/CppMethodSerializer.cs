@@ -185,7 +185,7 @@ namespace Il2CppModdingCodegen.Serialization
             {
                 var tName = method.Name.Substring(idxDot + 1);
                 var implementedFrom = method.ImplementedFrom ?? throw new InvalidOperationException("Tried to construct name from null ImplementedFrom!");
-                name = implementedFrom.GetQualifiedName().Replace("::", "_") + "_" + tName;
+                name = implementedFrom.GetQualifiedCppName().Replace("::", "_") + "_" + tName;
                 fullName = true;
             }
             else
@@ -332,9 +332,9 @@ namespace Il2CppModdingCodegen.Serialization
                     }
                     generics.Add(s);
 
-                    var constraintStrs = g.GenericParameterConstraints.Select(c => context.GetCppName(c, true) ?? c.GetName()).ToList();
+                    var constraintStrs = g.GenericParameterConstraints.Select(c => context.GetCppName(c, true) ?? c.CppName()).ToList();
                     if (constraintStrs.Count > 0)
-                        genParamConstraints.Add(context.GetCppName(g, false) ?? g.GetName(), constraintStrs);
+                        genParamConstraints.Add(context.GetCppName(g, false) ?? g.CppName(), constraintStrs);
                 }
                 _genericArgs.Add(method, generics);
                 _genParamConstraints.Add(method, genParamConstraints);
