@@ -111,7 +111,6 @@ namespace Il2CppModdingCodegen.Serialization
 
         // The int is the number of generic parameters that the method has
         private readonly Dictionary<int, HashSet<(TypeRef, bool, string)>> _signatures = new Dictionary<int, HashSet<(TypeRef, bool, string)>>();
-        private bool _ignoreSignatureMap;
         private readonly HashSet<IMethod> _aborted = new HashSet<IMethod>();
 
         // Holds a mapping of IMethod to the name, as well as if the name has been specifically converted already.
@@ -428,7 +427,7 @@ namespace Il2CppModdingCodegen.Serialization
 
             if (!_signatures.ContainsKey(method.GenericParameters.Count))
                 _signatures[method.GenericParameters.Count] = new HashSet<(TypeRef, bool, string)>();
-            if (!_ignoreSignatureMap && !_signatures[method.GenericParameters.Count].Add((method.DeclaringType, isHeader, signature)))
+            if (!_signatures[method.GenericParameters.Count].Add((method.DeclaringType, isHeader, signature)))
             {
                 if (_config.DuplicateMethodExceptionHandling == DuplicateMethodExceptionHandling.DisplayInFile)
                     preRetStr = "// ABORTED: conflicts with another method. " + preRetStr;
@@ -490,8 +489,6 @@ namespace Il2CppModdingCodegen.Serialization
         {
             if (writer is null) throw new ArgumentNullException(nameof(writer));
             if (method is null) throw new ArgumentNullException(nameof(method));
-            if (_asHeader && !asHeader)
-                _ignoreSignatureMap = true;
             _asHeader = asHeader;
             if (!_resolvedReturns.ContainsKey(method))
                 // In the event we have decided to not parse this method (in PreSerialize) don't even bother.
@@ -506,7 +503,7 @@ namespace Il2CppModdingCodegen.Serialization
                 if (container.TypeName(asHeader) is null && !method.Parameters[i].Type.IsGenericParameter)
                     throw new UnresolvedTypeException(method.DeclaringType, method.Parameters[i].Type);
             }
-            if (IgnoredMethods.Contains(method.Il2CppName) || _config.BlacklistMethods.Contains(method.Il2CppName) || _aborted.Contains(method))
+            if (IgnoredMethods.Contains(method.Il2CppName) || _config.BlacklistMethods.Contains(method.Il2CppName))
                 return;
             if (!_asHeader && NeedDefinitionInHeader(method))
                 // Need to create the method ENTIRELY in the header, instead of split between the C++ and the header
@@ -652,7 +649,10 @@ namespace Il2CppModdingCodegen.Serialization
                             var methodStr = WriteMethod(scope, method, asHeader, pair.Item1);
                             if (TemplateString(method, true, out var templateStr))
                                 writer.WriteLine((methodStr.StartsWith("/") ? "// " : "") + templateStr);
-                            writer.WriteDeclaration(methodStr);
+                            if (methodStr.StartsWith("/"))
+                                writer.WriteComment($"Skipping redundant proxy method: {pair.Item1}");
+                            else
+                                writer.WriteDeclaration(methodStr);
                         }
                         else
                         {
@@ -663,6 +663,9 @@ namespace Il2CppModdingCodegen.Serialization
                             if (methodStr.StartsWith("/"))
                             {
                                 // Comment failures
+                                // If we encounter a redundant proxy method, we will continue to print "ABORTED"
+                                // We will additionally provide information stating that this method was a redundant proxy
+                                writer.WriteComment("Redundant proxy method!");
                                 writer.WriteLine(methodStr);
                                 continue;
                             }
