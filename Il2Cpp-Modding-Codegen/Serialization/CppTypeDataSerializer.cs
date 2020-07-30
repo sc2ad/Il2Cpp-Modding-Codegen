@@ -4,6 +4,7 @@ using System;
 using System.Collections.Generic;
 using System.Data;
 using System.Linq;
+using System.Text.RegularExpressions;
 
 namespace Il2CppModdingCodegen.Serialization
 {
@@ -253,10 +254,13 @@ namespace Il2CppModdingCodegen.Serialization
                     string ret;
                     if (constraintType.TrimEnd('*') == "System::ValueType")
                         ret = $"is_value_type_v<{p.Key}>";
+                    else if (Regex.IsMatch(constraintType, "::I[A-Z]")) // TODO: use actual interface checking
+                        // note: because of the "inaccessible base" issue caused by lack of virtual inheritance, it may not be convertible to Iface*
+                        ret = $"std::is_base_of_v<{constraintType.TrimEnd('*')}, std::remove_pointer_t<{p.Key}>>";
                     else
                         ret = $"std::is_convertible_v<{p.Key}, {constraintType}>";
                     if (forTypeDef)
-                        ret = $"({ret} || !std::is_complete_v<std::remove_pointer_t<{p.Key}>>)";
+                        ret = $"(!std::is_complete_v<std::remove_pointer_t<{p.Key}>> || {ret})";
                     return ret;
                 }
                 constraintStrs = p.Value.Select(ToConstraintString);

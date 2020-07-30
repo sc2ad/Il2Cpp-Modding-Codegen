@@ -209,7 +209,16 @@ namespace Il2CppModdingCodegen.Serialization
                 if (includesWritten.Add("optional"))
                     writer.WriteLine("#include <optional>");
 
-            foreach (var include in defs)
+            if (context.LocalType.This.Namespace == "System" && context.LocalType.This.Name == "ValueType")
+                // Special case for System.ValueType
+                if (includesWritten.Add("System/Object.hpp"))
+                    writer.WriteInclude("System/Object.hpp");
+
+            // I don't know why, but this seems to be what we need for type completion in templates
+            var isDescriptor = defs.ToLookup(c => c.LocalType.This.Name.EndsWith("Descriptor"));
+            var includes = isDescriptor[true].ToList();
+            includes.AddRange(isDescriptor[false]);
+            foreach (var include in includes)
             {
                 writer.WriteComment("Including type: " + include.LocalType.This);
                 // Using the HeaderFileName property of the include here will automatically use the lowest non-InPlace type
@@ -219,10 +228,6 @@ namespace Il2CppModdingCodegen.Serialization
                 else
                     writer.WriteComment("Already included the same include: " + incl);
             }
-            if (context.LocalType.This.Namespace == "System" && context.LocalType.This.Name == "ValueType")
-                // Special case for System.ValueType
-                if (includesWritten.Add("System/Object.hpp"))
-                    writer.WriteInclude("System/Object.hpp");
 
             // Overall il2cpp-utils include
             if (asHeader)
