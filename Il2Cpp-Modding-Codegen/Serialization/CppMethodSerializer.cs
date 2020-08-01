@@ -318,6 +318,9 @@ namespace Il2CppModdingCodegen.Serialization
             var resolved = context.ResolveAndStore(method.DeclaringType, CppTypeContext.ForceAsType.Literal, CppTypeContext.NeedAs.Definition);
             _declaringIsValueType = resolved?.Info.Refness == Refness.ValueType;
 
+            if (NeedDefinitionInHeader(method))
+                context.EnableNeedIl2CppUtilsBeforeLateHeader();
+
             if (method.Generic)
             {
                 var generics = new List<string>();
@@ -578,46 +581,36 @@ namespace Il2CppModdingCodegen.Serialization
                         paramNames = ", " + paramNames;
                     var newObject = $"il2cpp_utils::New({classArgs}{paramNames})";
                     // TODO: Make this configurable
-                    writer.WriteDeclaration($"return ({typeName})CRASH_UNLESS({newObject})");
+                    writer.WriteDeclaration($"return ({typeName}){_config.MacroWrap(newObject, true)}");
                     writer.CloseDefinition();
                 }
                 else
                 {
                     var s = "";
                     var innard = "";
-                    var macro = "RET_V_UNLESS(";
-                    if (_config.OutputStyle == OutputStyle.CrashUnless)
-                        macro = "CRASH_UNLESS(";
+                    bool isReturn = false;
                     if (!method.ReturnType.IsVoid())
                     {
                         s = "return ";
                         innard = $"<{_resolvedReturns[method].TypeName(asHeader)}>";
-                        if (_config.OutputStyle != OutputStyle.CrashUnless) macro = "";
+                        isReturn = true;
                     }
 
-                    var macroEnd = string.IsNullOrEmpty(macro) ? "" : ")";
-                    if (!string.IsNullOrEmpty(macro) && innard.Contains(","))
-                    {
-                        macro += "(";
-                        macroEnd += ")";
-                    }
-
-                    // TODO: Replace with RET_NULLOPT_UNLESS or another equivalent (perhaps literally just the ret)
                     var utilFunc = method.Generic ? "RunGenericMethod" : "RunMethod";
-                    s += $"{macro}il2cpp_utils::{utilFunc}{innard}(";
+                    var call = $"il2cpp_utils::{utilFunc}{innard}(";
                     if (scope == MethodScope.Class)
-                        s += (_declaringIsValueType ? "*" : "") + $"this, ";
+                        call += (_declaringIsValueType ? "*" : "") + $"this, ";
                     else
                         // TODO: Check to ensure this works with non-generic methods in a generic type
-                        s += $"{classArgs}, ";
+                        call += $"{classArgs}, ";
 
                     var paramString = method.Parameters.FormatParameters(_config.IllegalNames, _parameterMaps[method], FormatParameterMode.Names);
                     if (!string.IsNullOrEmpty(paramString))
                         paramString = ", " + paramString;
                     // Macro string should use Il2CppName (of course, without _, $ replacement)
-                    s += $"\"{method.Il2CppName}\"{genTypesList}{paramString}){macroEnd};";
+                    call += $"\"{method.Il2CppName}\"{genTypesList}{paramString})";
                     // Write method with return
-                    writer.WriteLine(s);
+                    writer.WriteDeclaration(s + _config.MacroWrap(call, isReturn));
                     // Close method
                     writer.CloseDefinition();
                 }

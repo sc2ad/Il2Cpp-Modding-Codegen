@@ -14,8 +14,9 @@ namespace Il2CppModdingCodegen.Serialization
     public class CppContextSerializer
     {
         private readonly ITypeCollection _collection;
-        private readonly Dictionary<CppTypeContext, (HashSet<CppTypeContext>, Dictionary<string, HashSet<TypeRef>>)> _headerContextMap = new Dictionary<CppTypeContext, (HashSet<CppTypeContext>, Dictionary<string, HashSet<TypeRef>>)>();
-        private readonly Dictionary<CppTypeContext, (HashSet<CppTypeContext>, Dictionary<string, HashSet<TypeRef>>)> _sourceContextMap = new Dictionary<CppTypeContext, (HashSet<CppTypeContext>, Dictionary<string, HashSet<TypeRef>>)>();
+        class ContextMap : Dictionary<CppTypeContext, (HashSet<CppTypeContext>, Dictionary<string, HashSet<TypeRef>>, HashSet<string>)> { }
+        private readonly ContextMap _headerContextMap = new ContextMap();
+        private readonly ContextMap _sourceContextMap = new ContextMap();
         private readonly SerializationConfig _config;
 
         // Hold a type serializer to use for type serialization
@@ -129,7 +130,10 @@ namespace Il2CppModdingCodegen.Serialization
                         forwardDeclares.Add(ns, new HashSet<TypeRef> { td });
                 }
             }
-            _contextMap.Add(context, (includes, forwardDeclares));
+
+            var primitiveDeclares = (asHeader) ? context.PrimitiveDeclarations : new HashSet<string>();
+
+            _contextMap.Add(context, (includes, forwardDeclares, primitiveDeclares));
         }
 
         internal void Resolve(CppTypeContext context, Dictionary<ITypeData, CppTypeContext> map, bool asHeader)
@@ -172,6 +176,8 @@ namespace Il2CppModdingCodegen.Serialization
             {
                 defs.UnionWith(newContext.Definitions);
                 includesOfType.Add(newContext);
+                if (newContext.NeedPrimitivesBeforeLateHeader)
+                    context.EnableNeedPrimitivesBeforeLateHeader();
             }
             return allGood;
         }
@@ -199,10 +205,14 @@ namespace Il2CppModdingCodegen.Serialization
             // Write includes
             var includesWritten = new HashSet<string>();
             writer.WriteComment("Begin includes");
-            if (context.NeedPrimitives)
+            if (context.NeedPrimitivesBeforeLateHeader || (!asHeader && context.PrimitiveDeclarations.Count > 0))
+            {
                 // Primitives include
                 if (includesWritten.Add("utils/typedefs.h"))
                     writer.WriteInclude("utils/typedefs.h");
+            }
+            else if (context.NeedStdint && includesWritten.Add("stdint.h"))
+                writer.WriteLine("#include <stdint.h>");
 
             if (_config.OutputStyle == OutputStyle.Normal)
                 // Optional include
@@ -232,7 +242,7 @@ namespace Il2CppModdingCodegen.Serialization
             // Overall il2cpp-utils include
             if (asHeader)
             {
-                if (includesWritten.Add("utils/il2cpp-utils.hpp"))
+                if (context.NeedIl2CppUtilsBeforeLateHeader && includesWritten.Add("utils/il2cpp-utils.hpp"))
                     writer.WriteInclude("utils/il2cpp-utils.hpp");
             }
             else if (includesWritten.Add("utils/utils.h"))
@@ -242,6 +252,7 @@ namespace Il2CppModdingCodegen.Serialization
 
         private void WriteDeclarations(CppStreamWriter writer, CppTypeContext context, Dictionary<string, HashSet<TypeRef>> declares)
         {
+            if (declares.Count <= 0) return;
             // Write forward declarations
             writer.WriteComment("Begin forward declares");
             foreach (var byNamespace in declares)
@@ -276,6 +287,21 @@ namespace Il2CppModdingCodegen.Serialization
                 writer.CloseDefinition();
             }
             writer.WriteComment("Completed forward declares");
+        }
+
+        private static void WritePrimitiveForwardDeclaration(CppStreamWriter writer, string primitive)
+        {
+            writer.WriteDeclaration("struct " + primitive);
+        }
+
+        private static void WritePrimitiveDeclarations(CppStreamWriter writer, CppTypeContext context, HashSet<string> declares)
+        {
+            if (declares.Count <= 0 || context.NeedPrimitivesBeforeLateHeader) return;
+            // Write forward declarations
+            writer.WriteComment("Begin il2cpp-utils forward declares");
+            foreach (var primitive in declares)
+                writer.WriteDeclaration(primitive);
+            writer.WriteComment("Completed il2cpp-utils forward declares");
         }
 
         /// <summary>
@@ -319,7 +345,11 @@ namespace Il2CppModdingCodegen.Serialization
             if (!asHeader || !context.InPlace || context.DeclaringContext is null)
             {
                 WriteIncludes(writer, context, defsAndDeclares.Item1, asHeader);
-                if (asHeader) WriteDeclarations(writer, context, defsAndDeclares.Item2);
+                if (asHeader)
+                {
+                    WriteDeclarations(writer, context, defsAndDeclares.Item2);
+                    WritePrimitiveDeclarations(writer, context, defsAndDeclares.Item3);
+                }
             }
 
             // We need to start by actually WRITING our type here. This includes the first portion of our writing, including the header.

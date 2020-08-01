@@ -17,6 +17,14 @@ namespace Il2CppModdingCodegen.Serialization
             _serializer = serializer;
         }
 
+        private bool hasIl2CppUtilsInclude;
+        private void IncludeIl2CppUtilsIfNotAlready(CppStreamWriter writer)
+        {
+            if (hasIl2CppUtilsInclude) return;
+            writer.WriteInclude("utils/il2cpp-utils.hpp");
+            hasIl2CppUtilsInclude = true;
+        }
+
         // Outputs a DEFINE_IL2CPP_ARG_TYPE call for all root or non-generic types defined by this file
         private void DefineIl2CppArgTypes(CppStreamWriter writer, CppTypeContext context)
         {
@@ -26,6 +34,7 @@ namespace Il2CppModdingCodegen.Serialization
             // For Name and Namespace here, we DO want all the `, /, etc
             if (!type.This.IsGeneric)
             {
+                IncludeIl2CppUtilsIfNotAlready(writer);
                 string fullName = context.GetCppName(context.LocalType.This, true, true, CppTypeContext.NeedAs.Definition, CppTypeContext.ForceAsType.Literal)
                     ?? throw new UnresolvedTypeException(context.LocalType.This, context.LocalType.This);
                 if (context.LocalType.Info.Refness == Refness.ReferenceType) fullName += "*";
@@ -33,11 +42,13 @@ namespace Il2CppModdingCodegen.Serialization
             }
             else if (type.This.DeclaringType is null || !type.This.DeclaringType.IsGeneric)
             {
+                IncludeIl2CppUtilsIfNotAlready(writer);
                 string templateName = context.GetCppName(context.LocalType.This, true, false, CppTypeContext.NeedAs.Declaration, CppTypeContext.ForceAsType.Literal)
                     ?? throw new UnresolvedTypeException(context.LocalType.This, context.LocalType.This);
                 var structStr = context.LocalType.Info.Refness == Refness.ReferenceType ? "CLASS" : "STRUCT";
                 writer.WriteLine($"DEFINE_IL2CPP_ARG_TYPE_GENERIC_{structStr}({templateName}, \"{ns}\", \"{il2cppName}\");");
             }
+
             foreach (var nested in context.NestedContexts.Where(n => n.InPlace))
                 DefineIl2CppArgTypes(writer, nested);
         }
@@ -78,9 +89,11 @@ namespace Il2CppModdingCodegen.Serialization
             }
             // End the namespace
             writer.CloseDefinition();
+            hasIl2CppUtilsInclude = context.NeedIl2CppUtilsBeforeLateHeader;
 
             if (data.This.Namespace == "System" && data.This.Name == "ValueType")
             {
+                IncludeIl2CppUtilsIfNotAlready(writer);
                 writer.WriteLine("template<class T>");
                 writer.WriteLine("struct is_value_type<T, typename std::enable_if_t<std::is_base_of_v<System::ValueType, T>>> : std::true_type{};");
             }

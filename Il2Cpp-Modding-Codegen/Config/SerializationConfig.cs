@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
+using System.Text.RegularExpressions;
 
 namespace Il2CppModdingCodegen.Config
 {
@@ -61,6 +62,21 @@ namespace Il2CppModdingCodegen.Config
         /// How to output the created methods
         /// </summary>
         public OutputStyle OutputStyle { get; set; }
+        public string MacroWrap(string toWrap, bool isReturn)
+        {
+            if (toWrap is null) throw new ArgumentNullException(nameof(toWrap));
+            string parenWrapped = Regex.IsMatch(toWrap, @"<.*,.*>") ? $"({toWrap})" : toWrap;
+            switch(OutputStyle)
+            {
+                case OutputStyle.CrashUnless:
+                    return $"CRASH_UNLESS({parenWrapped})";
+                case OutputStyle.ThrowUnless:
+                    return $"THROW_UNLESS({parenWrapped})";
+                default:
+                    if (isReturn) return toWrap;
+                    return $"RET_V_UNLESS({parenWrapped})";
+            }
+        }
 
         /// <summary>
         /// How to handle unresolved type exceptions
@@ -162,7 +178,8 @@ namespace Il2CppModdingCodegen.Config
     public enum OutputStyle
     {
         Normal,
-        CrashUnless
+        CrashUnless,
+        ThrowUnless
     }
 
     public enum UnresolvedTypeExceptionHandling

@@ -3,6 +3,7 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics.Contracts;
 using System.Linq;
+using System.Text.RegularExpressions;
 
 namespace Il2CppModdingCodegen.Serialization
 {
@@ -24,6 +25,7 @@ namespace Il2CppModdingCodegen.Serialization
         }
 
         // Declarations that should be made by our includes (DefinitionsToGet)
+        internal HashSet<string> PrimitiveDeclarations { get; } = new HashSet<string>();
         internal HashSet<TypeRef> Declarations { get; } = new HashSet<TypeRef>();
         internal HashSet<TypeRef> DeclarationsToMake { get; } = new HashSet<TypeRef>();
         internal HashSet<TypeRef> Definitions { get; } = new HashSet<TypeRef>();
@@ -55,7 +57,13 @@ namespace Il2CppModdingCodegen.Serialization
         /// <summary>
         /// Returns true if this context uses primitive il2cpp types.
         /// </summary>
-        internal bool NeedPrimitives { get; private set; }
+        internal bool NeedPrimitivesBeforeLateHeader { get; private set; } = false;
+        internal void EnableNeedPrimitivesBeforeLateHeader() => NeedPrimitivesBeforeLateHeader = true;
+
+        // whether the header will need to include il2cpp_utils before the DEFINE_IL2CPP_ARG_TYPEs
+        internal bool NeedIl2CppUtilsBeforeLateHeader { get; private set; } = false;
+        internal void EnableNeedIl2CppUtilsBeforeLateHeader() => NeedIl2CppUtilsBeforeLateHeader = true;
+        internal bool NeedStdint { get; private set; } = false;
 
         // Holds generic types (ex: T1, T2, ...) defined by the type
         private readonly HashSet<TypeRef> _genericTypes = new HashSet<TypeRef>(TypeRef.fastComparer);
@@ -488,7 +496,6 @@ namespace Il2CppModdingCodegen.Serialization
 
         // We only need a declaration for the element type (if we aren't needed as a definition)
         private static NeedAs NeedAsForPrimitiveEtype(NeedAs needAs) => needAs == NeedAs.Definition ? needAs : NeedAs.Declaration;
-
         private string? ConvertPrimitive(TypeRef def, ForceAsType forceAs, NeedAs needAs)
         {
             string? s = null;
@@ -536,12 +543,21 @@ namespace Il2CppModdingCodegen.Serialization
             if (s.StartsWith("Il2Cpp") || s.StartsWith("Array<"))
             {
                 bool defaultPtr = (s != "Il2CppChar");
+
+                if (!defaultPtr)
+                    EnableNeedPrimitivesBeforeLateHeader();
+                else if (s.Contains("<"))
+                    PrimitiveDeclarations.Add("template<class T>\nstruct " + Regex.Replace(s, "<.*>", ""));
+                else
+                    PrimitiveDeclarations.Add("struct " + s);
+
                 s = "::" + s;
                 // For Il2CppTypes, should refer to type as :: to avoid ambiguity
                 if (forceAs != ForceAsType.Literal && defaultPtr)
                     s += "*";
-                NeedPrimitives = true;
             }
+            else if (s.EndsWith("_t"))
+                NeedStdint = true;
             return s;
         }
     }
