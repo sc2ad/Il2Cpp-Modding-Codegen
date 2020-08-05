@@ -46,7 +46,8 @@ TARGET_ARCH_ABI := $(APP_ABI)
 rwildcard=$(wildcard $1$2) $(foreach d,$(wildcard $1*),$(call rwildcard,$d/,$2))
 ";
 
-        private TextWriter? _stream;
+        private string? _filePath;
+        private StreamWriter? _stream;
         private readonly SerializationConfig _config;
 
         internal AndroidMkSerializer(SerializationConfig config)
@@ -56,9 +57,8 @@ rwildcard=$(wildcard $1$2) $(foreach d,$(wildcard $1*),$(call rwildcard,$d/,$2))
 
         internal void WriteHeader(string filename)
         {
-            if (File.Exists(filename))
-                File.Delete(filename);
-            _stream = new StreamWriter(File.OpenWrite(filename));
+            _filePath = filename;
+            _stream = new StreamWriter(new MemoryStream());
             _stream.WriteLine(HeaderString);
         }
 
@@ -192,7 +192,17 @@ rwildcard=$(wildcard $1$2) $(foreach d,$(wildcard $1*),$(call rwildcard,$d/,$2))
             // If we find that this is too long, recurse until we are small enough
         }
 
-        public void Close() => _stream?.Close();
+        public void Close()
+        {
+            if (_filePath != null && _stream != null)
+            {
+                _stream.Flush();
+                CppStreamWriter.WriteIfDifferent(_filePath, _stream.BaseStream);
+            }
+            else
+                Console.Error.WriteLine("Closing AndroidMkSerializer without writing anything!");
+            _stream?.Dispose();
+        }
         public void Dispose() => Close();
     }
 }

@@ -83,24 +83,32 @@ namespace Il2CppModdingCodegen.Serialization
             if (!Written.Add(Path.GetFullPath(filePath)))
                 throw new InvalidOperationException($"Was about to overwrite existing file: {filePath} with context: {context.LocalType.This}");
 
+            if (WriteIfDifferent(filePath, rawWriter.BaseStream))
+                NumChangedFiles++;
+        }
+
+        internal static bool WriteIfDifferent(string filePath, Stream stream)
+        {
             using var file = File.Open(filePath, FileMode.OpenOrCreate, FileAccess.ReadWrite);
             file.Seek(0, SeekOrigin.Begin);
-            rawWriter.BaseStream.Position = 0;
+            stream.Position = 0;
             int a = 0, b = 0;
+            bool ret = false;
             while (a != -1 && b != -1)
-                if ((a = file.ReadByte()) != (b = rawWriter.BaseStream.ReadByte()))
+                if ((a = file.ReadByte()) != (b = stream.ReadByte()))
                 {
-                    NumChangedFiles++;
+                    ret = true;
                     if (a != -1) file.Position -= 1;
                     if (b != -1)
                     {
-                        rawWriter.BaseStream.Position -= 1;
-                        rawWriter.BaseStream.CopyTo(file);
+                        stream.Position -= 1;
+                        stream.CopyTo(file);
                     }
                     break;
                 }
             file.Flush();
             file.SetLength(file.Position);
+            return ret;
         }
 
         internal static void DeleteUnwrittenFiles()
