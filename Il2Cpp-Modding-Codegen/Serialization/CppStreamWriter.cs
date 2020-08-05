@@ -89,25 +89,32 @@ namespace Il2CppModdingCodegen.Serialization
 
         internal static bool WriteIfDifferent(string filePath, Stream stream)
         {
-            using var file = File.Open(filePath, FileMode.OpenOrCreate, FileAccess.ReadWrite);
-            file.Seek(0, SeekOrigin.Begin);
             stream.Position = 0;
-            int a = 0, b = 0;
             bool ret = false;
-            while (a != -1 && b != -1)
-                if ((a = file.ReadByte()) != (b = stream.ReadByte()))
-                {
-                    ret = true;
-                    if (a != -1) file.Position -= 1;
-                    if (b != -1)
+            long positionOfDifference = 0;
+            using (var fileRead = File.Open(filePath, FileMode.OpenOrCreate, FileAccess.Read))
+            {
+                int a = 0, b = 0;
+                while (a != -1 && b != -1)
+                    if ((a = fileRead.ReadByte()) != (b = stream.ReadByte()))
                     {
-                        stream.Position -= 1;
-                        stream.CopyTo(file);
+                        ret = true;
+                        if (a != -1) fileRead.Position -= 1;
+                        if (b != -1) stream.Position -= 1;
+                        if (fileRead.Position != stream.Position)
+                            throw new Exception("WriteIfDifferent file position logic is wrong!");
+                        positionOfDifference = fileRead.Position;
+                        break;
                     }
-                    break;
-                }
-            file.Flush();
-            file.SetLength(file.Position);
+            }
+            if (ret)
+            {
+                using var fileWrite = File.OpenWrite(filePath);
+                fileWrite.Seek(positionOfDifference, SeekOrigin.Begin);
+                stream.CopyTo(fileWrite);
+                fileWrite.Flush();
+                fileWrite.SetLength(fileWrite.Position);
+            }
             return ret;
         }
 
