@@ -33,8 +33,16 @@ namespace Il2CppModdingCodegen.Serialization
         /// <param name="types"></param>
         public CppDataSerializer(SerializationConfig config, ITypeCollection types)
         {
+            if (config is null) throw new ArgumentNullException(nameof(config));
             _collection = types;
             _config = config;
+            CppStreamWriter.PopulateExistingFiles(Path.Combine(config.OutputDirectory, config.OutputHeaderDirectory));
+            CppStreamWriter.PopulateExistingFiles(Path.Combine(config.OutputDirectory, config.OutputSourceDirectory));
+
+            //if (Directory.Exists(Path.Combine(config.OutputDirectory, config.OutputHeaderDirectory)))
+            //    Directory.Delete(Path.Combine(config.OutputDirectory, config.OutputHeaderDirectory), true);
+            //if (Directory.Exists(Path.Combine(config.OutputDirectory, config.OutputSourceDirectory)))
+            //    Directory.Delete(Path.Combine(config.OutputDirectory, config.OutputSourceDirectory), true);
         }
 
         private CppTypeContext CreateContext(ITypeData t, CppTypeContext? declaring)
@@ -153,6 +161,7 @@ namespace Il2CppModdingCodegen.Serialization
                 }
                 new CppSourceCreator(_config, _contextSerializer).Serialize(pair.Value);
             }
+            CppStreamWriter.DeleteUnwrittenFiles();
 
             // After all static libraries are created, aggregate them all and collpase them into a single Android.mk file.
             // As a double check, doing a ctrl-f for any given id in the Android.mk should net two results: Where it is created and where it is aggregated.

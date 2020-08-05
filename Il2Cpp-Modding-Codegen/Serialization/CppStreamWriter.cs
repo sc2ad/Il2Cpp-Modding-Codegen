@@ -1,5 +1,8 @@
-﻿using System.CodeDom.Compiler;
+﻿using System;
+using System.CodeDom.Compiler;
+using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 
 namespace Il2CppModdingCodegen.Serialization
 {
@@ -8,9 +11,10 @@ namespace Il2CppModdingCodegen.Serialization
     /// </summary>
     public class CppStreamWriter : IndentedTextWriter
     {
-        internal CppStreamWriter(TextWriter writer) : base(writer) { }
+        private readonly StreamWriter rawWriter;
+        internal CppStreamWriter(StreamWriter writer) : base(writer) { rawWriter = writer; }
 
-        internal CppStreamWriter(TextWriter writer, string tabString) : base(writer, tabString) { }
+        internal CppStreamWriter(StreamWriter writer, string tabString) : base(writer, tabString) { rawWriter = writer; }
 
         /// <summary>
         /// Write a single line comment
@@ -58,6 +62,52 @@ namespace Il2CppModdingCodegen.Serialization
         {
             Indent--;
             WriteLine("}" + suffix);
+        }
+
+        private static HashSet<string> ExistingFiles { get; set; } = new HashSet<string>();
+        internal static void PopulateExistingFiles(string dir)
+        {
+            var options = new EnumerationOptions
+            {
+                RecurseSubdirectories = true,
+                ReturnSpecialDirectories = false
+            };
+            ExistingFiles.UnionWith(Directory.EnumerateFiles(dir, "*", options));
+        }
+
+        private static HashSet<string> Written { get; set; } = new HashSet<string>();
+
+        private static long NumChangedFiles { get; set; } = 0;
+        internal void WriteIfDifferent(string filePath, CppTypeContext context)
+        {
+            if (!Written.Add(Path.GetFullPath(filePath)))
+                throw new InvalidOperationException($"Was about to overwrite existing file: {filePath} with context: {context.LocalType.This}");
+
+            using var file = File.Open(filePath, FileMode.OpenOrCreate, FileAccess.ReadWrite);
+            file.Seek(0, SeekOrigin.Begin);
+            rawWriter.BaseStream.Position = 0;
+            int a = 0, b = 0;
+            while (a != -1 && b != -1)
+                if ((a = file.ReadByte()) != (b = rawWriter.BaseStream.ReadByte()))
+                {
+                    NumChangedFiles++;
+                    if (a != -1) file.Position -= 1;
+                    if (b != -1)
+                    {
+                        rawWriter.BaseStream.Position -= 1;
+                        rawWriter.BaseStream.CopyTo(file);
+                    }
+                    break;
+                }
+            file.Flush();
+            file.SetLength(file.Position);
+        }
+
+        internal static void DeleteUnwrittenFiles()
+        {
+            ExistingFiles.Except(Written).AsParallel().ForAll(s => File.Delete(s));
+            Console.WriteLine($"Deleted {ExistingFiles.Count - Written.Count} files!");
+            Console.WriteLine($"Made changes to {NumChangedFiles} / {Written.Count} files = {NumChangedFiles / Written.Count * 100}%");
         }
     }
 }

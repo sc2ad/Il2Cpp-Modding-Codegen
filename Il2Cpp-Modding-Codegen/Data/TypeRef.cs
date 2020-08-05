@@ -161,8 +161,8 @@ namespace Il2CppModdingCodegen.Data
             if (DeclaringType != null)
                 return DeclaringType.GetIncludeLocation() + "_" + fileName;
             // Splits multiple namespaces into nested directories
-            var directory = string.Join("-", string.Join("/", CppNamespace().Split(new string[] { "::" }, StringSplitOptions.RemoveEmptyEntries)).Split(Path.GetInvalidPathChars()));
-            return directory + "/" + fileName;
+            var directory = string.Join("-", Path.Combine(CppNamespace().Split(new string[] { "::" }, StringSplitOptions.RemoveEmptyEntries)).Split(Path.GetInvalidPathChars()));
+            return Path.Combine(directory, fileName);
         }
 
         public override string ToString()

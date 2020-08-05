@@ -99,11 +99,6 @@ namespace Codegen_CLI
                 Libil2cpp = libIl2cpp
             };
 
-            if (Directory.Exists(Path.Combine(config.OutputDirectory, config.OutputHeaderDirectory)))
-                Directory.Delete(Path.Combine(config.OutputDirectory, config.OutputHeaderDirectory), true);
-            if (Directory.Exists(Path.Combine(config.OutputDirectory, config.OutputSourceDirectory)))
-                Directory.Delete(Path.Combine(config.OutputDirectory, config.OutputSourceDirectory), true);
-
             var serializer = new CppDataSerializer(config, parsed);
             Console.WriteLine("Resolving types...");
             try
