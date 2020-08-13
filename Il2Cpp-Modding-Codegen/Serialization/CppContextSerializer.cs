@@ -240,13 +240,13 @@ namespace Il2CppModdingCodegen.Serialization
             }
 
             // Overall il2cpp-utils include
-            if (asHeader)
+            if (!asHeader || context.NeedIl2CppUtilsFunctionsInHeader)
             {
-                if (context.NeedIl2CppUtilsFunctionsInHeader && includesWritten.Add("extern/beatsaber-hook/shared/utils/il2cpp-utils.hpp"))
+                if (includesWritten.Add("extern/beatsaber-hook/shared/utils/il2cpp-utils.hpp"))
                     writer.WriteInclude("extern/beatsaber-hook/shared/utils/il2cpp-utils.hpp");
+                if (includesWritten.Add("extern/beatsaber-hook/shared/utils/utils.h"))
+                    writer.WriteInclude("extern/beatsaber-hook/shared/utils/utils.h");
             }
-            else if (includesWritten.Add("extern/beatsaber-hook/shared/utils/utils.h"))
-                writer.WriteInclude("extern/beatsaber-hook/shared/utils/utils.h");
             writer.WriteComment("Completed includes");
         }
 
