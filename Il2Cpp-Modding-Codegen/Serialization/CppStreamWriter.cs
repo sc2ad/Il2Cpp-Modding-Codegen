@@ -122,7 +122,7 @@ namespace Il2CppModdingCodegen.Serialization
         {
             ExistingFiles.Except(Written).AsParallel().ForAll(s => File.Delete(s));
             Console.WriteLine($"Deleted {ExistingFiles.Count - Written.Count} files!");
-            Console.WriteLine($"Made changes to {NumChangedFiles} / {Written.Count} files = {NumChangedFiles / Written.Count * 100}%");
+            Console.WriteLine($"Made changes to {NumChangedFiles} / {Written.Count} files = {NumChangedFiles * 100.0f / Written.Count}%");
         }
     }
 }

@@ -61,8 +61,8 @@ namespace Il2CppModdingCodegen.Serialization
         internal void EnableNeedPrimitivesBeforeLateHeader() => NeedPrimitivesBeforeLateHeader = true;
 
         // whether the header will need to include il2cpp_utils before the DEFINE_IL2CPP_ARG_TYPEs
-        internal bool NeedIl2CppUtilsBeforeLateHeader { get; private set; } = false;
-        internal void EnableNeedIl2CppUtilsBeforeLateHeader() => NeedIl2CppUtilsBeforeLateHeader = true;
+        internal bool NeedIl2CppUtilsFunctionsInHeader { get; private set; } = false;
+        internal void EnableNeedIl2CppUtilsFunctionsInHeader() => NeedIl2CppUtilsFunctionsInHeader = true;
         internal bool NeedStdint { get; private set; } = false;
 
         // Holds generic types (ex: T1, T2, ...) defined by the type
@@ -87,14 +87,15 @@ namespace Il2CppModdingCodegen.Serialization
 
             // Add ourselves to our Definitions
             Definitions.Add(data.This);
+
+            // Requiring it as a definition here simply makes it easier to remove (because we are asking for a definition of ourself, which we have)
+            QualifiedTypeName = GetCppName(data.This, true, true, NeedAs.Definition, ForceAsType.Literal) ?? throw new Exception($"Could not get QualifiedTypeName for {data.This}");
+            TypeNamespace = data.This.CppNamespace();
+            TypeName = data.This.CppName();
+
             // Declaring types need to declare (or define) ALL of their nested types
             foreach (var nested in data.NestedTypes)
                 AddNestedDeclaration(nested.This, nested.This.Resolve(_types));
-
-            // Types need a definition of their parent type
-            if (data.Parent != null)
-                // If the parent is a primitive, like System::Object or something, this should still work out.
-                AddDefinition(data.Parent);
 
             // Nested types need to define their declaring type
             if (data.This.DeclaringType != null)
@@ -102,11 +103,6 @@ namespace Il2CppModdingCodegen.Serialization
 
             // Check all declaring types (and ourselves) if we have generic arguments/parameters. If we do, add them to _genericTypes.
             AddGenericTypes(data.This);
-
-            // Requiring it as a definition here simply makes it easier to remove (because we are asking for a definition of ourself, which we have)
-            QualifiedTypeName = GetCppName(data.This, true, true, NeedAs.Definition, ForceAsType.Literal) ?? throw new Exception($"Could not get QualifiedTypeName for {data.This}");
-            TypeNamespace = data.This.CppNamespace();
-            TypeName = data.This.CppName();
 
             DeclaringContext = declaring;
             if (declaring != null)
@@ -503,16 +499,16 @@ namespace Il2CppModdingCodegen.Serialization
                 // We should ensure we aren't attemping to force it to something it shouldn't be, so it should still be ForceAsType.None
                 s = $"Array<{GetCppName(def.ElementType, true, true, NeedAsForPrimitiveEtype(needAs))}>";
             else if (def.IsPointer())
-                s = GetCppName(def.ElementType, true, true, NeedAsForPrimitiveEtype(needAs)) + "*";
+                return GetCppName(def.ElementType, true, true, NeedAsForPrimitiveEtype(needAs)) + "*";
             else if (string.IsNullOrEmpty(def.Namespace) || def.Namespace == "System")
             {
                 var name = def.Name.ToLower();
                 if (name == "void")
                     s = "void";
                 else if (name == "object")
-                    s = "Il2CppObject";
+                    s = Constants.ObjectCppName;
                 else if (name == "string")
-                    s = "Il2CppString";
+                    s = Constants.StringCppName;
                 else if (name == "char")
                     s = "Il2CppChar";
                 else if (def.Name == "bool" || def.Name == "Boolean")
@@ -540,21 +536,23 @@ namespace Il2CppModdingCodegen.Serialization
             }
             if (s is null)
                 return null;
-            if (s.StartsWith("Il2Cpp") || s.StartsWith("Array<"))
+            if (s.StartsWith("Il2Cpp") || s.StartsWith("Cs") || s.StartsWith("Array<"))
             {
                 bool defaultPtr = (s != "Il2CppChar");
 
-                if (!defaultPtr)
+                if (!defaultPtr || forceAs == ForceAsType.Literal)
                     EnableNeedPrimitivesBeforeLateHeader();
-                else if (s.Contains("<"))
-                    PrimitiveDeclarations.Add("template<class T>\nstruct " + Regex.Replace(s, "<.*>", ""));
                 else
-                    PrimitiveDeclarations.Add("struct " + s);
-
-                s = "::" + s;
-                // For Il2CppTypes, should refer to type as :: to avoid ambiguity
-                if (forceAs != ForceAsType.Literal && defaultPtr)
+                {
+                    if (s.Contains("<"))
+                        PrimitiveDeclarations.Add("template<class T>\nstruct " + Regex.Replace(s, "<.*>", ""));
+                    else
+                        PrimitiveDeclarations.Add("struct " + s);
                     s += "*";
+                }
+
+                // For Il2CppTypes, should refer to type as :: to avoid ambiguity
+                s = "::" + s;
             }
             else if (s.EndsWith("_t"))
                 NeedStdint = true;

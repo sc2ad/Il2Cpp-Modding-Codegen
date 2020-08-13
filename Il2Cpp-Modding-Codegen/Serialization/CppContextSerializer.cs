@@ -176,7 +176,7 @@ namespace Il2CppModdingCodegen.Serialization
             {
                 defs.UnionWith(newContext.Definitions);
                 includesOfType.Add(newContext);
-                if (newContext.NeedPrimitivesBeforeLateHeader)
+                if (asHeader && newContext.NeedPrimitivesBeforeLateHeader)
                     context.EnableNeedPrimitivesBeforeLateHeader();
             }
             return allGood;
@@ -208,8 +208,8 @@ namespace Il2CppModdingCodegen.Serialization
             if (context.NeedPrimitivesBeforeLateHeader || (!asHeader && context.PrimitiveDeclarations.Count > 0))
             {
                 // Primitives include
-                if (includesWritten.Add("utils/typedefs.h"))
-                    writer.WriteInclude("utils/typedefs.h");
+                if (includesWritten.Add("extern/beatsaber-hook/shared/utils/typedefs.h"))
+                    writer.WriteInclude("extern/beatsaber-hook/shared/utils/typedefs.h");
             }
             else if (context.NeedStdint && includesWritten.Add("stdint.h"))
                 writer.WriteLine("#include <stdint.h>");
@@ -242,11 +242,11 @@ namespace Il2CppModdingCodegen.Serialization
             // Overall il2cpp-utils include
             if (asHeader)
             {
-                if (context.NeedIl2CppUtilsBeforeLateHeader && includesWritten.Add("utils/il2cpp-utils.hpp"))
-                    writer.WriteInclude("utils/il2cpp-utils.hpp");
+                if (context.NeedIl2CppUtilsFunctionsInHeader && includesWritten.Add("extern/beatsaber-hook/shared/utils/il2cpp-utils.hpp"))
+                    writer.WriteInclude("extern/beatsaber-hook/shared/utils/il2cpp-utils.hpp");
             }
-            else if (includesWritten.Add("utils/utils.h"))
-                writer.WriteInclude("utils/utils.h");
+            else if (includesWritten.Add("extern/beatsaber-hook/shared/utils/utils.h"))
+                writer.WriteInclude("extern/beatsaber-hook/shared/utils/utils.h");
             writer.WriteComment("Completed includes");
         }
 

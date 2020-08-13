@@ -95,7 +95,7 @@ namespace Il2CppModdingCodegen.Serialization
                             else
                                 Console.WriteLine($"{field.DeclaringType}'s {resolvedName} {field.Name} has constant that is not valid C++: {val}");
                         }
-                        else if (resolvedName.StartsWith("::Il2CppString"))
+                        else if (resolvedName.StartsWith($"::{Constants.StringCppName}"))
                         {
                             var str = (string)dllField.This.Constant;
                             var encodedStr = Encode(str);

@@ -68,7 +68,7 @@ namespace Il2CppModdingCodegen.Serialization
             {
                 s.declaring = _config.SafeName(context.GetCppName(type.This.DeclaringType, false, true, CppTypeContext.NeedAs.Definition));
                 s.parentNames.Add("::il2cpp_utils::il2cpp_type_check::NestedType");
-                context.EnableNeedIl2CppUtilsBeforeLateHeader();
+                context.EnableNeedIl2CppUtilsFunctionsInHeader();
             }
 
             foreach (var @interface in type.ImplementingInterfaces)

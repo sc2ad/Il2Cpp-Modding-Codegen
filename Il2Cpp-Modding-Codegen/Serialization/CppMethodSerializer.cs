@@ -319,7 +319,7 @@ namespace Il2CppModdingCodegen.Serialization
             _declaringIsValueType = resolved?.Info.Refness == Refness.ValueType;
 
             if (NeedDefinitionInHeader(method))
-                context.EnableNeedIl2CppUtilsBeforeLateHeader();
+                context.EnableNeedIl2CppUtilsFunctionsInHeader();
 
             if (method.Generic)
             {
@@ -410,11 +410,11 @@ namespace Il2CppModdingCodegen.Serialization
             if (IsCtor(method))
             {
                 if (method.DeclaringType.Namespace == "System" && method.DeclaringType.Name == "Object")
-                    // Special case for System.Object, needs to always return ::Il2CppObject
-                    retStr = "::Il2CppObject*";
+                    // Special case for System.Object, needs to always return ::ObjectCppName
+                    retStr = $"::{Constants.ObjectCppName}*";
                 else if (method.DeclaringType.Namespace == "System" && method.DeclaringType.Name == "String")
-                    // Special case for System.String, needs to always return ::Il2CppString
-                    retStr = "::Il2CppString*";
+                    // Special case for System.String, needs to always return ::StringCppName
+                    retStr = $"::{Constants.StringCppName}*";
                 else
                 {
                     retStr = !isHeader ? _declaringFullyQualified : _thisTypeName;
