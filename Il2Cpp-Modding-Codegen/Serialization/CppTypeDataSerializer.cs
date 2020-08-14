@@ -182,16 +182,13 @@ namespace Il2CppModdingCodegen.Serialization
             writer.Flush();
         }
 
-        internal void WriteFields(CppStreamWriter writer, ITypeData type, bool asHeader)
+        private void WriteFields(CppStreamWriter writer, ITypeData type, bool asHeader, bool instanceFields)
         {
-            foreach (var f in type.Fields)
+            var serializer = instanceFields ? (Serializer<IField>)FieldSerializer : StaticFieldSerializer;
+            foreach (var f in type.Fields.Where(f => f.Specifiers.IsStatic() != instanceFields))
                 try
                 {
-                    if (f.Specifiers.IsStatic())
-                        StaticFieldSerializer.Serialize(writer, f, asHeader);
-                    else if (asHeader)
-                        // Only write standard fields if this is a header
-                        FieldSerializer.Serialize(writer, f, asHeader);
+                    serializer.Serialize(writer, f, asHeader);
                 }
                 catch (UnresolvedTypeException e)
                 {
@@ -205,6 +202,14 @@ namespace Il2CppModdingCodegen.Serialization
                     else if (_config.UnresolvedTypeExceptionHandling?.FieldHandling == UnresolvedTypeExceptionHandling.Elevate)
                         throw;
                 }
+        }
+
+        internal void WriteFields(CppStreamWriter writer, ITypeData type, bool asHeader)
+        {
+            if (asHeader)
+                // Only write standard fields if this is a header
+                WriteFields(writer, type, asHeader, true);
+            WriteFields(writer, type, asHeader, false);
         }
 
         internal void WriteSpecialCtors(CppStreamWriter writer, ITypeData type, bool isNested)
