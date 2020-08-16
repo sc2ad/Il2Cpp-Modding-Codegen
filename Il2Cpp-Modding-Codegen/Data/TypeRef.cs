@@ -173,7 +173,7 @@ namespace Il2CppModdingCodegen.Data
             return ret;
         }
 
-        [ObsoleteAttribute("The argument should be a TypeRef!")]
+        [Obsolete("The argument should be a TypeRef!")]
 #pragma warning disable 809  // "obsolete method extends non-obsolete mehtod object.Equals(object)
         public override bool Equals(object? obj) => Equals(obj as TypeRef);
 
@@ -201,20 +201,20 @@ namespace Il2CppModdingCodegen.Data
             bool equal = (fast ? a.Intersect(b, fastComparer) : a.Intersect(b)).Count() == a.Count();
             if (!equal)
             {
-                Console.WriteLine($"Sets: {{{String.Join(", ", a)}}} == {{{String.Join(", ", b)}}}? {equal}");
+                Console.WriteLine($"Sets: {{{string.Join(", ", a)}}} == {{{string.Join(", ", b)}}}? {equal}");
                 if (fast)
                 {
                     var aSet = new HashSet<TypeRef>(a, fastComparer);
                     var bSet = new HashSet<TypeRef>(b, fastComparer);
-                    Console.Error.WriteLine($"in a but not in b: {{{String.Join(", ", aSet.Except(bSet, TypeRef.fastComparer))}}}");
-                    Console.Error.WriteLine($"in b but not in a: {{{String.Join(", ", bSet.Except(aSet, TypeRef.fastComparer))}}}");
+                    Console.Error.WriteLine($"in a but not in b: {{{string.Join(", ", aSet.Except(bSet, fastComparer))}}}");
+                    Console.Error.WriteLine($"in b but not in a: {{{string.Join(", ", bSet.Except(aSet, fastComparer))}}}");
                 }
                 else
                 {
                     var aSet = new HashSet<TypeRef>(a);
                     var bSet = new HashSet<TypeRef>(b);
-                    Console.Error.WriteLine($"in a but not in b: {{{String.Join(", ", aSet.Except(bSet))}}}");
-                    Console.Error.WriteLine($"in b but not in a: {{{String.Join(", ", bSet.Except(aSet))}}}");
+                    Console.Error.WriteLine($"in a but not in b: {{{string.Join(", ", aSet.Except(bSet))}}}");
+                    Console.Error.WriteLine($"in b but not in a: {{{string.Join(", ", bSet.Except(aSet))}}}");
                 }
             }
             return equal;
@@ -225,7 +225,7 @@ namespace Il2CppModdingCodegen.Data
             bool equal = fast ? a.SequenceEqual(b, fastComparer) : (a?.SequenceEqual(b) ?? b is null);
             if (!equal)
             {
-                Console.WriteLine($"Generics: {{{String.Join(", ", a)}}} == {{{String.Join(", ", b)}}}? {equal}");
+                Console.WriteLine($"Generics: {{{string.Join(", ", a)}}} == {{{string.Join(", ", b)}}}? {equal}");
                 if (a is null) return equal;
                 var aList = a.ToList();
                 var bList = b.ToList();

@@ -10,6 +10,7 @@ namespace Il2CppModdingCodegen.Serialization
     public class CppTypeContext
     {
 #pragma warning disable CA1717 // Only FlagsAttribute enums should have plural names
+
         public enum NeedAs
 #pragma warning restore CA1717 // Only FlagsAttribute enums should have plural names
         {
@@ -26,16 +27,19 @@ namespace Il2CppModdingCodegen.Serialization
 
         // Declarations that should be made by our includes (DefinitionsToGet)
         internal HashSet<string> PrimitiveDeclarations { get; } = new HashSet<string>();
+
         internal HashSet<TypeRef> Declarations { get; } = new HashSet<TypeRef>();
         internal HashSet<TypeRef> DeclarationsToMake { get; } = new HashSet<TypeRef>();
         internal HashSet<TypeRef> Definitions { get; } = new HashSet<TypeRef>();
         internal HashSet<TypeRef> DefinitionsToGet { get; } = new HashSet<TypeRef>();
 
         internal CppTypeContext? DeclaringContext { get; private set; }
+        internal HashSet<TypeRef> UniqueInterfaces { get; } = new HashSet<TypeRef>();
         internal bool InPlace { get; private set; } = false;
         internal IReadOnlyList<CppTypeContext> NestedContexts { get => _nestedContexts; }
 
         private CppTypeContext _rootContext;
+
         private CppTypeContext RootContext
         {
             get
@@ -58,15 +62,19 @@ namespace Il2CppModdingCodegen.Serialization
         /// Returns true if this context uses primitive il2cpp types.
         /// </summary>
         internal bool NeedPrimitivesBeforeLateHeader { get; private set; } = false;
+
         internal void EnableNeedPrimitivesBeforeLateHeader() => NeedPrimitivesBeforeLateHeader = true;
 
         // whether the header will need to include il2cpp_utils before the DEFINE_IL2CPP_ARG_TYPEs
         internal bool NeedIl2CppUtilsFunctionsInHeader { get; private set; } = false;
+
         internal void EnableNeedIl2CppUtilsFunctionsInHeader() => NeedIl2CppUtilsFunctionsInHeader = true;
+
         internal bool NeedStdint { get; private set; } = false;
 
         // Holds generic types (ex: T1, T2, ...) defined by the type
         private readonly HashSet<TypeRef> _genericTypes = new HashSet<TypeRef>(TypeRef.fastComparer);
+
         private readonly List<CppTypeContext> _nestedContexts = new List<CppTypeContext>();
         private readonly ITypeCollection _types;
 
@@ -77,6 +85,48 @@ namespace Il2CppModdingCodegen.Serialization
                 foreach (var g in type.Generics)
                     _genericTypes.Add(g);
             AddGenericTypes(type.DeclaringType);
+        }
+
+        private HashSet<TypeRef> GetUniqueInterfaces(List<TypeRef> interfaces)
+        {
+            // Iterate over each interface in interfaces.
+            // For each one, resolve it (without storing it), add it to the hashset.
+            // Then recurse on that interface if we successfully added a unique interface to the hashset.
+            var set = new HashSet<TypeRef>();
+            foreach (var face in interfaces)
+            {
+                if (set.Add(face))
+                {
+                    var td = face.Resolve(_types);
+                    if (td is null)
+                        throw new ArgumentException($"Could not resolve TypeRef: {face}!");
+                    foreach (var item in GetUniqueInterfaces(td.ImplementingInterfaces))
+                        set.Add(item);
+                }
+            }
+            return set;
+        }
+
+        private void SetUniqueInterfaces(ITypeData data)
+        {
+            // Iterate over all of my data's interfaces
+            // For each, add its unique interfaces to a local hashset
+            // Then, set my UniqueInterfaces to be my original interfaces - anything shared in the local hashset
+            var nestedUnique = new List<TypeRef>();
+            foreach (var face in data.ImplementingInterfaces)
+            {
+                UniqueInterfaces.Add(face);
+                var nested = face.Resolve(_types);
+                if (nested is null)
+                    throw new ArgumentException($"Could not resolve TypeRef: {face}!");
+                nestedUnique.AddRange(nested.ImplementingInterfaces);
+            }
+            var alreadyDefined = GetUniqueInterfaces(nestedUnique);
+            foreach (var i in data.ImplementingInterfaces)
+            {
+                if (alreadyDefined.Contains(i))
+                    UniqueInterfaces.Remove(i);
+            }
         }
 
         internal CppTypeContext(ITypeCollection types, ITypeData data, CppTypeContext? declaring)
@@ -103,6 +153,10 @@ namespace Il2CppModdingCodegen.Serialization
 
             // Check all declaring types (and ourselves) if we have generic arguments/parameters. If we do, add them to _genericTypes.
             AddGenericTypes(data.This);
+
+            // Create a hashset of all the unique interfaces implemented explicitly by this type.
+            // Necessary for avoiding base ambiguity.
+            SetUniqueInterfaces(data);
 
             DeclaringContext = declaring;
             if (declaring != null)
@@ -492,6 +546,7 @@ namespace Il2CppModdingCodegen.Serialization
 
         // We only need a declaration for the element type (if we aren't needed as a definition)
         private static NeedAs NeedAsForPrimitiveEtype(NeedAs needAs) => needAs == NeedAs.Definition ? needAs : NeedAs.Declaration;
+
         private string? ConvertPrimitive(TypeRef def, ForceAsType forceAs, NeedAs needAs)
         {
             string? s = null;
