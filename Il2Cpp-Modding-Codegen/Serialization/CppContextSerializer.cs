@@ -411,16 +411,13 @@ namespace Il2CppModdingCodegen.Serialization
                     else
                     {
                         var fields = context.LocalType.Fields.Where(f => !f.Specifiers.IsStatic());
-                        if (fields.Any())
-                        {
-                            var off = fields.Max(f => f.Offset);
-                            if (off > maxOffset) {
-                                maxOffset = off;
-                                break;
-                            }
-                            else
-                                maxOffset += fields.Count();  // as an approximation
+                        int off = fields.LastOrDefault()?.Offset ?? -1 - (type.Type == TypeEnum.Struct ? 0x10 : 0);
+                        if (off > maxOffset) {
+                            maxOffset = off;
+                            break;
                         }
+                        else
+                            maxOffset += fields.Count();  // as an approximation
                     }
                 } while (type.Parent != type.This && (type = type.Parent?.Resolve(_collection)) != null);
 
