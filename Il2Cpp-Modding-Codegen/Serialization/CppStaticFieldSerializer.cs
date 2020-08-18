@@ -41,7 +41,7 @@ namespace Il2CppModdingCodegen.Serialization
         private static string Encode(string value)
         {
             // This should replace any characters not in the typical ASCII printable range.
-            return Regex.Replace(value.Replace(@"\", @"\\"), @"[^ -~]", match => $"\\u{(int)match.Value[0]:x4}");
+            return Regex.Replace(value.Replace(@"\", @"\\"), @"[^ -~]", match => $"\\u{match.Value[0]:x4}");
         }
 
         private static TypeRef GetEnumUnderlyingType(ITypeData self)
