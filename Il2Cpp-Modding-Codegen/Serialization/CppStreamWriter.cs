@@ -12,9 +12,16 @@ namespace Il2CppModdingCodegen.Serialization
     public class CppStreamWriter : IndentedTextWriter
     {
         private readonly StreamWriter rawWriter;
-        internal CppStreamWriter(StreamWriter writer) : base(writer) { rawWriter = writer; }
 
-        internal CppStreamWriter(StreamWriter writer, string tabString) : base(writer, tabString) { rawWriter = writer; }
+        internal CppStreamWriter(StreamWriter writer) : base(writer)
+        {
+            rawWriter = writer;
+        }
+
+        internal CppStreamWriter(StreamWriter writer, string tabString) : base(writer, tabString)
+        {
+            rawWriter = writer;
+        }
 
         /// <summary>
         /// Write a single line comment
@@ -65,8 +72,14 @@ namespace Il2CppModdingCodegen.Serialization
         }
 
         private static HashSet<string> ExistingFiles { get; set; } = new HashSet<string>();
+
         internal static void PopulateExistingFiles(string dir)
         {
+            if (!Directory.Exists(dir))
+            {
+                Directory.CreateDirectory(dir);
+                return;
+            }
             var options = new EnumerationOptions
             {
                 RecurseSubdirectories = true,
@@ -78,6 +91,7 @@ namespace Il2CppModdingCodegen.Serialization
         private static HashSet<string> Written { get; set; } = new HashSet<string>();
 
         private static long NumChangedFiles { get; set; } = 0;
+
         internal void WriteIfDifferent(string filePath, CppTypeContext context)
         {
             if (!Written.Add(Path.GetFullPath(filePath)))
