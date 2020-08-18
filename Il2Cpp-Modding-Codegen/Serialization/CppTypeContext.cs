@@ -34,7 +34,9 @@ namespace Il2CppModdingCodegen.Serialization
         internal HashSet<TypeRef> DefinitionsToGet { get; } = new HashSet<TypeRef>();
 
         internal CppTypeContext? DeclaringContext { get; private set; }
-        internal HashSet<TypeRef> UniqueInterfaces { get; } = new HashSet<TypeRef>();
+        internal HashSet<TypeRef> UniqueInterfaces { get; }
+        private static Dictionary<ITypeData, HashSet<TypeRef>> UniqueInterfaceMap = new Dictionary<ITypeData, HashSet<TypeRef>>();
+        internal long NumDuplicateInterfaces { get; private set; } = 0;
         internal bool InPlace { get; private set; } = false;
         internal IReadOnlyList<CppTypeContext> NestedContexts { get => _nestedContexts; }
 
@@ -87,7 +89,7 @@ namespace Il2CppModdingCodegen.Serialization
             AddGenericTypes(type.DeclaringType);
         }
 
-        private HashSet<TypeRef> GetUniqueInterfaces(List<TypeRef> interfaces)
+        private static HashSet<TypeRef> GetUniqueInterfaces(List<TypeRef> interfaces, ITypeCollection _types)
         {
             // Iterate over each interface in interfaces.
             // For each one, resolve it (without storing it), add it to the hashset.
@@ -100,33 +102,65 @@ namespace Il2CppModdingCodegen.Serialization
                     var td = face.Resolve(_types);
                     if (td is null)
                         throw new ArgumentException($"Could not resolve TypeRef: {face}!");
-                    foreach (var item in GetUniqueInterfaces(td.ImplementingInterfaces))
+                    foreach (var item in GetUniqueInterfaces(td.ImplementingInterfaces, _types))
                         set.Add(item);
                 }
             }
             return set;
         }
 
-        private void SetUniqueInterfaces(ITypeData data)
+        private static HashSet<TypeRef> GetUniqueInterfaces(ITypeData data, ITypeCollection _types)
         {
-            // Iterate over all of my data's interfaces
-            // For each, add its unique interfaces to a local hashset
-            // Then, set my UniqueInterfaces to be my original interfaces - anything shared in the local hashset
-            var nestedUnique = new List<TypeRef>();
-            foreach (var face in data.ImplementingInterfaces)
+            if (!UniqueInterfaceMap.ContainsKey(data))
             {
-                UniqueInterfaces.Add(face);
-                var nested = face.Resolve(_types);
-                if (nested is null)
-                    throw new ArgumentException($"Could not resolve TypeRef: {face}!");
-                nestedUnique.AddRange(nested.ImplementingInterfaces);
+                // Iterate over all of my data's interfaces
+                // For each, add its unique interfaces to a local hashset
+                // Then, set my UniqueInterfaces to be my original interfaces - anything shared in the local hashset
+                var uniqueInterfaces = new HashSet<TypeRef>();
+                var nestedUnique = new List<TypeRef>();
+                foreach (var face in data.ImplementingInterfaces)
+                {
+                    uniqueInterfaces.Add(face);
+                    var nested = face.Resolve(_types);
+                    if (nested is null)
+                        throw new ArgumentException($"Could not resolve TypeRef: {face}!");
+                    nestedUnique.AddRange(nested.ImplementingInterfaces);
+                }
+                var alreadyDefined = GetUniqueInterfaces(nestedUnique, _types);
+                foreach (var i in data.ImplementingInterfaces)
+                {
+                    if (alreadyDefined.Contains(i))
+                        uniqueInterfaces.Remove(i);
+                }
+                UniqueInterfaceMap[data] = uniqueInterfaces;
             }
-            var alreadyDefined = GetUniqueInterfaces(nestedUnique);
-            foreach (var i in data.ImplementingInterfaces)
+            return UniqueInterfaceMap[data];
+        }
+
+        private bool HasDuplicateInterfaces(HashSet<TypeRef> existing, TypeRef iface)
+        {
+            bool ret = false;
+            if (!existing.Add(iface))
+                ret = true;
+            else
             {
-                if (alreadyDefined.Contains(i))
-                    UniqueInterfaces.Remove(i);
+                var td = iface.Resolve(_types);
+                if (td is null)
+                    throw new ArgumentException($"Could not resolve TypeRef: {iface}!");
+                foreach (var face in GetUniqueInterfaces(td, _types))
+                    ret |= HasDuplicateInterfaces(existing, face);
             }
+            return ret;
+        }
+
+        private int CountDuplicateInterfaces()
+        {
+            int numDuplicateInterfaces = 0;
+            var seen = new HashSet<TypeRef>();
+            foreach (var face in UniqueInterfaces)
+                if (HasDuplicateInterfaces(seen, face))
+                    numDuplicateInterfaces++;
+            return numDuplicateInterfaces;
         }
 
         internal CppTypeContext(ITypeCollection types, ITypeData data, CppTypeContext? declaring)
@@ -156,7 +190,8 @@ namespace Il2CppModdingCodegen.Serialization
 
             // Create a hashset of all the unique interfaces implemented explicitly by this type.
             // Necessary for avoiding base ambiguity.
-            SetUniqueInterfaces(data);
+            UniqueInterfaces = GetUniqueInterfaces(data, _types);
+            NumDuplicateInterfaces = CountDuplicateInterfaces();
 
             DeclaringContext = declaring;
             if (declaring != null)

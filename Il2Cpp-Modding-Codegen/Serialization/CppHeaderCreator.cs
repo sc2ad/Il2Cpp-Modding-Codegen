@@ -1,7 +1,6 @@
 ﻿using Il2CppModdingCodegen.Config;
 using Il2CppModdingCodegen.Data;
 using System;
-using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 

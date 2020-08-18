@@ -66,7 +66,7 @@ namespace Il2CppModdingCodegen.Config
         {
             if (toWrap is null) throw new ArgumentNullException(nameof(toWrap));
             string parenWrapped = Regex.IsMatch(toWrap, @"<.*,.*>") ? $"({toWrap})" : toWrap;
-            switch(OutputStyle)
+            switch (OutputStyle)
             {
                 case OutputStyle.CrashUnless:
                     return $"CRASH_UNLESS({parenWrapped})";

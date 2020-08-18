@@ -397,6 +397,41 @@ namespace Il2CppModdingCodegen.Serialization
                 CppTypeDataSerializer.CloseDefinition(writer, context.LocalType);
             if (!context.InPlace)
                 WriteNamespacedMethods(writer, context, asHeader);
+
+            if (asHeader)
+            {
+                ITypeData? type = context.LocalType;
+                long maxOffset = 0;
+                do
+                {
+                    if (type.This.Name == "ValueType" && type.This.Namespace == "System")
+                        break;
+                    else if (type.This.Name == "Object" && type.This.Namespace == "System")
+                        maxOffset += 0x10;
+                    else
+                    {
+                        var fields = context.LocalType.Fields.Where(f => !f.Specifiers.IsStatic());
+                        if (fields.Any())
+                        {
+                            var off = fields.Max(f => f.Offset);
+                            if (off > maxOffset) {
+                                maxOffset = off;
+                                break;
+                            }
+                            else
+                                maxOffset += fields.Count();  // as an approximation
+                        }
+                    }
+                } while (type.Parent != type.This && (type = type.Parent?.Resolve(_collection)) != null);
+
+                if (maxOffset < 0)
+                {
+                    if (context.LocalType.This.Namespace != "Il2CppDummyDll")
+                        Console.Error.WriteLine($"Calculated invalid maxFieldOffset of {maxOffset} for type {context.LocalType.This}!");
+                }
+                else if (context.NumDuplicateInterfaces > 0 && context.NumDuplicateInterfaces >= maxOffset)
+                    Console.Error.WriteLine($"Type {context.LocalType.This} has {context.NumDuplicateInterfaces} duplicate interfaces!");
+            }
         }
     }
 }
