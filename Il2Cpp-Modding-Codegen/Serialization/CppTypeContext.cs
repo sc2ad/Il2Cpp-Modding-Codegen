@@ -113,20 +113,27 @@ namespace Il2CppModdingCodegen.Serialization
             // For each, add its unique interfaces to a local hashset
             // Then, set my UniqueInterfaces to be my original interfaces - anything shared in the local hashset
             var nestedUnique = new List<TypeRef>();
-            foreach (var face in data.ImplementingInterfaces)
+            ITypeData CollectImplementingInterfaces(TypeRef face)
             {
-                UniqueInterfaces.Add(face);
                 var nested = face.Resolve(_types);
                 if (nested is null)
                     throw new ArgumentException($"Could not resolve TypeRef: {face}!");
                 nestedUnique.AddRange(nested.ImplementingInterfaces);
+                return nested;
             }
+            foreach (var face in data.ImplementingInterfaces)
+            {
+                UniqueInterfaces.Add(face);
+                CollectImplementingInterfaces(face);
+            }
+            var parent = data.Parent;
+            while (parent != null)
+                parent = CollectImplementingInterfaces(parent).Parent;
+
             var alreadyDefined = GetUniqueInterfaces(nestedUnique);
             foreach (var i in data.ImplementingInterfaces)
-            {
                 if (alreadyDefined.Contains(i))
                     UniqueInterfaces.Remove(i);
-            }
         }
 
         internal CppTypeContext(ITypeCollection types, ITypeData data, CppTypeContext? declaring)
