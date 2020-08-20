@@ -10,7 +10,6 @@ namespace Il2CppModdingCodegen.Serialization
     public class CppTypeContext
     {
 #pragma warning disable CA1717 // Only FlagsAttribute enums should have plural names
-
         public enum NeedAs
 #pragma warning restore CA1717 // Only FlagsAttribute enums should have plural names
         {

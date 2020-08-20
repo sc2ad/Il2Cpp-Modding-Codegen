@@ -45,20 +45,23 @@ namespace Il2CppModdingCodegen.Data.DumpHandling
             Name = other.Name;
             IsGenericInstance = true;
             IsGenericTemplate = false;
-            Generics = new List<TypeRef>(other.Generics.Count);
+            var newGenerics = new List<TypeRef>(other.Generics.Count);
             foreach (var genericParameter in other.Generics)
             {
-                if (genericTypes.TryGetValue(genericParameter, out var genericArgument))
-                    Generics.Append(genericArgument);
+                if (genericParameter.IsGeneric)
+                    newGenerics.Add(genericParameter.MakeGenericInstance(genericTypes));
+                else if (genericTypes.TryGetValue(genericParameter, out var genericArgument))
+                    newGenerics.Add(genericArgument);
                 else
                     throw new UnresolvedTypeException(genericParameter, other);
             }
+            Generics = newGenerics;
             DeclaringType = other.DeclaringType;
             ElementType = other.ElementType;
         }
 
         public override TypeRef MakePointer() => new DumpTypeRef(this, Name + "*");
-        internal override TypeRef MakeGenericInstance(GenericTypeMap genericTypes) => new DumpTypeRef(this, genericTypes);
+        internal override TypeRef MakeGenericInstance(GenericTypeMap genericTypes) => IsGeneric ? new DumpTypeRef(this, genericTypes) : this;
 
         /// <summary>
         /// For use with text dumps. Takes a given split array that contains a type at index ind and

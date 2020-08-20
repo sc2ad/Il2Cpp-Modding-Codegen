@@ -42,24 +42,23 @@ namespace Il2CppModdingCodegen.Data.DllHandling
         public override bool IsPointer() => This.IsPointer;
         public override bool IsArray() => This.IsArray;
 
-        
+
 
         public override TypeRef MakePointer() => From(This.MakePointerType());
 
         internal override TypeRef MakeGenericInstance(GenericTypeMap genericTypes)
         {
+            if (Generics.Count <= 0) return this;
             var genericArgumentsInOrder = new List<TypeReference>(Generics.Count);
             foreach (var genericParameter in Generics)
             {
-                if (!genericParameter.IsGenericParameter)
-                    genericArgumentsInOrder.Add(genericParameter.AsDllTypeRef.This);
+                if (genericParameter.IsGeneric)
+                    genericArgumentsInOrder.Add(genericParameter.MakeGenericInstance(genericTypes).AsDllTypeRef.This);
                 else if (genericTypes.TryGetValue(genericParameter, out var genericArgument))
                     genericArgumentsInOrder.Add(genericArgument.AsDllTypeRef.This);
                 else
                     throw new UnresolvedTypeException(genericParameter, this);
             }
-            if (genericArgumentsInOrder.Count == 0)
-                throw new Exception("genericArgumentsInOrder is empty!");
             return From(This.Resolve().MakeGenericInstanceType(genericArgumentsInOrder.ToArray()));
         }
 

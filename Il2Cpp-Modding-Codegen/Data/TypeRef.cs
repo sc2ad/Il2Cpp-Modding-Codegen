@@ -17,6 +17,7 @@ namespace Il2CppModdingCodegen.Data
         public virtual bool IsGenericParameter { get; } = false;
         public virtual bool IsCovariant { get; } = false;
         public virtual IReadOnlyList<TypeRef> GenericParameterConstraints { get; } = new List<TypeRef>();
+        // True iff the type has any Generics (generic arguments/parameters). Generic parameters themselves don't count!
         internal bool IsGeneric { get => IsGenericInstance || IsGenericTemplate; }
         public abstract bool IsGenericInstance { get; }
         public abstract bool IsGenericTemplate { get; }
