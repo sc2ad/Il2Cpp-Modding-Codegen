@@ -1,4 +1,6 @@
-﻿using System;
+﻿using Il2CppModdingCodegen.Data.DllHandling;
+using Il2CppModdingCodegen.Serialization;
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -25,6 +27,7 @@ namespace Il2CppModdingCodegen.Data
 
         private ITypeData? _resolvedType;
 
+        internal DllTypeRef AsDllTypeRef { get => this as DllTypeRef ?? throw new Exception("DumpTypeRefs in my DllTypeRefs?!"); }
         public abstract TypeRef MakePointer();
 
         /// <summary>
@@ -37,6 +40,18 @@ namespace Il2CppModdingCodegen.Data
             _resolvedType ??= types.Resolve(this);
 #pragma warning restore 612, 618
             return _resolvedType;
+        }
+
+        internal class GenericTypeMap : Dictionary<TypeRef, TypeRef> { };
+        internal abstract TypeRef MakeGenericInstance(GenericTypeMap genericTypes);
+        internal GenericTypeMap ExtractGenericMap(ITypeCollection types)
+        {
+            if (!IsGenericInstance) throw new InvalidOperationException("Must be called on a generic instance!");
+            var resolved = Resolve(types) ?? throw new UnresolvedTypeException(this, this);
+            var ret = new GenericTypeMap();
+            foreach (var (a, b) in resolved.This.Generics.Zip(Generics, (a, b) => (a, b)))
+                ret.Add(a, b);
+            return ret;
         }
 
         public virtual bool IsVoid() => Name.Equals("void", StringComparison.OrdinalIgnoreCase);

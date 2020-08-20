@@ -56,6 +56,15 @@ namespace Il2CppModdingCodegen.Serialization
                 throw new Exception("GetNameFromReference gave empty typeName");
             }
 
+            // Duplicate interfaces be damned, parents MUST go first for reinterpret_cast and field offset validity!
+            if (type.Parent != null)
+                // System::ValueType should be the 1 type where we want to extend System::Object without the Il2CppObject fields
+                if (type.This.Namespace == "System" && type.This.Name == "ValueType")
+                    s.parentNames.Add("System::Object");
+                else
+                    // TODO: just use type.Parent's QualifiedTypeName instead?
+                    s.parentNames.Add(_config.SafeName(context.GetCppName(type.Parent, true, true, CppTypeContext.NeedAs.Definition, CppTypeContext.ForceAsType.Literal)));
+
             // Not as simple as iterating over all interface methods. We actually need to create a type tree and remove all duplicates.
             // That is, if we explicitly implement a type that is already implemented within our set of interface types, we need to ignore it.
             // We offload this logic to context's construction (context.UniqueInterfaces)
@@ -69,15 +78,6 @@ namespace Il2CppModdingCodegen.Serialization
                 // TODO: include type-check instead?
                 context.EnableNeedIl2CppUtilsFunctionsInHeader();
             }
-
-            // Parent name MUST be the last inherited type (in order for sizeof ensurance for bases that need unique pointers, we want to perform EBO as well)
-            if (type.Parent != null)
-                // System::ValueType should be the 1 type where we want to extend System::Object without the Il2CppObject fields
-                if (type.This.Namespace == "System" && type.This.Name == "ValueType")
-                    s.parentNames.Add("System::Object");
-                else
-                    // TODO: just use type.Parent's QualifiedTypeName instead?
-                    s.parentNames.Add(_config.SafeName(context.GetCppName(type.Parent, true, true, CppTypeContext.NeedAs.Definition, CppTypeContext.ForceAsType.Literal)));
 
             foreach (var g in type.This.Generics)
             {
