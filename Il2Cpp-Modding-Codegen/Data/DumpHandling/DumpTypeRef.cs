@@ -1,4 +1,5 @@
-﻿using System;
+﻿using Il2CppModdingCodegen.Serialization;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 
@@ -38,7 +39,26 @@ namespace Il2CppModdingCodegen.Data.DumpHandling
             ElementType = other.ElementType;
         }
 
+        private DumpTypeRef(DumpTypeRef other, GenericTypeMap genericTypes)
+        {
+            Namespace = other.Namespace;
+            Name = other.Name;
+            IsGenericInstance = true;
+            IsGenericTemplate = false;
+            Generics = new List<TypeRef>(other.Generics.Count);
+            foreach (var genericParameter in other.Generics)
+            {
+                if (genericTypes.TryGetValue(genericParameter, out var genericArgument))
+                    Generics.Append(genericArgument);
+                else
+                    throw new UnresolvedTypeException(genericParameter, other);
+            }
+            DeclaringType = other.DeclaringType;
+            ElementType = other.ElementType;
+        }
+
         public override TypeRef MakePointer() => new DumpTypeRef(this, Name + "*");
+        internal override TypeRef MakeGenericInstance(GenericTypeMap genericTypes) => new DumpTypeRef(this, genericTypes);
 
         /// <summary>
         /// For use with text dumps. Takes a given split array that contains a type at index ind and

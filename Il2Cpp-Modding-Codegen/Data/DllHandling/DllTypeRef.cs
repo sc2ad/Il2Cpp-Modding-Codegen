@@ -1,4 +1,5 @@
-﻿using Mono.Cecil;
+﻿using Il2CppModdingCodegen.Serialization;
+using Mono.Cecil;
 using Mono.Cecil.Rocks;
 using System;
 using System.Collections.Generic;
@@ -41,7 +42,26 @@ namespace Il2CppModdingCodegen.Data.DllHandling
         public override bool IsPointer() => This.IsPointer;
         public override bool IsArray() => This.IsArray;
 
+        
+
         public override TypeRef MakePointer() => From(This.MakePointerType());
+
+        internal override TypeRef MakeGenericInstance(GenericTypeMap genericTypes)
+        {
+            var genericArgumentsInOrder = new List<TypeReference>(Generics.Count);
+            foreach (var genericParameter in Generics)
+            {
+                if (!genericParameter.IsGenericParameter)
+                    genericArgumentsInOrder.Add(genericParameter.AsDllTypeRef.This);
+                else if (genericTypes.TryGetValue(genericParameter, out var genericArgument))
+                    genericArgumentsInOrder.Add(genericArgument.AsDllTypeRef.This);
+                else
+                    throw new UnresolvedTypeException(genericParameter, this);
+            }
+            if (genericArgumentsInOrder.Count == 0)
+                throw new Exception("genericArgumentsInOrder is empty!");
+            return From(This.Resolve().MakeGenericInstanceType(genericArgumentsInOrder.ToArray()));
+        }
 
         private static readonly Dictionary<TypeReference, DllTypeRef> cache = new Dictionary<TypeReference, DllTypeRef>();
 

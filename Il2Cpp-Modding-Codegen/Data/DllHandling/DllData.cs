@@ -80,8 +80,8 @@ namespace Il2CppModdingCodegen.Data.DllHandling
 
         public ITypeData? Resolve(TypeRef? typeRef)
         {
-            if (!(typeRef is DllTypeRef temp)) throw new ArgumentNullException(nameof(typeRef));
-            return Resolve(temp);
+            if (typeRef is null) throw new ArgumentNullException(nameof(typeRef));
+            return Resolve(typeRef.AsDllTypeRef);
         }
 
         private ITypeData? Resolve(DllTypeRef typeRef)

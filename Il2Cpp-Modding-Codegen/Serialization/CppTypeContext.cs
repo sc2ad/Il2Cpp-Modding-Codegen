@@ -118,7 +118,8 @@ namespace Il2CppModdingCodegen.Serialization
                 var nested = face.Resolve(_types);
                 if (nested is null)
                     throw new ArgumentException($"Could not resolve TypeRef: {face}!");
-                nestedUnique.AddRange(nested.ImplementingInterfaces);
+                var map = face.IsGenericInstance ? face.ExtractGenericMap(_types) : null;
+                nestedUnique.AddRange(nested.ImplementingInterfaces.Select(i => (!i.IsGeneric || map is null) ? i : i.MakeGenericInstance(map)));
                 return nested;
             }
             foreach (var face in data.ImplementingInterfaces)
