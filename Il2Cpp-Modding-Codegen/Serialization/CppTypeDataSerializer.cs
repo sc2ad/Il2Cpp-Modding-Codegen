@@ -114,8 +114,8 @@ namespace Il2CppModdingCodegen.Serialization
             // If we ever have a duplicate definition, this should be called.
             // Here, we need to check to see if we failed because of a field, method, or both
             foreach (var f in self.LocalType.Fields)
-                if (f.Type.ContainsOrEquals(offendingType))
-                    // If it was a field at all, we throw (this is unsolvable)
+                if (!f.Specifiers.IsStatic() && f.Type.ContainsOrEquals(offendingType))
+                    // If it was ever used as an instance field, we throw (this is unsolvable)
                     throw new InvalidOperationException($"Cannot fix duplicate definition for offending type: {offendingType}, it is used as field: {f} in: {self.LocalType.This}");
             foreach (var m in self.LocalType.Methods)
                 // If it was simply a method, we iterate over all methods and attempt to template them

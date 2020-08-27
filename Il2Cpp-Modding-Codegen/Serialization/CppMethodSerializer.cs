@@ -300,9 +300,12 @@ namespace Il2CppModdingCodegen.Serialization
             }
 
             found = genericParameters.Count;
+            // Only add to dictionary if we actually HAVE the offending type somewhere.
             if (genericParameters.Count > 0)
-                // Only add to dictionary if we actually HAVE the offending type somewhere.
-                _tempGenerics.Add(method, genericParameters);
+                if (_tempGenerics.TryGetValue(method, out var existingGenerics))
+                    existingGenerics.UnionWith(genericParameters);
+                else
+                    _tempGenerics.Add(method, genericParameters);
             return true;
         }
 
@@ -387,6 +390,8 @@ namespace Il2CppModdingCodegen.Serialization
                 ns = (scope == MethodScope.Namespace ? _declaringNamespace : _declaringFullyQualified) + "::";
             else if (scope == MethodScope.Static)
                 preRetStr += "static ";
+            else if (scope == MethodScope.Namespace && NeedDefinitionInHeader(method))
+                preRetStr += "inline ";
 
             // stringify the return type
             var retStr = _resolvedReturns[method].TypeName(isHeader);
