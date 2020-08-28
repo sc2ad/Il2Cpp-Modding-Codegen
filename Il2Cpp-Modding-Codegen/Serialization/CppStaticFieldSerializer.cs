@@ -46,16 +46,7 @@ namespace Il2CppModdingCodegen.Serialization
         }
 
         private static TypeRef GetEnumUnderlyingType(ITypeData self)
-        {
-            var fields = self.Fields;
-            for (int i = 0; i < fields.Count; i++)
-            {
-                var field = fields[i];
-                if (!field.Specifiers.IsStatic())
-                    return field.Type;
-            }
-            throw new ArgumentException("should be an Enum type!", nameof(self));
-        }
+            => self.InstanceFields.FirstOrDefault()?.Type ?? throw new ArgumentException("should be an Enum type!", nameof(self));
 
         public override void PreSerialize(CppTypeContext context, IField field)
         {

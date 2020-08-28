@@ -17,7 +17,8 @@ namespace Il2CppModdingCodegen.Data.DllHandling
         public int TypeDefIndex { get; }
         public List<IAttribute> Attributes { get; } = new List<IAttribute>();
         public List<ISpecifier> Specifiers { get; } = new List<ISpecifier>();
-        public List<IField> Fields { get; } = new List<IField>();
+        public List<IField> InstanceFields { get; } = new List<IField>();
+        public List<IField> StaticFields { get; } = new List<IField>();
         public List<IProperty> Properties { get; } = new List<IProperty>();
         public List<IMethod> Methods { get; } = new List<IMethod>();
 
@@ -45,7 +46,10 @@ namespace Il2CppModdingCodegen.Data.DllHandling
             if (_config.ParseTypeAttributes && def.HasCustomAttributes)
                 Attributes.AddRange(def.CustomAttributes.Select(ca => new DllAttribute(ca)));
             if (_config.ParseTypeFields)
-                Fields.AddRange(def.Fields.Select(f => new DllField(f)));
+            {
+                InstanceFields.AddRange(def.Fields.Where(f => !f.IsStatic).Select(f => new DllField(f)));
+                StaticFields.AddRange(def.Fields.Where(f => f.IsStatic).Select(f => new DllField(f)));
+            }
             if (_config.ParseTypeProperties)
                 Properties.AddRange(def.Properties.Select(p => new DllProperty(p)));
             if (_config.ParseTypeMethods)
@@ -56,40 +60,6 @@ namespace Il2CppModdingCodegen.Data.DllHandling
                 Methods.AddRange(methods.Where(m => m.ImplementedFrom is null));
                 Methods.AddRange(methods.Where(m => m.ImplementedFrom != null));
             }
-        }
-
-        public override string ToString()
-        {
-            var s = $"// Namespace: {This.Namespace}\n";
-            foreach (var attr in Attributes)
-                s += $"{attr}\n";
-            foreach (var spec in Specifiers)
-                s += $"{spec} ";
-            s += $"{Type.ToString().ToLower()} {This.Name}";
-            if (Parent != null)
-                s += $" : {Parent}";
-            s += "\n{";
-            if (Fields.Count > 0)
-            {
-                s += "\n\t// Fields\n\t";
-                foreach (var f in Fields)
-                    s += $"{f}\n\t";
-            }
-            if (Properties.Count > 0)
-            {
-                s += "\n\t// Properties\n\t";
-                foreach (var p in Properties)
-                    s += $"{p}\n\t";
-            }
-            if (Methods.Count > 0)
-            {
-                s += "\n\t// Methods\n\t";
-                foreach (var m in Methods)
-                    s += $"{m}\n\t";
-            }
-            s = s.TrimEnd('\t');
-            s += "}";
-            return s;
         }
     }
 }

@@ -92,16 +92,14 @@ namespace Il2CppModdingCodegen.Serialization
 
             if (type.Type != TypeEnum.Interface)
                 // do the non-static fields first
-                foreach (var f in type.Fields)
-                    if (!f.Specifiers.IsStatic())
-                        FieldSerializer.PreSerialize(context, f);
+                foreach (var f in type.InstanceFields)
+                    FieldSerializer.PreSerialize(context, f);
 
             // then, the static fields
-            foreach (var f in type.Fields)
+            foreach (var f in type.StaticFields)
                 // If the field is a static field, we want to create two methods, (get and set for the static field)
                 // and make a call to GetFieldValue and SetFieldValue for those methods
-                if (f.Specifiers.IsStatic())
-                    StaticFieldSerializer.PreSerialize(context, f);
+                StaticFieldSerializer.PreSerialize(context, f);
 
             // then the methods
             foreach (var m in type.Methods)
@@ -113,8 +111,8 @@ namespace Il2CppModdingCodegen.Serialization
             int total = 0;
             // If we ever have a duplicate definition, this should be called.
             // Here, we need to check to see if we failed because of a field, method, or both
-            foreach (var f in self.LocalType.Fields)
-                if (!f.Specifiers.IsStatic() && f.Type.ContainsOrEquals(offendingType))
+            foreach (var f in self.LocalType.InstanceFields)
+                if (f.Type.ContainsOrEquals(offendingType))
                     // If it was ever used as an instance field, we throw (this is unsolvable)
                     throw new InvalidOperationException($"Cannot fix duplicate definition for offending type: {offendingType}, it is used as field: {f} in: {self.LocalType.This}");
             foreach (var m in self.LocalType.Methods)
@@ -179,7 +177,7 @@ namespace Il2CppModdingCodegen.Serialization
             writer.WriteDefinition(type.Type.TypeName() + " " + typeName + s);
             WriteGenericTypeConstraints(writer, state.genParamConstraints, true);
 
-            if (type.Fields.Count > 0 || type.Methods.Count > 0 || type.NestedTypes.Count > 0)
+            if (type.Fields.Any() || type.Methods.Any() || type.NestedTypes.Any())
                 writer.WriteLine("public:");
             if (state.declaring != null)
                 writer.WriteLine($"using declaring_type = {state.declaring};");
@@ -189,7 +187,7 @@ namespace Il2CppModdingCodegen.Serialization
         private void WriteFields(CppStreamWriter writer, ITypeData type, bool asHeader, bool instanceFields)
         {
             var serializer = instanceFields ? (Serializer<IField>)FieldSerializer : StaticFieldSerializer;
-            foreach (var f in type.Fields.Where(f => f.Specifiers.IsStatic() != instanceFields))
+            foreach (var f in instanceFields ? type.InstanceFields : type.StaticFields)
                 try
                 {
                     serializer.Serialize(writer, f, asHeader);

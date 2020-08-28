@@ -40,7 +40,16 @@ namespace Il2CppModdingCodegen.Serialization
         private void ForwardToTypeDataSerializer(CppTypeContext context, TypeRef offendingType)
         {
             Console.Error.WriteLine("Forwarding to CppTypeDataSerializer!");
-            _typeSerializers[context].DuplicateDefinition(context, offendingType);
+            // TODO: try the other way around? (doesn't work well with primitives as written)
+            // TODO: if either is a primitive, try replacing it with the C++ primitive? how did they get included in the first place?
+            //try {
+                _typeSerializers[context].DuplicateDefinition(context, offendingType);
+            //} catch {
+            //    var resolved = offendingType.Resolve(_collection);
+            //    if (resolved == null) throw new UnresolvedTypeException(context.LocalType.This, offendingType);
+            //    var offendingContext = CppDataSerializer.TypeToContext[resolved];
+            //    _typeSerializers[offendingContext].DuplicateDefinition(offendingContext, context.LocalType.This);
+            //}
         }
 
         /// <summary>

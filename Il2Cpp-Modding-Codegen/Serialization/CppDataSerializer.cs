@@ -139,7 +139,7 @@ namespace Il2CppModdingCodegen.Serialization
                 if (!pair.Value.InPlace || pair.Value.DeclaringContext == null)
                     new CppHeaderCreator(_config, _contextSerializer).Serialize(pair.Value);
                 var t = pair.Value.LocalType;
-                if (/*t.Type == TypeEnum.Interface || */t.This.IsGeneric || (t.Methods.Count == 0 && !t.Fields.Where(f => f.Specifiers.IsStatic()).Any()))
+                if (/*t.Type == TypeEnum.Interface || */t.This.IsGeneric || (!t.Methods.Any() && !t.StaticFields.Any()))
                     // Don't create C++ for types with no methods (including static fields), or if it is an interface, or if it is generic
                     continue;
 
