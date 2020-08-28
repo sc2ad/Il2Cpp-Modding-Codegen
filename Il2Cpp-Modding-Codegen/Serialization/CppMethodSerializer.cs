@@ -123,8 +123,7 @@ namespace Il2CppModdingCodegen.Serialization
             _config = config;
         }
 
-        // TODO: restructure to account for operators being header-only but not knowing they're operators until ResolveName.
-        private static bool NeedDefinitionInHeader(IMethod method) => method.DeclaringType.IsGenericTemplate || method.Generic || Operators.ContainsKey(method.Name);
+        private static bool NeedDefinitionInHeader(IMethod method) => method.DeclaringType.IsGenericTemplate || method.Generic;
 
         /// <summary>
         /// Returns whether the given method should be written as a definition or a declaration
