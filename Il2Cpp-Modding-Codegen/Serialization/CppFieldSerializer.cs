@@ -56,10 +56,10 @@ namespace Il2CppModdingCodegen.Serialization
         internal void WriteCtor(CppStreamWriter writer, ITypeData type, string name, bool asHeader)
         {
             // If the type we are writing is a value type, we would like to make a constructor that takes in each non-static, non-const field.
-            // This is to allow us to construct structs without having to provide initialization lists that are horribly long
+            // This is to allow us to construct structs without having to provide initialization lists that are horribly long.
             if (type.Info.Refness == Refness.ValueType && asHeader)
             {
-                var signature = name + "(";
+                var signature = $"constexpr {name}(";
                 signature += string.Join(", ", _resolvedTypeNames.Select(pair =>
                 {
                     var typeName = pair.Value;
@@ -77,6 +77,34 @@ namespace Il2CppModdingCodegen.Serialization
                 signature += " {}";
                 writer.WriteComment("Creating value type constructor for type: " + name);
                 writer.WriteLine(signature);
+            }
+        }
+
+        internal void WriteConversionOperator(CppStreamWriter writer, FieldConversionOperator op, bool asHeader)
+        {
+            if (op.Field is null) return;
+            // If the type we are writing is a value type, we would like to make a constructor that takes in each non-static, non-const field.
+            // This is to allow us to construct structs without having to provide initialization lists that are horribly long.
+            if (asHeader && op.Kind != ConversionOperatorKind.Inherited)
+            {
+                var name = "operator " + _resolvedTypeNames[op.Field];
+                var signature = $"constexpr {name}() const";
+
+
+                if (op.Kind == ConversionOperatorKind.Delete)
+                {
+                    writer.WriteComment("Deleting conversion operator: " + name);
+                    writer.WriteDeclaration(signature + " = delete");
+                }
+                else if (op.Kind == ConversionOperatorKind.Yes)
+                {
+                    writer.WriteComment("Creating conversion operator: " + name);
+                    writer.WriteDefinition(signature);
+                    writer.WriteDeclaration($"return {_safeFieldNames[op.Field]}");
+                    writer.CloseDefinition();
+                }
+                else
+                    throw new ArgumentException($"Can't write conversion operator from kind '{op.Kind}'");
             }
         }
 

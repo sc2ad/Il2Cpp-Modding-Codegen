@@ -43,18 +43,23 @@ namespace Il2CppModdingCodegen.Serialization
             //    Directory.Delete(Path.Combine(config.OutputDirectory, config.OutputHeaderDirectory), true);
             //if (Directory.Exists(Path.Combine(config.OutputDirectory, config.OutputSourceDirectory)))
             //    Directory.Delete(Path.Combine(config.OutputDirectory, config.OutputSourceDirectory), true);
+
+            ContextsComplete += CppTypeContext.CreateConversionOperator;
         }
 
         private CppTypeContext CreateContext(ITypeData t, CppTypeContext? declaring)
         {
-            var typeContext = new CppTypeContext(_collection, t, declaring);
-            foreach (var nt in t.NestedTypes)
+            if (!_map.TryGetValue(t, out var typeContext))
             {
-                // For each nested type, we create a context for it
-                CreateContext(nt, typeContext);
+                typeContext = new CppTypeContext(_collection, t, declaring);
+                // Each type is always added to _map (with a non-null header and cpp context)
+                _map.Add(t, typeContext);
+                foreach (var nt in t.NestedTypes)
+                {
+                    // For each nested type, we create a context for it
+                    CreateContext(nt, typeContext);
+                }
             }
-            // Each type is always added to _map (with a non-null header and cpp context)
-            _map.Add(t, typeContext);
             return typeContext;
         }
 
@@ -181,7 +186,7 @@ namespace Il2CppModdingCodegen.Serialization
             {
                 // Don't need to use modloader since this library is not a mod, it has no ModInfo that it uses!
                 // TODO: Configurable bs-hook version
-                mkSerializer.WritePrebuiltSharedLibrary("beatsaber-hook", "./extern/libbeatsaber-hook_0_3_5.so", "./extern/beatsaber-hook/shared/");
+                mkSerializer.WritePrebuiltSharedLibrary("beatsaber-hook", "./extern/libbeatsaber-hook_0_4_7.so", "./extern/beatsaber-hook/shared/");
                 mkSerializer.WriteSingleFile(new AndroidMkSerializer.Library(_config.Id, false, new List<string> { "beatsaber-hook" }));
             }
             mkSerializer.Close();

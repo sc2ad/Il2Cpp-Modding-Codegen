@@ -393,11 +393,33 @@ namespace Il2CppModdingCodegen.Serialization
                     // Indent, create nested type definition
                     Serialize(writer, inPlace, true);
             }
-            // Fields may be converted to methods, so we handle writing these in non-header contexts just in case we need definitions of the methods
-            typeSerializer.WriteFields(writer, context.LocalType, asHeader);
-            // Write special ctors, if this is a header
+
+            // Write instance fields and special ctors, if this is a header
             if (asHeader)
+            {
+                typeSerializer.WriteInstanceFields(writer, context.LocalType);
                 typeSerializer.WriteSpecialCtors(writer, context.LocalType, context.LocalType.This.DeclaringType != null);
+
+                var op = context.SoloFieldConversionOperator;
+                if (op.Field != null && op.Kind != ConversionOperatorKind.Inherited)
+                {
+                    var soloFieldSerializer = typeSerializer;
+                    if (!op.Field.DeclaringType.Equals(context.LocalType.This))
+                    {
+                        // we may not have a name for this field type; ask the field's declaring type instead
+                        var resolved = op.Field.DeclaringType.Resolve(_collection);
+                        if (resolved is null) throw new UnresolvedTypeException(context.LocalType.This, op.Field.DeclaringType);
+                        var resolvedContext = CppDataSerializer.TypeToContext[resolved];
+                        if (!_typeSerializers.TryGetValue(resolvedContext, out soloFieldSerializer))
+                            throw new InvalidOperationException($"Must have a valid {nameof(CppTypeDataSerializer)} for context type: {resolvedContext.LocalType.This}!");
+                    }
+                    soloFieldSerializer.WriteConversionOperator(writer, op, asHeader);
+                }
+            }
+
+            // Static fields are converted to methods, so declarations are written in the header, definitions written when the body is needed.
+            typeSerializer.WriteStaticFields(writer, context.LocalType, asHeader);
+
             // Method declarations are written in the header, definitions written when the body is needed.
             typeSerializer.WriteMethods(writer, context.LocalType, asHeader);
             writer.Flush();

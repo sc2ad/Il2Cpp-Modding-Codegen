@@ -206,11 +206,13 @@ namespace Il2CppModdingCodegen.Serialization
                 }
         }
 
-        internal void WriteFields(CppStreamWriter writer, ITypeData type, bool asHeader)
+        internal void WriteInstanceFields(CppStreamWriter writer, ITypeData type)
         {
-            if (asHeader)
-                // Only write standard fields if this is a header
-                WriteFields(writer, type, asHeader, true);
+            WriteFields(writer, type, true, true);
+        }
+
+        internal void WriteStaticFields(CppStreamWriter writer, ITypeData type, bool asHeader)
+        {
             WriteFields(writer, type, asHeader, false);
         }
 
@@ -226,6 +228,11 @@ namespace Il2CppModdingCodegen.Serialization
                     typeName = typeName.Substring(idx + 2);
             }
             FieldSerializer.WriteCtor(writer, type, typeName, true);
+        }
+
+        internal void WriteConversionOperator(CppStreamWriter writer, FieldConversionOperator op, bool asHeader)
+        {
+            FieldSerializer.WriteConversionOperator(writer, op, asHeader);
         }
 
         // Iff namespaced, writes only the namespace-scoped methods. Otherwise, writes only the non-namespace-scoped methods.

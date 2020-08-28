@@ -32,6 +32,27 @@ namespace Il2CppModdingCodegen.Serialization
         internal HashSet<TypeRef> Definitions { get; } = new HashSet<TypeRef>();
         internal HashSet<TypeRef> DefinitionsToGet { get; } = new HashSet<TypeRef>();
 
+        private FieldConversionOperator? _soloFieldConversionOperator = null;
+        internal FieldConversionOperator SoloFieldConversionOperator {
+            get => _soloFieldConversionOperator ?? throw new InvalidOperationException("Must call CreateConversionOperator first!");
+        }
+
+        internal static void CreateConversionOperator(CppDataSerializer ser, ITypeData type, CppTypeContext self)
+        {
+            if (self._soloFieldConversionOperator != null)
+                return;
+            FieldConversionOperator? parentFieldConversionOperator = null;
+            if (type.Parent != null)
+            {
+                var resolved = type.Parent.Resolve(self._types);
+                if (resolved is null) throw new UnresolvedTypeException(type.This, type.Parent);
+                var parentContext = CppDataSerializer.TypeToContext[resolved];
+                CreateConversionOperator(ser, resolved, parentContext);
+                parentFieldConversionOperator = parentContext._soloFieldConversionOperator;
+            }
+            self._soloFieldConversionOperator = new FieldConversionOperator(type, parentFieldConversionOperator);
+        }
+
         internal CppTypeContext? DeclaringContext { get; private set; }
         internal HashSet<TypeRef> UniqueInterfaces { get; } = new HashSet<TypeRef>();
         internal bool InPlace { get; private set; } = false;
