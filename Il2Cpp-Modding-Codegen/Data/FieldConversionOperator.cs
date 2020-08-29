@@ -27,8 +27,14 @@ namespace Il2CppModdingCodegen.Data
             }
             else if (parKind == None && type.InstanceFields.Count == 1)
             {
-                Kind = Yes;
-                Field = type.InstanceFields.First();
+                var field = type.InstanceFields.First();
+                if (field.Type.IsGenericParameter || field.Type.IsGenericTemplate)
+                    Kind = Invalid;  // todo: resolve conversion operators properly for generic types?
+                else
+                {
+                    Kind = Yes;
+                    Field = field;
+                }
             }
             else
                 Kind = parKind;

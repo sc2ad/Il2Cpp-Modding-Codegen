@@ -11,11 +11,12 @@ namespace Il2CppModdingCodegen.Serialization
     public class CppMethodSerializer : Serializer<IMethod>
     {
         // TODO: remove op_Implicit and op_Explicit from IgnoredMethods once we figure out a safe way to serialize them
-        private static readonly HashSet<string> IgnoredMethods = new HashSet<string>() { "op_Implicit", "op_Explicit" };
+        private static readonly HashSet<string> IgnoredMethods = new HashSet<string>(); // { "op_Implicit", "op_Explicit" };
 
         [Flags]
         private enum OpFlags
         {
+            NeedMoreInfo = 0,
             Constructor = 1,
             RefReturn = 2,
             ConstSelf = 4,
@@ -23,11 +24,19 @@ namespace Il2CppModdingCodegen.Serialization
             InClassOnly = 16,
         }
 
+        private (string, OpFlags) GetConversionOperatorInfo(string prefix, IMethod op)
+        {
+            if (op.ReturnType.ContainsOrEquals(op.DeclaringType))
+                return (prefix + _stateMap[op.DeclaringType].type, OpFlags.Constructor | OpFlags.InClassOnly);
+            else
+                return ($"{prefix}operator {_resolvedReturns[op].TypeName(false)}", OpFlags.InClassOnly);
+        }
+
         private static readonly Dictionary<string, (string, OpFlags)> Operators = new Dictionary<string, (string, OpFlags)>()
         {
             // https://en.cppreference.com/w/cpp/language/converting_constructor OR https://en.cppreference.com/w/cpp/language/cast_operator
-            { "op_Implicit", ("{type}", OpFlags.Constructor | OpFlags.InClassOnly) },
-            { "op_Explicit", ("explicit {type}", OpFlags.Constructor | OpFlags.InClassOnly) },
+            { "op_Implicit", ("", OpFlags.NeedMoreInfo) },
+            { "op_Explicit", ("explicit ", OpFlags.NeedMoreInfo) },
             // https://en.cppreference.com/w/cpp/language/operator_assignment
             { "op_Assign", ("operator =", OpFlags.RefReturn | OpFlags.InClassOnly) },
             { "op_AdditionAssignment", ("operator +=", OpFlags.RefReturn) },
@@ -118,9 +127,12 @@ namespace Il2CppModdingCodegen.Serialization
 
         private bool _declaringIsValueType;
 
-        internal CppMethodSerializer(SerializationConfig config)
+        private readonly Dictionary<TypeRef, CppTypeDataSerializer.State> _stateMap;
+
+        internal CppMethodSerializer(SerializationConfig config, Dictionary<TypeRef, CppTypeDataSerializer.State> map)
         {
             _config = config;
+            _stateMap = map;
         }
 
         private static bool NeedDefinitionInHeader(IMethod method) => method.DeclaringType.IsGenericTemplate || method.Generic;
@@ -198,6 +210,11 @@ namespace Il2CppModdingCodegen.Serialization
                 var numParams = _parameterMaps[method].Count;
                 name = info.Item1;
                 var flags = info.Item2;
+                if (flags == OpFlags.NeedMoreInfo)
+                {
+                    (name, flags) = GetConversionOperatorInfo(name, method);
+                    _resolvedReturns[method].Skip = true;
+                }
 
                 static void PrefixConstUnlessPointer(MethodTypeContainer container)
                 {
@@ -377,26 +394,42 @@ namespace Il2CppModdingCodegen.Serialization
                 Resolved(method);
         }
 
-        private string WriteMethod(MethodScope scope, IMethod method, bool isHeader, string? overrideName)
+        private bool CanWriteMethod(int genParamCount, TypeRef declaringType, bool asHeader, string sig)
+        {
+            if (!_signatures.ContainsKey(genParamCount))
+                _signatures[genParamCount] = new HashSet<(TypeRef, bool, string)>();
+            return _signatures[genParamCount].Add((declaringType, asHeader, sig));
+        }
+
+        private string WriteMethod(MethodScope scope, IMethod method, bool asHeader, string? overrideName)
         {
             var ns = "";
             var preRetStr = "";
             var overrideStr = "";
             var impl = "";
 
-            bool namespaceQualified = !isHeader;
+            string retStr = "";
+            bool namespaceQualified = !asHeader;
+
             if (namespaceQualified)
                 ns = (scope == MethodScope.Namespace ? _declaringNamespace : _declaringFullyQualified) + "::";
-            else if (scope == MethodScope.Static)
-                preRetStr += "static ";
-            else if (scope == MethodScope.Namespace && NeedDefinitionInHeader(method))
-                preRetStr += "inline ";
 
-            // stringify the return type
-            var retStr = _resolvedReturns[method].TypeName(isHeader);
-            if (!method.ReturnType.IsVoid())
-                if (_config.OutputStyle == OutputStyle.Normal)
-                    retStr = "std::optional<" + retStr + ">";
+            if (!_resolvedReturns[method].Skip)
+            {
+                if (!namespaceQualified)
+                {
+                    if (scope == MethodScope.Static)
+                        preRetStr += "static ";
+                    else if (scope == MethodScope.Namespace && NeedDefinitionInHeader(method))
+                        preRetStr += "inline ";
+                }
+
+                // stringify the return type
+                retStr = _resolvedReturns[method].TypeName(asHeader);
+                if (!method.ReturnType.IsVoid())
+                    if (_config.OutputStyle == OutputStyle.Normal)
+                        retStr = "std::optional<" + retStr + ">";
+            }
 
             string nameStr;
             if (string.IsNullOrEmpty(overrideName))
@@ -409,7 +442,7 @@ namespace Il2CppModdingCodegen.Serialization
                 nameStr = overrideName;
 
             string paramString = method.Parameters.FormatParameters(_config.IllegalNames, _parameterMaps[method],
-                FormatParameterMode.Names | FormatParameterMode.Types, header: isHeader);
+                FormatParameterMode.Names | FormatParameterMode.Types, header: asHeader);
 
             // Handles i.e. ".ctor"
             if (IsCtor(method))
@@ -422,7 +455,7 @@ namespace Il2CppModdingCodegen.Serialization
                     retStr = $"::{Constants.StringCppName}*";
                 else
                 {
-                    retStr = !isHeader ? _declaringFullyQualified : _thisTypeName;
+                    retStr = (!asHeader ? _declaringFullyQualified : _thisTypeName)!;
                     if (retStr is null) throw new UnresolvedTypeException(method.DeclaringType, method.DeclaringType);
                     // Force return type to be a pointer
                     retStr = retStr.EndsWith("*") ? retStr : retStr + "*";
@@ -431,11 +464,11 @@ namespace Il2CppModdingCodegen.Serialization
                 nameStr = "New" + nameStr;
             }
 
-            var signature = $"{nameStr}({paramString})";
+            var typeOnlyParamString = method.Parameters.FormatParameters(_config.IllegalNames, _parameterMaps[method],
+                FormatParameterMode.Types, header: asHeader);
+            var signature = $"{nameStr.TrimStart("explicit ")}({typeOnlyParamString})";
 
-            if (!_signatures.ContainsKey(method.GenericParameters.Count))
-                _signatures[method.GenericParameters.Count] = new HashSet<(TypeRef, bool, string)>();
-            if (!_signatures[method.GenericParameters.Count].Add((method.DeclaringType, isHeader, signature)))
+            if (_aborted.Contains(method) || !CanWriteMethod(method.GenericParameters.Count, method.DeclaringType, asHeader, signature))
             {
                 if (_config.DuplicateMethodExceptionHandling == DuplicateMethodExceptionHandling.DisplayInFile)
                     preRetStr = "// ABORTED: conflicts with another method. " + preRetStr;
@@ -445,9 +478,69 @@ namespace Il2CppModdingCodegen.Serialization
                 _aborted.Add(method);
             }
 
-            var ret = $"{preRetStr}{retStr} {ns}{signature}{overrideStr}{impl}";
+            var ret = $"{preRetStr}{retStr} {ns}{nameStr}({paramString}){overrideStr}{impl}".TrimStart();
             //if (isHeader && scope == MethodScope.Namespace) Console.WriteLine(ret);
             return ret;
+        }
+
+        internal void WriteCtor(CppStreamWriter writer, CppFieldSerializer fieldSer, ITypeData type, string name, bool asHeader)
+        {
+            // If the type we are writing is a value type, we would like to make a constructor that takes in each non-static, non-const field.
+            // This is to allow us to construct structs without having to provide initialization lists that are horribly long.
+            if (type.Info.Refness == Refness.ValueType && asHeader)
+            {
+                var sig = $"{name}({string.Join(", ", fieldSer.ResolvedTypeNames.Select(pair => pair.Value))})";
+                if (!CanWriteMethod(0, type.This, asHeader, sig)) return;
+
+                var signature = $"constexpr {name}(";
+                signature += string.Join(", ", fieldSer.ResolvedTypeNames.Select(pair =>
+                {
+                    var typeName = pair.Value;
+                    var fieldName = fieldSer.SafeFieldNames[pair.Key];
+                    return typeName + " " + fieldName + "_ = {}";
+                }));
+                signature += ")";
+                string subConstructors = string.Join(", ", fieldSer.SafeFieldNames.Select(pair =>
+                {
+                    return pair.Value + "{" + pair.Value + "_}";
+                }));
+                if (!string.IsNullOrEmpty(subConstructors))
+                    signature += " : " + subConstructors;
+                signature += " {}";
+                writer.WriteComment("Creating value type constructor for type: " + name);
+                writer.WriteLine(signature);
+            }
+        }
+
+        internal void WriteConversionOperator(CppStreamWriter writer, CppFieldSerializer fieldSer, ITypeData type,
+            FieldConversionOperator op, bool asHeader)
+        {
+            if (op.Field is null) return;
+            // If the type we are writing is a value type, we would like to make a constructor that takes in each non-static, non-const field.
+            // This is to allow us to construct structs without having to provide initialization lists that are horribly long.
+            if (asHeader && op.Kind != ConversionOperatorKind.Inherited)
+            {
+                var name = "operator " + fieldSer.ResolvedTypeNames[op.Field];
+                var sig = name + "()";
+                if (!CanWriteMethod(0, type.This, asHeader, sig)) return;
+
+                var signature = $"constexpr {name}() const";
+
+                if (op.Kind == ConversionOperatorKind.Delete)
+                {
+                    writer.WriteComment("Deleting conversion operator: " + name);
+                    writer.WriteDeclaration(signature + " = delete");
+                }
+                else if (op.Kind == ConversionOperatorKind.Yes)
+                {
+                    writer.WriteComment("Creating conversion operator: " + name);
+                    writer.WriteDefinition(signature);
+                    writer.WriteDeclaration($"return {fieldSer.SafeFieldNames[op.Field]}");
+                    writer.CloseDefinition();
+                }
+                else
+                    throw new ArgumentException($"Can't write conversion operator from kind '{op.Kind}'");
+            }
         }
 
         private static bool IsCtor(IMethod method) => method.Name == "_ctor" || method.Name == ".ctor";

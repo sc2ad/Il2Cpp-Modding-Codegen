@@ -12,7 +12,7 @@ namespace Il2CppModdingCodegen.Serialization
     {
         internal class GenParamConstraintStrings : Dictionary<string, List<string>> { }
 
-        private struct State
+        internal struct State
         {
             internal string type;
             internal string? declaring;
@@ -28,7 +28,7 @@ namespace Il2CppModdingCodegen.Serialization
         private CppStaticFieldSerializer? _staticFieldSerializer;
         private CppStaticFieldSerializer StaticFieldSerializer { get => _staticFieldSerializer ??= new CppStaticFieldSerializer(_config); }
         private CppMethodSerializer? _methodSerializer;
-        private CppMethodSerializer MethodSerializer { get => _methodSerializer ??= new CppMethodSerializer(_config); }
+        private CppMethodSerializer MethodSerializer { get => _methodSerializer ??= new CppMethodSerializer(_config, map); }
         private readonly SerializationConfig _config;
 
         internal CppTypeDataSerializer(SerializationConfig config)
@@ -227,12 +227,13 @@ namespace Il2CppModdingCodegen.Serialization
                 if (idx >= 0)
                     typeName = typeName.Substring(idx + 2);
             }
-            FieldSerializer.WriteCtor(writer, type, typeName, true);
+            MethodSerializer.WriteCtor(writer, FieldSerializer, type, typeName, true);
         }
 
-        internal void WriteConversionOperator(CppStreamWriter writer, FieldConversionOperator op, bool asHeader)
+        internal void WriteConversionOperator(CppStreamWriter writer, CppTypeDataSerializer scopedSer, ITypeData type,
+            FieldConversionOperator op, bool asHeader)
         {
-            FieldSerializer.WriteConversionOperator(writer, op, asHeader);
+            MethodSerializer.WriteConversionOperator(writer, scopedSer.FieldSerializer, type, op, asHeader);
         }
 
         // Iff namespaced, writes only the namespace-scoped methods. Otherwise, writes only the non-namespace-scoped methods.

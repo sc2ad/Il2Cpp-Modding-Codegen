@@ -403,17 +403,17 @@ namespace Il2CppModdingCodegen.Serialization
                 var op = context.SoloFieldConversionOperator;
                 if (op.Field != null && op.Kind != ConversionOperatorKind.Inherited)
                 {
-                    var soloFieldSerializer = typeSerializer;
+                    var scopedSerializer = typeSerializer;
                     if (!op.Field.DeclaringType.Equals(context.LocalType.This))
                     {
                         // we may not have a name for this field type; ask the field's declaring type instead
                         var resolved = op.Field.DeclaringType.Resolve(_collection);
                         if (resolved is null) throw new UnresolvedTypeException(context.LocalType.This, op.Field.DeclaringType);
                         var resolvedContext = CppDataSerializer.TypeToContext[resolved];
-                        if (!_typeSerializers.TryGetValue(resolvedContext, out soloFieldSerializer))
+                        if (!_typeSerializers.TryGetValue(resolvedContext, out scopedSerializer))
                             throw new InvalidOperationException($"Must have a valid {nameof(CppTypeDataSerializer)} for context type: {resolvedContext.LocalType.This}!");
                     }
-                    soloFieldSerializer.WriteConversionOperator(writer, op, asHeader);
+                    typeSerializer.WriteConversionOperator(writer, scopedSerializer, context.LocalType, op, asHeader);
                 }
             }
 

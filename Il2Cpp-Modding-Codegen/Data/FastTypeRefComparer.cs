@@ -18,6 +18,8 @@ namespace Il2CppModdingCodegen.Data
 
             if (x.Namespace != y.Namespace || x.Name != y.Name)
                 return false;
+            if ((x.IsArray() != y.IsArray()) || (x.IsPointer() != y.IsPointer()))
+                return false;
             if (x.IsGeneric && y.IsGeneric)
             {
                 // If both x and y are generic
@@ -38,6 +40,8 @@ namespace Il2CppModdingCodegen.Data
             int hashCode = 611187721;
             hashCode = hashCode * -1521134295 + EqualityComparer<string>.Default.GetHashCode(obj.Namespace);
             hashCode = hashCode * -1521134295 + EqualityComparer<string>.Default.GetHashCode(obj.Name);
+            if (obj.IsArray()) hashCode *= 37;
+            else if (obj.IsPointer()) hashCode *= 59;
             // Generics are not included in the hash code.
             return hashCode;
         }

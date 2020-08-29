@@ -11,8 +11,8 @@ namespace Il2CppModdingCodegen.Serialization
         // When we construct this class, we resolve the field by placing everything it needs in the context object
         // When serialize is called, we simply write the field we have.
 
-        private readonly Dictionary<IField, string?> _resolvedTypeNames = new Dictionary<IField, string?>();
-        private readonly Dictionary<IField, string> _safeFieldNames = new Dictionary<IField, string>();
+        internal readonly Dictionary<IField, string?> ResolvedTypeNames = new Dictionary<IField, string?>();
+        internal readonly Dictionary<IField, string> SafeFieldNames = new Dictionary<IField, string>();
 
         private readonly SerializationConfig _config;
 
@@ -39,7 +39,7 @@ namespace Il2CppModdingCodegen.Serialization
             if (!string.IsNullOrEmpty(resolvedName))
                 Resolved(field);
             // In order to ensure we get an UnresolvedTypeException when we serialize
-            _resolvedTypeNames.Add(field, resolvedName);
+            ResolvedTypeNames.Add(field, resolvedName);
 
             string SafeFieldName()
             {
@@ -50,62 +50,7 @@ namespace Il2CppModdingCodegen.Serialization
                 if (char.IsDigit(name[0])) name = "_" + name;
                 return _config.SafeName(name);
             }
-            _safeFieldNames.Add(field, SafeFieldName());
-        }
-
-        internal void WriteCtor(CppStreamWriter writer, ITypeData type, string name, bool asHeader)
-        {
-            // If the type we are writing is a value type, we would like to make a constructor that takes in each non-static, non-const field.
-            // This is to allow us to construct structs without having to provide initialization lists that are horribly long.
-            if (type.Info.Refness == Refness.ValueType && asHeader)
-            {
-                var signature = $"constexpr {name}(";
-                signature += string.Join(", ", _resolvedTypeNames.Select(pair =>
-                {
-                    var typeName = pair.Value;
-                    var fieldName = _safeFieldNames[pair.Key];
-                    var defaultVal = "{}";
-                    return typeName + " " + fieldName + "_ = " + defaultVal;
-                }));
-                signature += ")";
-                string subConstructors = string.Join(", ", _safeFieldNames.Select(pair =>
-                {
-                    return pair.Value + "{" + pair.Value + "_}";
-                }));
-                if (!string.IsNullOrEmpty(subConstructors))
-                    signature += " : " + subConstructors;
-                signature += " {}";
-                writer.WriteComment("Creating value type constructor for type: " + name);
-                writer.WriteLine(signature);
-            }
-        }
-
-        internal void WriteConversionOperator(CppStreamWriter writer, FieldConversionOperator op, bool asHeader)
-        {
-            if (op.Field is null) return;
-            // If the type we are writing is a value type, we would like to make a constructor that takes in each non-static, non-const field.
-            // This is to allow us to construct structs without having to provide initialization lists that are horribly long.
-            if (asHeader && op.Kind != ConversionOperatorKind.Inherited)
-            {
-                var name = "operator " + _resolvedTypeNames[op.Field];
-                var signature = $"constexpr {name}() const";
-
-
-                if (op.Kind == ConversionOperatorKind.Delete)
-                {
-                    writer.WriteComment("Deleting conversion operator: " + name);
-                    writer.WriteDeclaration(signature + " = delete");
-                }
-                else if (op.Kind == ConversionOperatorKind.Yes)
-                {
-                    writer.WriteComment("Creating conversion operator: " + name);
-                    writer.WriteDefinition(signature);
-                    writer.WriteDeclaration($"return {_safeFieldNames[op.Field]}");
-                    writer.CloseDefinition();
-                }
-                else
-                    throw new ArgumentException($"Can't write conversion operator from kind '{op.Kind}'");
-            }
+            SafeFieldNames.Add(field, SafeFieldName());
         }
 
         // Write the field here
@@ -114,7 +59,7 @@ namespace Il2CppModdingCodegen.Serialization
             if (writer is null) throw new ArgumentNullException(nameof(writer));
             if (field is null) throw new ArgumentNullException(nameof(field));
             // If we could not resolve the type name, don't serialize the field (this should cause a critical failure in the type)
-            if (_resolvedTypeNames[field] == null)
+            if (ResolvedTypeNames[field] == null)
                 throw new UnresolvedTypeException(field.DeclaringType, field.Type);
 
             var fieldString = "";
@@ -124,7 +69,7 @@ namespace Il2CppModdingCodegen.Serialization
 
             writer.WriteComment($"Offset: 0x{field.Offset:X}");
             if (!field.Specifiers.IsStatic() && !field.Specifiers.IsConst())
-                writer.WriteFieldDeclaration(_resolvedTypeNames[field]!, _safeFieldNames[field]);
+                writer.WriteFieldDeclaration(ResolvedTypeNames[field]!, SafeFieldNames[field]);
             writer.Flush();
             Serialized(field);
         }

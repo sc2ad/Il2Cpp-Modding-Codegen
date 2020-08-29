@@ -16,6 +16,13 @@ namespace Il2CppModdingCodegen
             return text.Substring(0, pos) + replace + text.Substring(pos + search.Length);
         }
 
+        internal static string TrimStart(this string str, string prefix)
+        {
+            if (str.StartsWith(prefix))
+                return str.Substring(prefix.Length);
+            return str;
+        }
+
         internal static TypeDefinition? ResolvedBaseType(this TypeDefinition self)
         {
             var base_type = self?.BaseType;
