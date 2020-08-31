@@ -499,7 +499,7 @@ namespace Il2CppModdingCodegen.Serialization
                     var fieldName = fieldSer.SafeFieldNames[pair.Key];
                     return typeName + " " + fieldName + "_ = {}";
                 }));
-                signature += ")";
+                signature += ") noexcept";
                 string subConstructors = string.Join(", ", fieldSer.SafeFieldNames.Select(pair =>
                 {
                     return pair.Value + "{" + pair.Value + "_}";
@@ -524,7 +524,7 @@ namespace Il2CppModdingCodegen.Serialization
                 var sig = name + "()";
                 if (!CanWriteMethod(0, type.This, asHeader, sig)) return;
 
-                var signature = $"constexpr {name}() const";
+                var signature = $"constexpr {name}() const noexcept";
 
                 if (op.Kind == ConversionOperatorKind.Delete)
                 {
