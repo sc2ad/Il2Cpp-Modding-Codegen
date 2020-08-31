@@ -11,7 +11,7 @@ namespace Il2CppModdingCodegen.Serialization
     public class CppMethodSerializer : Serializer<IMethod>
     {
         // TODO: remove op_Implicit and op_Explicit from IgnoredMethods once we figure out a safe way to serialize them
-        private static readonly HashSet<string> IgnoredMethods = new HashSet<string>(); // { "op_Implicit", "op_Explicit" };
+        private static readonly HashSet<string> IgnoredMethods = new HashSet<string>() { "op_Implicit", "op_Explicit" };
 
         [Flags]
         private enum OpFlags
