@@ -61,23 +61,16 @@ namespace Il2CppModdingCodegen.Data
 
     public static class ParameterExtensions
     {
-        internal static string PrintParameter(this (MethodTypeContainer container, ParameterFlags flags) param,
-            bool header, bool csharp = false)
+        internal static string PrintParameter(this (MethodTypeContainer container, ParameterFlags flags) param, bool header)
         {
             var s = param.container.TypeName(header);
-            if (csharp)
-            {
-                if (param.flags != ParameterFlags.None)
-                    s = $"{param.flags.GetFlagsString().ToLower()} {s}";
-            }
-            else if (param.flags != ParameterFlags.None && !param.flags.HasFlag(ParameterFlags.Params))
+            if (param.flags != ParameterFlags.None && !param.flags.HasFlag(ParameterFlags.Params))
                 s += "&";
             return s;
         }
 
         internal static string FormatParameters(this List<Parameter> parameters, HashSet<string>? illegalNames = null,
-            List<(MethodTypeContainer, ParameterFlags)>? resolvedNames = null, FormatParameterMode mode = FormatParameterMode.Normal,
-            bool header = false, bool csharp = false)
+            List<(MethodTypeContainer, ParameterFlags)>? resolvedNames = null, FormatParameterMode mode = FormatParameterMode.Normal, bool header = false)
         {
             var s = "";
             for (int i = 0; i < parameters.Count; i++)
@@ -105,7 +98,7 @@ namespace Il2CppModdingCodegen.Data
                 {
                     // Only types
                     if (resolvedNames != null)
-                        s += $"{resolvedNames[i].PrintParameter(header, csharp)}";
+                        s += $"{resolvedNames[i].PrintParameter(header)}";
                     else
                         // Includes modifiers
                         s += $"{parameters[i].ToString(false)}";
@@ -114,7 +107,7 @@ namespace Il2CppModdingCodegen.Data
                 {
                     // Types and names
                     if (resolvedNames != null)
-                        s += $"{resolvedNames[i].PrintParameter(header, csharp)} {nameStr}";
+                        s += $"{resolvedNames[i].PrintParameter(header)} {nameStr}";
                     else
                         // Includes modifiers
                         s += $"{parameters[i]}";

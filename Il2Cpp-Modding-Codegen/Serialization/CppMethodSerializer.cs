@@ -624,14 +624,14 @@ namespace Il2CppModdingCodegen.Serialization
                 foreach (var spec in method.Specifiers)
                     methodComment += $"{spec} ";
                 // Method comment should also use the Il2CppName whenever possible
-                methodComment += $"{method.ReturnType} {method.Il2CppName}({method.Parameters.FormatParameters(csharp: true)})";
+                methodComment += $"{method.ReturnType} {method.Il2CppName}({method.Parameters.FormatParameters()})";
                 writer.WriteComment(methodComment);
 
                 writer.WriteComment($"Offset: 0x{method.Offset:X}");
                 if (method.ImplementedFrom != null)
                     writer.WriteComment("Implemented from: " + method.ImplementedFrom);
                 foreach (var bm in method.BaseMethods)
-                    writer.WriteComment($"Base method: {bm.ReturnType} {bm.DeclaringType.Name}::{bm.Name}({method.Parameters.FormatParameters(csharp: true)})");
+                    writer.WriteComment($"Base method: {bm.ReturnType} {bm.DeclaringType.Name}::{bm.Name}({method.Parameters.FormatParameters()})");
                 if (!writeContent)
                 {
                     var methodStr = WriteMethod(scope, method, _asHeader, overrideName);
