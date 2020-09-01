@@ -8,6 +8,7 @@ namespace Il2CppModdingCodegen.Data
         None = 0,
         Ref = 1,
         Out = 2,
-        In = 4
+        In = 4,
+        Params = 8,
     }
 }

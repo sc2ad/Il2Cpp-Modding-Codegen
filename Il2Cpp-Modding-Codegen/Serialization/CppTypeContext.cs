@@ -33,9 +33,8 @@ namespace Il2CppModdingCodegen.Serialization
         internal HashSet<TypeRef> DefinitionsToGet { get; } = new HashSet<TypeRef>();
 
         private FieldConversionOperator? _soloFieldConversionOperator = null;
-        internal FieldConversionOperator SoloFieldConversionOperator {
-            get => _soloFieldConversionOperator ?? throw new InvalidOperationException("Must call CreateConversionOperator first!");
-        }
+        internal FieldConversionOperator SoloFieldConversionOperator =>
+            _soloFieldConversionOperator ?? throw new InvalidOperationException("Must call CreateConversionOperator first!");
 
         internal static void CreateConversionOperator(CppDataSerializer ser, ITypeData type, CppTypeContext self)
         {

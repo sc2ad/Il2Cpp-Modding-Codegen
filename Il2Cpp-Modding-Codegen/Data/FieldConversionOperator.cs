@@ -1,8 +1,5 @@
-﻿using Il2CppModdingCodegen.Serialization;
-using System;
-using System.Collections.Generic;
+﻿using System;
 using System.Linq;
-using System.Text;
 using static Il2CppModdingCodegen.Data.ConversionOperatorKind;
 
 namespace Il2CppModdingCodegen.Data

@@ -1,7 +1,9 @@
 ﻿using Il2CppModdingCodegen.Data.DllHandling;
 using Il2CppModdingCodegen.Data.DumpHandling;
 using Mono.Cecil;
+using System;
 using System.Collections.Generic;
+using System.Linq;
 
 namespace Il2CppModdingCodegen.Data
 {
@@ -15,17 +17,10 @@ namespace Il2CppModdingCodegen.Data
         {
             var spl = innard.Split(' ');
             int typeIndex = 1;
-            if (spl[0] == "ref")
-                Flags = ParameterFlags.Ref;
-            else if (spl[0] == "out")
-                Flags = ParameterFlags.Out;
-            else if (spl[0] == "in")
-                Flags = ParameterFlags.In;
+            if (Enum.TryParse<ParameterFlags>(spl[0], true, out var flags))
+                Flags = flags;
             else
-            {
-                Flags = ParameterFlags.None;
                 typeIndex = 0;
-            }
 
             Type = new DumpTypeRef(DumpTypeRef.FromMultiple(spl, typeIndex, out int res, 1, " "));
             if (res + 1 < spl.Length)
@@ -39,15 +34,19 @@ namespace Il2CppModdingCodegen.Data
             Flags |= def.IsIn ? ParameterFlags.In : ParameterFlags.None;
             Flags |= def.IsOut ? ParameterFlags.Out : ParameterFlags.None;
             Flags |= def.ParameterType.IsByReference ? ParameterFlags.Ref : ParameterFlags.None;
+            Flags |= def.CustomAttributes.Any(a => a.AttributeType.FullName == typeof(ParamArrayAttribute).FullName)
+                ? ParameterFlags.Params : ParameterFlags.None;
         }
 
-        public override string ToString()
+        public override string ToString() => ToString(true);
+
+        internal string ToString(bool name)
         {
             string s = "";
             if (Flags != ParameterFlags.None)
-                s = $"{Flags.ToString().ToLower()} ";
+                s = $"{Flags.GetFlagsString().ToLower()} ";
             s += $"{Type}";
-            if (Name != null)
+            if (name && Name != null)
                 s += $" {Name}";
             return s;
         }
@@ -62,24 +61,23 @@ namespace Il2CppModdingCodegen.Data
 
     public static class ParameterExtensions
     {
-        internal static string PrintParameter(this (MethodTypeContainer container, ParameterFlags flags) param, bool header, bool csharp = false)
+        internal static string PrintParameter(this (MethodTypeContainer container, ParameterFlags flags) param,
+            bool header, bool csharp = false)
         {
             var s = param.container.TypeName(header);
             if (csharp)
             {
-                if (param.flags.HasFlag(ParameterFlags.Out))
-                    s = "out " + s;
-                if (param.flags.HasFlag(ParameterFlags.Ref))
-                    s = "ref " + s;
-                if (param.flags.HasFlag(ParameterFlags.In))
-                    s = "in " + s;
+                if (param.flags != ParameterFlags.None)
+                    s = $"{param.flags.GetFlagsString().ToLower()} {s}";
             }
-            else if (param.flags != ParameterFlags.None)
+            else if (param.flags != ParameterFlags.None && !param.flags.HasFlag(ParameterFlags.Params))
                 s += "&";
             return s;
         }
 
-        internal static string FormatParameters(this List<Parameter> parameters, HashSet<string>? illegalNames = null, List<(MethodTypeContainer, ParameterFlags)>? resolvedNames = null, FormatParameterMode mode = FormatParameterMode.Normal, bool header = false, bool csharp = false)
+        internal static string FormatParameters(this List<Parameter> parameters, HashSet<string>? illegalNames = null,
+            List<(MethodTypeContainer, ParameterFlags)>? resolvedNames = null, FormatParameterMode mode = FormatParameterMode.Normal,
+            bool header = false, bool csharp = false)
         {
             var s = "";
             for (int i = 0; i < parameters.Count; i++)
@@ -109,8 +107,8 @@ namespace Il2CppModdingCodegen.Data
                     if (resolvedNames != null)
                         s += $"{resolvedNames[i].PrintParameter(header, csharp)}";
                     else
-                        // Includes ref modifier
-                        s += $"{parameters[i]}";
+                        // Includes modifiers
+                        s += $"{parameters[i].ToString(false)}";
                 }
                 else
                 {
@@ -118,8 +116,8 @@ namespace Il2CppModdingCodegen.Data
                     if (resolvedNames != null)
                         s += $"{resolvedNames[i].PrintParameter(header, csharp)} {nameStr}";
                     else
-                        // Does not include ref modifier
-                        s += $"{parameters[i].Type} {nameStr}";
+                        // Includes modifiers
+                        s += $"{parameters[i]}";
                 }
                 if (i != parameters.Count - 1)
                     s += ", ";

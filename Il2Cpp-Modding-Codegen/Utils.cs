@@ -23,6 +23,14 @@ namespace Il2CppModdingCodegen
             return str;
         }
 
+        internal static IEnumerable<T> GetEnumValues<T>() => Enum.GetValues(typeof(T)).Cast<T>();
+
+        internal static IEnumerable<string> GetFlagStrings<T>(this T flags) where T : struct, Enum =>
+            // the Convert.ToBoolean filters out None (or whatever has the value 0)
+            GetEnumValues<T>().Where(f => Convert.ToBoolean(f) && flags.HasFlag(f)).Select(f => f.ToString());
+
+        internal static string GetFlagsString<T>(this T flags) where T : struct, Enum => string.Join(" ", flags.GetFlagStrings());
+
         internal static TypeDefinition? ResolvedBaseType(this TypeDefinition self)
         {
             var base_type = self?.BaseType;
