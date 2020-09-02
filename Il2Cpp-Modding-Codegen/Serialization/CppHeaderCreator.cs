@@ -93,6 +93,7 @@ namespace Il2CppModdingCodegen.Serialization
 
             if (data.This.Namespace == "System" && data.This.Name == "ValueType")
             {
+                IncludeIl2CppTypeCheckIfNotAlready(writer);
                 writer.WriteLine("template<class T>");
                 writer.WriteLine("struct is_value_type<T, typename std::enable_if_t<std::is_base_of_v<System::ValueType, T>>> : std::true_type{};");
             }

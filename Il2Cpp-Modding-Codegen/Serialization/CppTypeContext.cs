@@ -81,13 +81,15 @@ namespace Il2CppModdingCodegen.Serialization
         /// Returns true if this context uses primitive il2cpp types.
         /// </summary>
         internal bool NeedPrimitivesBeforeLateHeader { get; private set; } = false;
-
         internal void EnableNeedPrimitivesBeforeLateHeader() => NeedPrimitivesBeforeLateHeader = true;
 
-        // whether the header will need to include il2cpp_utils before the DEFINE_IL2CPP_ARG_TYPEs
+        // whether the header will need il2cpp_utils functions
         internal bool NeedIl2CppUtilsFunctionsInHeader { get; private set; } = false;
-
         internal void EnableNeedIl2CppUtilsFunctionsInHeader() => NeedIl2CppUtilsFunctionsInHeader = true;
+
+        // whether the header will need the include for std::initializer_list
+        internal bool NeedInitializerList { get; private set; } = false;
+        internal void EnableNeedInitializerList() => NeedInitializerList = true;
 
         internal bool NeedStdint { get; private set; } = false;
 
@@ -316,13 +318,15 @@ namespace Il2CppModdingCodegen.Serialization
 
         private void AddDefinition(TypeRef def, ITypeData? resolved = null)
         {
-            if (Definitions.Contains(def)) return;
-            if (DefinitionsToGet.Contains(def)) return;
             // Adding a definition is simple, ensure the type is resolved and add it
             if (resolved is null)
                 resolved = def.Resolve(_types);
             if (resolved is null)
                 throw new UnresolvedTypeException(LocalType.This, def);
+
+            def = resolved.This;
+            if (Definitions.Contains(def)) return;
+            if (DefinitionsToGet.Contains(def)) return;
             // Remove anything that is already declared, we only need to define it
             if (!DeclarationsToMake.Remove(def))
                 Declarations.Remove(def);
@@ -351,24 +355,24 @@ namespace Il2CppModdingCodegen.Serialization
         private void AddDeclaration(TypeRef def, ITypeData? resolved)
         {
             Contract.Requires(!def.IsVoid());
-
-            // If we have it in our DefinitionsToGet, no need to declare as well
-            if (DefinitionsToGet.Contains(def)) return;
-            if (DeclarationsToMake.Contains(def)) return;  // this def is already queued for declaration
-            if (Declarations.Contains(def)) return;
-
             if (resolved is null)
                 resolved = def.Resolve(_types);
             if (resolved is null)
                 throw new UnresolvedTypeException(LocalType.This, def);
 
-            if (resolved?.This.DeclaringType != null && !Definitions.Contains(resolved.This.DeclaringType))
+            def = resolved.This;
+            // If we have it in our DefinitionsToGet, no need to declare as well
+            if (DefinitionsToGet.Contains(def)) return;
+            if (DeclarationsToMake.Contains(def)) return;  // this def is already queued for declaration
+            if (Declarations.Contains(def)) return;
+
+            if (def.DeclaringType != null && !Definitions.Contains(def.DeclaringType))
             {
                 // If def's declaring type is not defined, we cannot declare def. Define def's declaring type instead.
-                AddDefinition(resolved.This.DeclaringType);
-                Declarations.Add(resolved.This);
+                AddDefinition(def.DeclaringType);
+                Declarations.Add(def);
             }
-            else if (resolved != null)
+            else
                 // Otherwise, we can safely add it to declarations
                 DeclarationsToMake.Add(def);
         }
