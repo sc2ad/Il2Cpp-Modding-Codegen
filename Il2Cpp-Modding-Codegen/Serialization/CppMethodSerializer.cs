@@ -338,6 +338,9 @@ namespace Il2CppModdingCodegen.Serialization
             var resolved = context.ResolveAndStore(method.DeclaringType, CppTypeContext.ForceAsType.Literal, CppTypeContext.NeedAs.Definition);
             _declaringIsValueType = resolved?.Info.Refness == Refness.ValueType;
 
+            if (method.Parameters.Any(p => p.Flags.HasFlag(ParameterFlags.Params)))
+                context.EnableNeedInitializerList();
+
             if (NeedDefinitionInHeader(method))
                 context.EnableNeedIl2CppUtilsFunctionsInHeader();
 
@@ -401,7 +404,7 @@ namespace Il2CppModdingCodegen.Serialization
             return _signatures[genParamCount].Add((declaringType, asHeader, sig));
         }
 
-        private string WriteMethod(MethodScope scope, IMethod method, bool asHeader, string? overrideName)
+        private string WriteMethod(MethodScope scope, IMethod method, bool asHeader, string? overrideName, bool banMethodIfFails = true)
         {
             var ns = "";
             var preRetStr = "";
@@ -475,7 +478,8 @@ namespace Il2CppModdingCodegen.Serialization
                 else if (_config.DuplicateMethodExceptionHandling == DuplicateMethodExceptionHandling.Elevate)
                     throw new DuplicateMethodException(method, preRetStr);
                 // Otherwise, do nothing (Skip/Ignore are identical)
-                _aborted.Add(method);
+                if (banMethodIfFails)
+                    _aborted.Add(method);
             }
 
             var ret = $"{preRetStr}{retStr} {ns}{nameStr}({paramString}){overrideStr}{impl}".TrimStart();
@@ -516,8 +520,8 @@ namespace Il2CppModdingCodegen.Serialization
             FieldConversionOperator op, bool asHeader)
         {
             if (op.Field is null) return;
-            // If the type we are writing is a value type, we would like to make a constructor that takes in each non-static, non-const field.
-            // This is to allow us to construct structs without having to provide initialization lists that are horribly long.
+            // If the type we are writing is a value type with exactly one instance field, we would like to make an implicit conversion operator that
+            // converts the type to the field. If a subclass then adds any instance fields, that operator must be deleted in the subclass.
             if (asHeader && op.Kind != ConversionOperatorKind.Inherited)
             {
                 var name = "operator " + fieldSer.ResolvedTypeNames[op.Field];
@@ -713,6 +717,13 @@ namespace Il2CppModdingCodegen.Serialization
                     writer.CloseDefinition();
                 }
             }
+
+            var param = method.Parameters.Where(p => p.Flags.HasFlag(ParameterFlags.Params)).SingleOrDefault();
+            if (param != null)
+            {
+                var TArg = param.Type.ElementType ?? throw new InvalidOperationException("Failed to get the ElementType of a 'params' parameter?!");
+            }
+
             // If we have 2 or more base methods, we need to see if either of our base methods have been renamed.
             // If any of them have been renamed, we need to create a new method for that and map it to the method we are currently serializing.
             // Basically, if we have void Clear() with two base methods, one of which is renamed, we create void Clear(), and we create void QUALIFIED_Clear()
@@ -737,7 +748,7 @@ namespace Il2CppModdingCodegen.Serialization
                         if (!writeContent)
                         {
                             // Write method declaration
-                            var methodStr = WriteMethod(scope, method, asHeader, pair.Item1);
+                            var methodStr = WriteMethod(scope, method, asHeader, pair.Item1, false);
                             if (TemplateString(method, true, out var templateStr))
                                 writer.WriteLine((methodStr.StartsWith("/") ? "// " : "") + templateStr);
                             if (methodStr.StartsWith("/"))
@@ -750,7 +761,7 @@ namespace Il2CppModdingCodegen.Serialization
                             // Write method content
                             if (TemplateString(method, false, out var templateStr))
                                 writer.WriteLine(templateStr);
-                            var methodStr = WriteMethod(scope, method, asHeader, pair.Item1);
+                            var methodStr = WriteMethod(scope, method, asHeader, pair.Item1, false);
                             if (methodStr.StartsWith("/"))
                             {
                                 // Comment failures

@@ -28,7 +28,7 @@ namespace Il2CppModdingCodegen.Serialization
         internal HashSet<string> PrimitiveDeclarations { get; } = new HashSet<string>();
 
         internal HashSet<TypeRef> Declarations { get; } = new HashSet<TypeRef>();
-        internal HashSet<TypeRef> DeclarationsToMake { get; } = new HashSet<TypeRef>();
+        internal HashSet<TypeRef> DeclarationsToMake { get; } = new HashSet<TypeRef>(TypeRef.fastComparer);
         internal HashSet<TypeRef> Definitions { get; } = new HashSet<TypeRef>();
         internal HashSet<TypeRef> DefinitionsToGet { get; } = new HashSet<TypeRef>();
 
@@ -82,13 +82,15 @@ namespace Il2CppModdingCodegen.Serialization
         /// Returns true if this context uses primitive il2cpp types.
         /// </summary>
         internal bool NeedPrimitivesBeforeLateHeader { get; private set; } = false;
-
         internal void EnableNeedPrimitivesBeforeLateHeader() => NeedPrimitivesBeforeLateHeader = true;
 
-        // whether the header will need to include il2cpp_utils before the DEFINE_IL2CPP_ARG_TYPEs
+        // whether the header will need il2cpp_utils functions
         internal bool NeedIl2CppUtilsFunctionsInHeader { get; private set; } = false;
-
         internal void EnableNeedIl2CppUtilsFunctionsInHeader() => NeedIl2CppUtilsFunctionsInHeader = true;
+
+        // whether the header will need the include for std::initializer_list
+        internal bool NeedInitializerList { get; private set; } = false;
+        internal void EnableNeedInitializerList() => NeedInitializerList = true;
 
         internal bool NeedStdint { get; private set; } = false;
 

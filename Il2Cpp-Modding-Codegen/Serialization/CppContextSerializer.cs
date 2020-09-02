@@ -136,11 +136,11 @@ namespace Il2CppModdingCodegen.Serialization
                     if (forwardDeclares.TryGetValue(ns, out var set))
                         set.Add(td);
                     else
-                        forwardDeclares.Add(ns, new HashSet<TypeRef> { td });
+                        forwardDeclares.Add(ns, new HashSet<TypeRef>(TypeRef.fastComparer) { td });
                 }
             }
 
-            var primitiveDeclares = (asHeader) ? context.PrimitiveDeclarations : new HashSet<string>();
+            var primitiveDeclares = asHeader ? context.PrimitiveDeclarations : new HashSet<string>();
 
             _contextMap.Add(context, (includes, forwardDeclares, primitiveDeclares));
         }
@@ -214,24 +214,32 @@ namespace Il2CppModdingCodegen.Serialization
             // Write includes
             var includesWritten = new HashSet<string>();
             writer.WriteComment("Begin includes");
-            if (context.NeedPrimitivesBeforeLateHeader || (!asHeader && context.PrimitiveDeclarations.Count > 0))
+            if (asHeader ? context.NeedPrimitivesBeforeLateHeader : context.PrimitiveDeclarations.Count > 0)
             {
                 // Primitives include
                 if (includesWritten.Add("extern/beatsaber-hook/shared/utils/typedefs.h"))
                     writer.WriteInclude("extern/beatsaber-hook/shared/utils/typedefs.h");
             }
-            else if (context.NeedStdint && includesWritten.Add("stdint.h"))
+            else if (context.NeedStdint && asHeader && includesWritten.Add("stdint.h"))
                 writer.WriteLine("#include <stdint.h>");
 
-            if (_config.OutputStyle == OutputStyle.Normal)
-                // Optional include
-                if (includesWritten.Add("optional"))
-                    writer.WriteLine("#include <optional>");
+            if (asHeader)
+            {
+                if (context.NeedInitializerList)
+                    // std::initializer_list include
+                    if (includesWritten.Add("initializer_list"))
+                        writer.WriteLine("#include <initializer_list>");
 
-            if (context.LocalType.This.Namespace == "System" && context.LocalType.This.Name == "ValueType")
-                // Special case for System.ValueType
-                if (includesWritten.Add("System/Object.hpp"))
-                    writer.WriteInclude("System/Object.hpp");
+                if (_config.OutputStyle == OutputStyle.Normal)
+                    // std::optional include
+                    if (includesWritten.Add("optional"))
+                        writer.WriteLine("#include <optional>");
+
+                if (context.LocalType.This.Namespace == "System" && context.LocalType.This.Name == "ValueType")
+                    // Special case for System.ValueType
+                    if (includesWritten.Add("System/Object.hpp"))
+                        writer.WriteInclude("System/Object.hpp");
+            }
 
             // I don't know why, but this seems to be what we need for type completion in templates
             var isDescriptor = defs.ToLookup(c => c.LocalType.This.Name.EndsWith("Descriptor"));

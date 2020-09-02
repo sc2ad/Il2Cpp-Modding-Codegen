@@ -199,14 +199,20 @@ namespace Il2CppModdingCodegen.Data
 
         public bool Equals(TypeRef? other)
         {
+            if (other is null) return false;
             return fastComparer.Equals(this, other) &&
-                (DeclaringType?.Equals(other?.DeclaringType) ?? other?.DeclaringType == null) &&
-                (ElementType?.Equals(other?.ElementType) ?? other?.ElementType == null);
+                (IsArray() == other.IsArray()) &&
+                (IsPointer() == other.IsPointer()) &&
+                (IsGenericInstance == other.IsGenericInstance ? (Generics is null ? other.Generics is null : Generics.SequenceEqual(other.Generics)) : true) &&
+                (DeclaringType?.Equals(other.DeclaringType) ?? other.DeclaringType == null) &&
+                (ElementType?.Equals(other.ElementType) ?? other.ElementType == null);
         }
 
         public override int GetHashCode()
         {
             int hashCode = fastComparer.GetHashCode(this);
+            if (IsArray()) hashCode *= 37;
+            else if (IsPointer()) hashCode *= 59;
             hashCode = hashCode * -1521134295 + DeclaringType?.GetHashCode() ?? 0;
             hashCode = hashCode * -1521134295 + ElementType?.GetHashCode() ?? 0;
             return hashCode;
