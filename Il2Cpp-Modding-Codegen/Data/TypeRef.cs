@@ -133,13 +133,15 @@ namespace Il2CppModdingCodegen.Data
             return genericsDefined.Distinct(fastComparer);
         }
 
-        internal bool ContainsOrEquals(TypeRef offendingType)
+        // Returns true iff pred returns true for this type or any ElementType or DeclaringType, recursively.
+        internal bool IsOrContainsMatch(Predicate<TypeRef> pred)
         {
-            if (Equals(offendingType)) return true;
-            if (ElementType != null && ElementType.ContainsOrEquals(offendingType)) return true;
-            if (DeclaringType != null && DeclaringType.ContainsOrEquals(offendingType)) return true;
+            if (pred(this)) return true;
+            if (ElementType != null && ElementType.IsOrContainsMatch(pred)) return true;
+            if (DeclaringType != null && DeclaringType.IsOrContainsMatch(pred)) return true;
             return false;
         }
+        internal bool ContainsOrEquals(TypeRef targetType) => IsOrContainsMatch(t => t.Equals(targetType));
 
         /// <summary>
         /// Returns a mapping of <see cref="TypeRef"/> to generics explicitly defined by that <see cref="TypeRef"/>
@@ -162,12 +164,7 @@ namespace Il2CppModdingCodegen.Data
             }
             // Iterate over each generic param to declaring type and convert it to a mapping of declaring type to generic parameters
             foreach (var pair in genericParamToDeclaring)
-            {
-                if (genericMap.TryGetValue(pair.Value, out var lst))
-                    lst.Add(pair.Key);
-                else
-                    genericMap.Add(pair.Value, new List<TypeRef> { pair.Key });
-            }
+                genericMap.GetOrAdd(pair.Value).Add(pair.Key);
             return genericMap;
         }
 

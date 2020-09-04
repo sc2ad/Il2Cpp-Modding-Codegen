@@ -62,8 +62,8 @@ namespace Il2CppModdingCodegen.Serialization
         private void Resolve(CppTypeContext context, Dictionary<ITypeData, CppTypeContext> map,
             bool asHeader, HashSet<CppTypeContext> stack)
         {
-            if (stack.Contains(context)) return;
-            stack.Add(context);
+            if (!stack.Add(context))
+                return;
             var _contextMap = asHeader ? _headerContextMap : _sourceContextMap;
             if (_contextMap.ContainsKey(context)) return;
 
@@ -91,7 +91,7 @@ namespace Il2CppModdingCodegen.Serialization
             if (!asHeader)
             {
                 // Handle cpp file definitions in new sets so we don't lie to our future includers
-                includes.Add(context);
+                includes.AddOrThrow(context);
                 defs = new HashSet<TypeRef>(context.Definitions);
                 defsToGet = new HashSet<TypeRef>(context.DeclarationsToMake);
                 defsToGet.UnionWith(context.Declarations);
@@ -130,14 +130,8 @@ namespace Il2CppModdingCodegen.Serialization
                 // Remove ourselves from our required declarations (faster than checked for each addition)
                 context.DeclarationsToMake.Remove(context.LocalType.This);
                 foreach (var td in context.DeclarationsToMake)
-                {
                     // Stratify by namespace
-                    var ns = td.CppNamespace();
-                    if (forwardDeclares.TryGetValue(ns, out var set))
-                        set.Add(td);
-                    else
-                        forwardDeclares.Add(ns, new HashSet<TypeRef> { td });
-                }
+                    forwardDeclares.GetOrAdd(td.CppNamespace()).Add(td);
             }
 
             var primitiveDeclares = asHeader ? context.PrimitiveDeclarations : new HashSet<string>();

@@ -11,14 +11,14 @@ namespace Il2CppModdingCodegen.Data
     {
         internal TypeRef Type { get; }
         internal string Name { get; } = "";
-        internal ParameterFlags Flags { get; } = ParameterFlags.None;
+        internal ParameterModifier Modifier { get; } = ParameterModifier.None;
 
         internal Parameter(string innard)
         {
             var spl = innard.Split(' ');
             int typeIndex = 1;
-            if (Enum.TryParse<ParameterFlags>(spl[0], true, out var flags))
-                Flags = flags;
+            if (Enum.TryParse<ParameterModifier>(spl[0], true, out var modifier))
+                Modifier = modifier;
             else
                 typeIndex = 0;
 
@@ -31,11 +31,15 @@ namespace Il2CppModdingCodegen.Data
         {
             Type = DllTypeRef.From(def.ParameterType);
             Name = def.Name;
-            Flags |= def.IsIn ? ParameterFlags.In : ParameterFlags.None;
-            Flags |= def.IsOut ? ParameterFlags.Out : ParameterFlags.None;
-            Flags |= def.ParameterType.IsByReference ? ParameterFlags.Ref : ParameterFlags.None;
-            Flags |= def.CustomAttributes.Any(a => a.AttributeType.FullName == typeof(ParamArrayAttribute).FullName)
-                ? ParameterFlags.Params : ParameterFlags.None;
+            if (def.IsIn)
+                Modifier = ParameterModifier.In;
+            else if (def.IsOut)
+                Modifier = ParameterModifier.Out;
+            else if (def.ParameterType.IsByReference)
+                Modifier = ParameterModifier.Ref;
+            else if (def.CustomAttributes.Any(a => a.AttributeType.FullName == typeof(ParamArrayAttribute).FullName))
+                Modifier = ParameterModifier.Params;
+            // TODO: capture and print default argument values?
         }
 
         public override string ToString() => ToString(true);
@@ -43,8 +47,8 @@ namespace Il2CppModdingCodegen.Data
         internal string ToString(bool name)
         {
             string s = "";
-            if (Flags != ParameterFlags.None)
-                s = $"{Flags.GetFlagsString().ToLower()} ";
+            if (Modifier != ParameterModifier.None)
+                s = $"{Modifier.ToString().ToLower()} ";
             s += $"{Type}";
             if (name && Name != null)
                 s += $" {Name}";
@@ -52,25 +56,26 @@ namespace Il2CppModdingCodegen.Data
         }
     }
 
-    public enum FormatParameterMode
+    [Flags]
+    public enum ParameterFormatFlags
     {
-        Normal = 0,
         Types = 1,
-        Names = 2
+        Names = 2,
+        Normal = Types | Names,
     }
 
     public static class ParameterExtensions
     {
-        internal static string PrintParameter(this (MethodTypeContainer container, ParameterFlags flags) param, bool header)
+        internal static string PrintParameter(this (MethodTypeContainer container, ParameterModifier modifier) param, bool header)
         {
             var s = param.container.TypeName(header);
-            if (param.flags != ParameterFlags.None && !param.flags.HasFlag(ParameterFlags.Params))
+            if (param.modifier != ParameterModifier.None && param.modifier != ParameterModifier.Params)
                 s += "&";
             return s;
         }
 
         internal static string FormatParameters(this List<Parameter> parameters, HashSet<string>? illegalNames = null,
-            List<(MethodTypeContainer, ParameterFlags)>? resolvedNames = null, FormatParameterMode mode = FormatParameterMode.Normal, bool header = false)
+            List<(MethodTypeContainer, ParameterModifier)>? resolvedNames = null, ParameterFormatFlags mode = ParameterFormatFlags.Normal, bool header = false)
         {
             var s = "";
             for (int i = 0; i < parameters.Count; i++)
@@ -78,23 +83,39 @@ namespace Il2CppModdingCodegen.Data
                 if (resolvedNames != null && resolvedNames[i].Item1.Skip)
                     continue;
                 string nameStr = "";
-                if (mode != FormatParameterMode.Types)
+                if (mode.HasFlag(ParameterFormatFlags.Names))
                 {
                     nameStr = parameters[i].Name;
-                    if (mode.HasFlag(FormatParameterMode.Names) && string.IsNullOrWhiteSpace(nameStr))
+                    if (string.IsNullOrWhiteSpace(nameStr))
                         nameStr = $"param_{i}";
                     while (illegalNames?.Contains(nameStr) ?? false)
                         nameStr = "_" + nameStr;
                 }
                 nameStr = nameStr.Replace('<', '$').Replace('>', '$');
-                if (mode == FormatParameterMode.Names)
+                if (mode == ParameterFormatFlags.Names)
                 {
-                    if (resolvedNames != null && resolvedNames[i].Item1.UnPointered)
-                        nameStr = "&" + nameStr;
+                    if (resolvedNames != null)
+                    {
+                        var container = resolvedNames[i].Item1;
+                        if (container.ExpandParams)
+                        {
+                            if (!container.HasTemplate)
+                                nameStr = $"::Array<{container.ElementType}>::New({nameStr})";
+                            else
+                            {
+                                if (!container.TypeName(true).Contains("..."))
+                                    throw new ArgumentException($"resolvedNames[{i}]'s {nameof(MethodTypeContainer)} has ExpandParams " +
+                                        "and a Template name that is NOT a ...TArgs style name!");
+                                nameStr = $"{{{nameStr}...}}";
+                            }
+                        }
+                        else if (container.UnPointered)
+                            nameStr = "&" + nameStr;
+                    }
                     // Only names
                     s += $"{nameStr}";
                 }
-                else if (mode == FormatParameterMode.Types)
+                else if (mode == ParameterFormatFlags.Types)
                 {
                     // Only types
                     if (resolvedNames != null)

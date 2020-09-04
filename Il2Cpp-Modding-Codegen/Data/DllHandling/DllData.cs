@@ -62,7 +62,7 @@ namespace Il2CppModdingCodegen.Data.DllHandling
                 {
                     var type = new DllTypeData(t, _config);
                     if (dllRef.DeclaringType != null)
-                        _types[dllRef.DeclaringType].NestedTypes.Add(type);
+                        _types[dllRef.DeclaringType].NestedTypes.AddOrThrow(type);
                     foreach (var nested in t.NestedTypes)
                         frontier.Enqueue(nested);
                     _types.Add(dllRef, type);
@@ -97,8 +97,7 @@ namespace Il2CppModdingCodegen.Data.DllHandling
                 var def = typeRef.This.Resolve();
                 var check = DllTypeRef.From(def);
                 // Try to get our Generic Definition out of _types
-                _types.TryGetValue(check, out ret);
-                if (ret is null)
+                if (!_types.TryGetValue(check, out ret))
                     // This should never happen. All generic definitions should already be resolved.
                     throw new InvalidOperationException($"Generic instance: {typeRef} (definition: {check}) cannot map to any type in _types!");
                 return ret;

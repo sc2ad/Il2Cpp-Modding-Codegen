@@ -37,8 +37,7 @@ namespace Il2CppModdingCodegen.Data.DllHandling
         {
             // Note that TryGetValue is now significantly slower due to hash collisions and equality checks being expensive.
             // Before, it was simply pointers.
-            if (cache.TryGetValue(def, out var m))
-                return m;
+            if (cache.TryGetValue(def, out var m)) return m;
             return new DllMethod(def, ref mappedBaseMethods);
         }
 
@@ -111,7 +110,7 @@ namespace Il2CppModdingCodegen.Data.DllHandling
             DeclaringType = DllTypeRef.From(m.DeclaringType);
             // This is a very rare condition that we need to handle if it ever happens, but for now just log it
             if (m.HasOverrides)
-                Console.WriteLine($"{m}, Overrides: {string.Join(", ", m.Overrides)}");
+                Console.WriteLine($"{m}.HasOverrides!!! Overrides: {string.Join(", ", m.Overrides)}");
 
             RVA = -1;
             Offset = -1;

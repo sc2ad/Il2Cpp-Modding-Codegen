@@ -94,7 +94,7 @@ namespace Il2CppModdingCodegen.Serialization
         internal bool NeedStdint { get; private set; } = false;
 
         // Holds generic types (ex: T1, T2, ...) defined by the type
-        private readonly HashSet<TypeRef> _genericTypes = new HashSet<TypeRef>(TypeRef.fastComparer);
+        private readonly HashSet<TypeRef> _genericTypes = new HashSet<TypeRef>();
 
         private readonly List<CppTypeContext> _nestedContexts = new List<CppTypeContext>();
         private readonly ITypeCollection _types;
@@ -104,7 +104,7 @@ namespace Il2CppModdingCodegen.Serialization
             if (type is null) return;
             if (type.IsGenericTemplate)
                 foreach (var g in type.Generics)
-                    _genericTypes.Add(g);
+                    _genericTypes.AddOrThrow(g);
             AddGenericTypes(type.DeclaringType);
         }
 
@@ -143,9 +143,10 @@ namespace Il2CppModdingCodegen.Serialization
                 nestedUnique.AddRange(nested.ImplementingInterfaces.Select(i => (!i.IsGeneric || map is null) ? i : i.MakeGenericInstance(map)));
                 return nested;
             }
+
             foreach (var face in data.ImplementingInterfaces)
             {
-                UniqueInterfaces.Add(face);
+                UniqueInterfaces.AddOrThrow(face);
                 CollectImplementingInterfaces(face);
             }
             var parent = data.Parent;
@@ -165,7 +166,7 @@ namespace Il2CppModdingCodegen.Serialization
             LocalType = data;
 
             // Add ourselves to our Definitions
-            Definitions.Add(data.This);
+            Definitions.AddOrThrow(data.This);
 
             // Requiring it as a definition here simply makes it easier to remove (because we are asking for a definition of ourself, which we have)
             QualifiedTypeName = GetCppName(data.This, true, true, NeedAs.Definition, ForceAsType.Literal) ?? throw new Exception($"Could not get QualifiedTypeName for {data.This}");
@@ -301,13 +302,12 @@ namespace Il2CppModdingCodegen.Serialization
                 {
                     defContext.InPlace = true;
                     if (defContext.DeclaringContext != null)
-                        foreach (var d in defContext.DeclaringContext.Definitions)
-                        {
-                            // Add each definition that exists in the declaring context to the InPlace nested context since they share definitions
-                            defContext.Definitions.Add(d);
-                            // Remove each definition that exists in the declaring context from the InPlace nested context since they share definitions
-                            defContext.DefinitionsToGet.Remove(d);
-                        }
+                    {
+                        // Add each definition that exists in the declaring context to the InPlace nested context since they share definitions
+                        defContext.Definitions.UnionWith(defContext.DeclaringContext.Definitions);
+                        // Remove each definition that exists in the declaring context from the InPlace nested context since they share definitions
+                        defContext.DefinitionsToGet.ExceptWith(defContext.DeclaringContext.Definitions);
+                    }
                 }
                 // Add the now InPlace type to our own Definitions
                 RootContext.Definitions.Add(defContext.LocalType.This);
@@ -338,7 +338,7 @@ namespace Il2CppModdingCodegen.Serialization
 
             // If the definition I am adding shares the same RootContext as me, I need to InPlace nest it.
             if (!RootContext.HasInNestedHierarchy(resolved, out var defContext))
-                DefinitionsToGet.Add(def);
+                DefinitionsToGet.AddOrThrow(def);
             else
                 InPlaceNestedType(defContext);
         }
@@ -349,7 +349,7 @@ namespace Il2CppModdingCodegen.Serialization
             if (def.DeclaringType is null) throw new ArgumentException("DeclaringType cannot be void!", nameof(def));
             if (resolved is null) throw new ArgumentNullException(nameof(resolved));
             Contract.Requires(LocalType.Equals(resolved.This.DeclaringType));
-            DeclarationsToMake.Add(def);
+            DeclarationsToMake.AddOrThrow(def);
         }
 
         private void AddDeclaration(TypeRef def, ITypeData? resolved)
@@ -370,11 +370,11 @@ namespace Il2CppModdingCodegen.Serialization
             {
                 // If def's declaring type is not defined, we cannot declare def. Define def's declaring type instead.
                 AddDefinition(def.DeclaringType);
-                Declarations.Add(def);
+                Declarations.AddOrThrow(def);
             }
             else
                 // Otherwise, we can safely add it to declarations
-                DeclarationsToMake.Add(def);
+                DeclarationsToMake.AddOrThrow(def);
         }
 
         private static NeedAs NeedAsForGeneric(NeedAs _) => NeedAs.BestMatch;

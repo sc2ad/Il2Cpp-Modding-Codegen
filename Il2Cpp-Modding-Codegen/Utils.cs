@@ -31,6 +31,39 @@ namespace Il2CppModdingCodegen
 
         internal static string GetFlagsString<T>(this T flags) where T : struct, Enum => string.Join(" ", flags.GetFlagStrings());
 
+        internal static void AddOrThrow<T>(this ISet<T> set, T item)
+        {
+            if (!set.Add(item))
+                throw new ArgumentException("The item was already in the set!");
+        }
+
+        internal static void RemoveOrThrow<T>(this ISet<T> set, T item)
+        {
+            if (!set.Remove(item))
+                throw new ArgumentException("The item was not in the set!");
+        }
+
+        internal static TValue GetOrAdd<TKey, TValue>(this IDictionary<TKey, TValue> dict, TKey key, Func<TValue> constructor)
+        {
+            if (!dict.TryGetValue(key, out var ret))
+            {
+                ret = constructor();
+                dict.Add(key, ret);
+            }
+            return ret;
+        }
+
+        internal static TValue GetOrAdd<TKey, TValue>(this IDictionary<TKey, TValue> dict, TKey key) where TValue : new()
+            => dict.GetOrAdd(key, () => new TValue());
+
+        internal static void AddOrUnionWith<TKey, TValue>(this IDictionary<TKey, SortedSet<TValue>> dict, TKey key, SortedSet<TValue> values)
+        {
+            if (dict.TryGetValue(key, out var existingValues))
+                existingValues.UnionWith(values);
+            else
+                dict.Add(key, values);
+        }
+
         internal static TypeDefinition? ResolvedBaseType(this TypeDefinition self)
         {
             var base_type = self?.BaseType;
@@ -76,8 +109,7 @@ namespace Il2CppModdingCodegen
                     // We need to ensure the name of both self and m are fixed to not have any ., use the last . and ignore generic parameters
                     if (m.Name.Substring(m.Name.LastIndexOf('.') + 1) != sName)
                         continue;
-                    if (!genericMapping.TryGetValue(m.ReturnType.Name, out var ret))
-                        ret = m.ReturnType;
+                    var ret = genericMapping.GetValueOrDefault(m.ReturnType.Name, m.ReturnType);
                     // Only if ret == self.ReturnType, can we have a match
                     if (!quickCompare.Equals(ret, self.ReturnType))
                         continue;
@@ -85,7 +117,7 @@ namespace Il2CppModdingCodegen
                         continue;
 
                     var mParams = m.Parameters.Select(
-                        p => genericMapping.TryGetValue(p.ParameterType.Name, out var arg) ? arg : p.ParameterType);
+                        p => genericMapping.GetValueOrDefault(p.ParameterType.Name, p.ParameterType));
                     if (mParams.SequenceEqual(self.Parameters.Select(p => p.ParameterType), quickCompare))
                         matches.Add(m);
                 }

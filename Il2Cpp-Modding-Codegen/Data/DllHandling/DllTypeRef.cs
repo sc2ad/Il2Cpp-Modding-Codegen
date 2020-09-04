@@ -108,7 +108,7 @@ namespace Il2CppModdingCodegen.Data.DllHandling
                     if (genParam.Constraints.Any(c => c.HasCustomAttributes))
                     {
                         var declaring = genParam.DeclaringType is null ? $"method {genParam.DeclaringMethod}" : $"{genParam.DeclaringType}";
-                        Console.WriteLine($"Constraints on {genParam} (in {declaring}): ");
+                        Console.WriteLine($"Constraints with CustomAttributes on {genParam} (in {declaring}): ");
                         Console.WriteLine(string.Join(", ",
                             genParam.Constraints.Select(c => $"({c.ConstraintType}, {{{string.Join(", ", c.CustomAttributes)}}})")));
                     }

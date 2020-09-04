@@ -51,9 +51,8 @@ namespace Il2CppModdingCodegen.Serialization
         {
             if (!_map.TryGetValue(t, out var typeContext))
             {
-                typeContext = new CppTypeContext(_collection, t, declaring);
                 // Each type is always added to _map (with a non-null header and cpp context)
-                _map.Add(t, typeContext);
+                _map.Add(t, typeContext = new CppTypeContext(_collection, t, declaring));
                 foreach (var nt in t.NestedTypes)
                 {
                     // For each nested type, we create a context for it
@@ -186,7 +185,7 @@ namespace Il2CppModdingCodegen.Serialization
             {
                 // Don't need to use modloader since this library is not a mod, it has no ModInfo that it uses!
                 // TODO: Configurable bs-hook version
-                mkSerializer.WritePrebuiltSharedLibrary("beatsaber-hook", "./extern/libbeatsaber-hook_0_4_7.so", "./extern/beatsaber-hook/shared/");
+                mkSerializer.WritePrebuiltSharedLibrary("beatsaber-hook", "./extern/libbeatsaber-hook_0_5_3.so", "./extern/beatsaber-hook/shared/");
                 mkSerializer.WriteSingleFile(new AndroidMkSerializer.Library(_config.Id, false, new List<string> { "beatsaber-hook" }));
             }
             mkSerializer.Close();

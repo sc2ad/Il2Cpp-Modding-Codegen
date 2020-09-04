@@ -1,32 +1,40 @@
 ﻿using System;
 using System.Linq;
+using System.Text.RegularExpressions;
 
 namespace Il2CppModdingCodegen.Data
 {
     public class MethodTypeContainer
     {
-        private string? typeName;
+        private string? _typeName;
         private string _suffix = "";
-        private string? templatedName;
+        private string? _templatedName;
 
-        internal bool Skip { get; set; } = false;
-        internal bool UnPointered { get; private set; }
-        internal bool IsPointer { get => typeName?.EndsWith("*") ?? throw new InvalidOperationException("typeName is null!"); }
+        // getter-only properties
+        internal bool IsPointer => _typeName?.EndsWith("*") ?? throw new InvalidOperationException("typeName is null!");
         // Contains a class or struct
-        internal bool IsClassType { get => typeName.Any(char.IsUpper); }
+        internal bool IsClassType => _typeName.Any(char.IsUpper);
+        internal bool HasTemplate => !string.IsNullOrEmpty(_templatedName);
+        internal string ElementType => Regex.Match(_typeName, @"Array<(.*)>[^>]*").Groups[1].ToString();
 
-        internal MethodTypeContainer(string? t) => typeName = t;
+        // other properties
+        internal bool Skip { get; set; } = false;
+        internal bool UnPointered { get; private set; } = false;
+        internal bool ExpandParams { get; set; } = false;
 
-        internal void Prefix(string prefix) => typeName = prefix + typeName;
+        // methods
+        internal MethodTypeContainer(string? t) => _typeName = t;
+
+        internal void Prefix(string prefix) => _typeName = prefix + _typeName;
 
         internal void Suffix(string suffix) => _suffix += suffix;
 
         // Make this parameter no longer a pointer, and use its value as `&val` from now on
         internal bool UnPointer()
         {
-            if (typeName == null) throw new InvalidOperationException("typeName is null!");
+            if (_typeName == null) throw new InvalidOperationException("typeName is null!");
             if (!IsPointer) return false;
-            typeName = typeName[0..^1];
+            _typeName = _typeName[0..^1];
             return UnPointered = true;
         }
 
@@ -34,12 +42,15 @@ namespace Il2CppModdingCodegen.Data
         {
             // If we are a header, return a templated typename.
             // Otherwise, we should never return a templated typename.
-            if (!string.IsNullOrEmpty(templatedName) && header)
-                return templatedName;
+            if (HasTemplate && header)
+                return _templatedName!;
+            var typeName = ExpandParams ? $"std::initializer_list<{ElementType}>" : _typeName;
+            if (_typeName != null && (string.IsNullOrEmpty(typeName) || typeName.Contains(_typeName) && !typeName.Equals(_typeName)))
+                throw new FormatException($"Got '{typeName}' for type name '{_typeName}'!");
             return typeName + _suffix;
         }
 
-        internal void Template(string newName) => templatedName = newName;
+        internal void Template(string? newName) => _templatedName = newName;
 
         [Obsolete("TypeName should be used instead!", true)]
 #pragma warning disable CS0809 // Obsolete member 'MethodTypeContainer.ToString()' overrides non-obsolete member 'object.ToString()'

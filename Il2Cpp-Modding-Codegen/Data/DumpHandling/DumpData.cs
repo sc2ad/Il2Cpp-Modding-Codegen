@@ -46,7 +46,7 @@ namespace Il2CppModdingCodegen.Data.DumpHandling
                         var declaringTypeData = Resolve(typeData.This.DeclaringType);
                         if (declaringTypeData is null)
                             throw new Exception("Failed to get declaring type ITypeData for newly parsed nested type!");
-                        declaringTypeData.NestedTypes.Add(typeData);
+                        declaringTypeData.NestedTypes.AddOrThrow(typeData);
                     }
                     _types.Add(typeData);
                 }
