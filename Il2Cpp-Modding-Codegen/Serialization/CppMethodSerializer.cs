@@ -695,16 +695,17 @@ namespace Il2CppModdingCodegen.Serialization
 
                     var utilFunc = method.Generic ? "RunGenericMethod" : "RunMethod";
                     var call = $"il2cpp_utils::{utilFunc}{innard}(";
-                    // the il2cpp method to call is static
+                    var thisArg = (_declaringIsValueType ? "*" : "") + "this";
                     if (method.Specifiers.IsStatic())
                         call += $"{classArgs}, ";
-                    // our C++ method is not static
-                    if (scope == MethodScope.Class)
-                        call += (_declaringIsValueType ? "*" : "") + "this, ";
+                    else if (scope == MethodScope.Class)
+                        call += $"{thisArg}, ";
 
                     var paramString = method.Parameters.FormatParameters(_config.IllegalNames, _parameterMaps[method], ParameterFormatFlags.Names);
                     if (!string.IsNullOrEmpty(paramString))
                         paramString = ", " + paramString;
+                    if (method.Specifiers.IsStatic() && scope == MethodScope.Class)
+                        paramString = ", " + thisArg + paramString;
                     // Macro string should use Il2CppName (of course, without _, $ replacement)
                     call += $"\"{method.Il2CppName}\"{genTypesList}{paramString})";
                     // Write method with return
