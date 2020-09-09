@@ -92,7 +92,6 @@ namespace Il2CppModdingCodegen.Serialization
 
         internal Dictionary<IMethod, MethodScope> Scope = new Dictionary<IMethod, MethodScope>();
 
-        private bool _asHeader;
         private readonly SerializationConfig _config;
 
         private readonly Dictionary<IMethod, MethodTypeContainer> _resolvedReturns = new Dictionary<IMethod, MethodTypeContainer>();
@@ -394,14 +393,59 @@ namespace Il2CppModdingCodegen.Serialization
                 Resolved(method);
         }
 
+        private static readonly HashSet<string> MethodModifiers = new HashSet<string> { "explicit " };
+
+        private static (string nameStr, string modifierStr) ExtractMethodModifiers(string nameStr)
+        {
+            // TODO: store the modifiers somewhere instead of including them in the string? (in ResolveName)
+            string modifiers = "";
+            while (true)
+            {
+                bool didSomething = false;
+                foreach (var m in MethodModifiers)
+                {
+                    if (nameStr.StartsWith(m))
+                    {
+                        nameStr = nameStr.Substring(m.Length);
+                        modifiers += m;
+                        didSomething = true;
+                    }
+                }
+                if (!didSomething) break;
+            }
+            return (nameStr, modifiers);
+        }
+
         private bool CanWriteMethod(int genParamCount, TypeRef declaringType, bool asHeader, string sig)
         {
             if (!_signatures.ContainsKey(genParamCount))
                 _signatures[genParamCount] = new HashSet<(TypeRef, bool, string)>();
+            // explicit constructor/operator cannot exist if implicit version does, but we should not add implicit version from explicit
+            var (trimmedSig, _) = ExtractMethodModifiers(sig);
+            if (_signatures[genParamCount].Contains((declaringType, asHeader, trimmedSig)))
+                return false;
             return _signatures[genParamCount].Add((declaringType, asHeader, sig));
         }
 
-        private (string declaration, string cppName, bool needsReturn) WriteMethod(
+        internal enum ReturnMode
+        {
+            None,
+            Return,
+            RealConstructor,
+        }
+        static bool NeedsReturn(ReturnMode mode) => mode == ReturnMode.Return;
+
+        private static ReturnMode GetReturnMode(string retStr, string nameStr)
+        {
+            if (string.IsNullOrEmpty(retStr) && !nameStr.Contains("operator "))
+                return ReturnMode.RealConstructor;
+            else if (retStr == "void")
+                return ReturnMode.None;
+            else
+                return ReturnMode.Return;
+        }
+
+        private (string declaration, string cppName, ReturnMode returnMode) WriteMethod(
             MethodScope scope, IMethod method, bool asHeader, string? overrideName, bool banMethodIfFails = true)
         {
             var ns = "";
@@ -465,9 +509,22 @@ namespace Il2CppModdingCodegen.Serialization
                 retStr = "std::optional<" + retStr + ">";
             retStr = retStr.Trim();
 
+            var returnMode = GetReturnMode(retStr, nameStr);
+
+            // TODO: store the modifiers somewhere instead of including them in the string? (in ResolveName)
+            string modifiers;
+            (nameStr, modifiers) = ExtractMethodModifiers(nameStr);
+
+            if (returnMode == ReturnMode.RealConstructor)
+            {
+                var splits = nameStr.Split();
+                splits[^1] = splits[^1].Split(':')[^1];
+                nameStr = string.Join(' ', splits);
+            }
+
             var typeOnlyParamString = method.Parameters.FormatParameters(_config.IllegalNames, _parameterMaps[method],
                 ParameterFormatFlags.Types, header: asHeader);
-            var signature = $"{nameStr.TrimStart("explicit ")}({typeOnlyParamString})";
+            var signature = $"{modifiers}{nameStr}({typeOnlyParamString})";
 
             if (_aborted.Contains(method) || !CanWriteMethod(method.GenericParameters.Count, method.DeclaringType, asHeader, signature))
             {
@@ -481,12 +538,14 @@ namespace Il2CppModdingCodegen.Serialization
                 else if (_config.DuplicateMethodExceptionHandling == DuplicateMethodExceptionHandling.Elevate)
                     throw new DuplicateMethodException(method, preRetStr);
                 // Otherwise, do nothing (Skip/Ignore are identical)
-                if (banMethodIfFails)
-                    _aborted.Add(method);
+                if (banMethodIfFails && _aborted.Add(method))
+                    Utils.Noop();
             }
 
-            var ret = $"{preRetStr}{retStr} {ns}{nameStr}({paramString}){postParensStr}".TrimStart();
-            return (ret, $"{ns}{nameStr}", retStr != "void");
+            if (!asHeader) modifiers = "";
+
+            var ret = $"{preRetStr}{retStr} {modifiers}{ns}{nameStr}({paramString}){postParensStr}".TrimStart();
+            return (ret, $"{ns}{nameStr}", returnMode);
         }
 
         internal void WriteCtor(CppStreamWriter writer, CppFieldSerializer fieldSer, ITypeData type, string name, bool asHeader)
@@ -598,7 +657,6 @@ namespace Il2CppModdingCodegen.Serialization
         {
             if (writer is null) throw new ArgumentNullException(nameof(writer));
             if (method is null) throw new ArgumentNullException(nameof(method));
-            _asHeader = asHeader;
             if (!_resolvedReturns.ContainsKey(method))
                 // In the event we have decided to not parse this method (in PreSerialize) don't even bother.
                 return;
@@ -614,7 +672,7 @@ namespace Il2CppModdingCodegen.Serialization
             }
             if (IgnoredMethods.Contains(method.Il2CppName) || _config.BlacklistMethods.Contains(method.Il2CppName))
                 return;
-            if (!_asHeader && NeedDefinitionInHeader(method))
+            if (!asHeader && NeedDefinitionInHeader(method))
                 // Need to create the method ENTIRELY in the header, instead of split between the C++ and the header
                 return;
 
@@ -624,10 +682,11 @@ namespace Il2CppModdingCodegen.Serialization
             if (performProxy)
                 overrideName = _config.SafeMethodName(method.Name.Replace('<', '$').Replace('>', '$').Replace('.', '_'));
 
-            bool writeContent = !_asHeader || NeedDefinitionInHeader(method);
+            bool writeContent = !asHeader || NeedDefinitionInHeader(method);
             var scope = Scope[method];
-            var (declaration, cppName, needsReturn) = WriteMethod(scope, method, _asHeader, overrideName);
-            if (_asHeader)
+            var (declaration, cppName, returnMode) = WriteMethod(scope, method, asHeader, overrideName);
+            bool needsReturn = NeedsReturn(returnMode);
+            if (asHeader)
             {
                 var methodComment = "";
                 foreach (var spec in method.Specifiers)
@@ -643,7 +702,7 @@ namespace Il2CppModdingCodegen.Serialization
                     writer.WriteComment($"Base method: {bm.ReturnType} {bm.DeclaringType.Name}::{bm.Name}({method.Parameters.FormatParameters()})");
                 if (!writeContent)
                 {
-                    if (TemplateString(method, _asHeader, out var templateStr))
+                    if (TemplateString(method, asHeader, out var templateStr))
                         writer.WriteLine((declaration.StartsWith("/") ? "// " : "") + templateStr);
                     writer.WriteDeclaration(declaration);
                 }
@@ -654,7 +713,7 @@ namespace Il2CppModdingCodegen.Serialization
 
             if (writeContent)
             {
-                if (TemplateString(method, _asHeader, out var templateStr))
+                if (TemplateString(method, asHeader, out var templateStr))
                     writer.WriteLine((declaration.StartsWith("/") ? "// " : "") + templateStr);
                 // Write the qualified name if not in the header
                 if (declaration.StartsWith("/"))
@@ -690,12 +749,19 @@ namespace Il2CppModdingCodegen.Serialization
                 }
                 else
                 {
-                    var s = needsReturn ? "return " : "";
-                    var innard = needsReturn ? $"<{_resolvedReturns[method].TypeName(asHeader)}>" : "";
+                    string s = "";
+                    string innard = "";
+                    if (needsReturn)
+                        s = "return ";
+                    else if (returnMode == ReturnMode.RealConstructor)
+                        s = "*this = " + (_declaringIsValueType ? "" : "*");
+
+                    if (returnMode != ReturnMode.None)
+                        innard = $"<{_resolvedReturns[method].TypeName(asHeader)}>";
 
                     var utilFunc = method.Generic ? "RunGenericMethod" : "RunMethod";
                     var call = $"il2cpp_utils::{utilFunc}{innard}(";
-                    var thisArg = (_declaringIsValueType ? "*" : "") + "this";
+                    string thisArg = (_declaringIsValueType ? "*" : "") + "this";
                     if (method.Specifiers.IsStatic())
                         call += $"{classArgs}, ";
                     else if (scope == MethodScope.Class)
@@ -728,7 +794,7 @@ namespace Il2CppModdingCodegen.Serialization
                 {
                     container.ExpandParams = true;
 
-                    var initializerListProxyInfo = WriteMethod(scope, method, _asHeader, overrideName, false);
+                    var initializerListProxyInfo = WriteMethod(scope, method, asHeader, overrideName, false);
                     declaration = initializerListProxyInfo.declaration;
                     bool commentMethod = declaration.StartsWith("/");
 
@@ -747,7 +813,7 @@ namespace Il2CppModdingCodegen.Serialization
                     {
                         writer.WriteDefinition(declaration);
                         // Call original method (return as necessary)
-                        string s = needsReturn ? "return " : string.Empty;
+                        string s = needsReturn ? "return " : "";
                         s += $"{cppName}({method.Parameters.FormatParameters(_config.IllegalNames, _parameterMaps[method], ParameterFormatFlags.Names, asHeader)})";
                         writer.WriteDeclaration(s);
                         writer.CloseDefinition();
@@ -760,7 +826,7 @@ namespace Il2CppModdingCodegen.Serialization
                         tempGens.AddOrThrow("...TParams");
                         container.Template("TParams&&...");
 
-                        declaration = WriteMethod(scope, method, _asHeader, overrideName, false).declaration;
+                        declaration = WriteMethod(scope, method, asHeader, overrideName, false).declaration;
 
                         // TArgs proxies for different initializer_list T's look exactly the same.
                         if (!declaration.StartsWith("/"))
@@ -770,7 +836,7 @@ namespace Il2CppModdingCodegen.Serialization
                                 writer.WriteLine(templateStr);
                             writer.WriteDefinition(declaration);
                             // Call original method (return as necessary)
-                            string s = initializerListProxyInfo.needsReturn ? "return " : string.Empty;
+                            string s = NeedsReturn(initializerListProxyInfo.returnMode) ? "return " : "";
                             s += $"{initializerListProxyInfo.cppName}({method.Parameters.FormatParameters(_config.IllegalNames, _parameterMaps[method], ParameterFormatFlags.Names, asHeader)})";
                             writer.WriteDeclaration(s);
                             writer.CloseDefinition();
@@ -830,7 +896,7 @@ namespace Il2CppModdingCodegen.Serialization
                             }
                             writer.WriteDefinition(declaration);
                             // Call original method (return as necessary)
-                            string s = needsReturn ? "return " : string.Empty;
+                            string s = needsReturn ? "return " : "";
                             s += $"{cppName}({method.Parameters.FormatParameters(_config.IllegalNames, _parameterMaps[method], ParameterFormatFlags.Names, asHeader)})";
                             writer.WriteDeclaration(s);
                             writer.CloseDefinition();

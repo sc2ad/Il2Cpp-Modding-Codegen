@@ -133,12 +133,12 @@ namespace Il2CppModdingCodegen.Data
             return genericsDefined.Distinct(fastComparer);
         }
 
-        // Returns true iff pred returns true for this type or any ElementType or DeclaringType, recursively.
+        // Returns true iff pred returns true for this type or any ElementType (or DeclaringType, except on generic parameters) recursively.
         internal bool IsOrContainsMatch(Predicate<TypeRef> pred)
         {
             if (pred(this)) return true;
             if (ElementType != null && ElementType.IsOrContainsMatch(pred)) return true;
-            if (DeclaringType != null && DeclaringType.IsOrContainsMatch(pred)) return true;
+            if (DeclaringType != null && !IsGenericParameter && DeclaringType.IsOrContainsMatch(pred)) return true;
             return false;
         }
         internal bool ContainsOrEquals(TypeRef targetType) => IsOrContainsMatch(t => t.Equals(targetType));

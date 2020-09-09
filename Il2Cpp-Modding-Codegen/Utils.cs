@@ -64,6 +64,9 @@ namespace Il2CppModdingCodegen
                 dict.Add(key, values);
         }
 
+        // Mostly for unobtrusive break lines
+        internal static void Noop() { }
+
         internal static TypeDefinition? ResolvedBaseType(this TypeDefinition self)
         {
             var base_type = self?.BaseType;
