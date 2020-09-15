@@ -166,6 +166,7 @@ namespace Il2CppModdingCodegen.Serialization
                 new CppSourceCreator(_config, _contextSerializer).Serialize(pair.Value);
             }
             CppStreamWriter.DeleteUnwrittenFiles();
+            Console.WriteLine($"Copy constructor count: {CppMethodSerializer.CopyConstructorCount}.");
 
             // After all static libraries are created, aggregate them all and collpase them into a single Android.mk file.
             // As a double check, doing a ctrl-f for any given id in the Android.mk should net two results: Where it is created and where it is aggregated.
@@ -185,7 +186,7 @@ namespace Il2CppModdingCodegen.Serialization
             {
                 // Don't need to use modloader since this library is not a mod, it has no ModInfo that it uses!
                 // TODO: Configurable bs-hook version
-                mkSerializer.WritePrebuiltSharedLibrary("beatsaber-hook", "./extern/libbeatsaber-hook_0_5_6.so", "./extern/beatsaber-hook/shared/");
+                mkSerializer.WritePrebuiltSharedLibrary("beatsaber-hook", "./extern/libbeatsaber-hook_0_5_8.so", "./extern/beatsaber-hook/shared/");
                 mkSerializer.WriteSingleFile(new AndroidMkSerializer.Library(_config.Id, false, new List<string> { "beatsaber-hook" }));
             }
             mkSerializer.Close();

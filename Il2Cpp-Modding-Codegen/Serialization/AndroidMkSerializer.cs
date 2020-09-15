@@ -89,7 +89,8 @@ rwildcard=$(wildcard $1$2) $(foreach d,$(wildcard $1*),$(call rwildcard,$d/,$2))
             _stream.WriteLine("include $(CLEAR_VARS)");
             _stream.WriteLine($"LOCAL_MODULE := {id}");
             _stream.WriteLine("LOCAL_SRC_FILES := " + src);
-            _stream.WriteLine("LOCAL_CPP_FEATURES := rtti" + (_config.OutputStyle == OutputStyle.ThrowUnless ? " exceptions" : ""));
+            if (_config.OutputStyle == OutputStyle.ThrowUnless)
+                _stream.WriteLine("LOCAL_CPP_FEATURES := exceptions");
             _stream.WriteLine("LOCAL_EXPORT_C_INCLUDES := " + include);
             _stream.WriteLine("include $(PREBUILT_SHARED_LIBRARY)");
             _stream.WriteLine("");

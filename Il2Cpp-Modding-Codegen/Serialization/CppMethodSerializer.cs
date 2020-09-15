@@ -24,10 +24,12 @@ namespace Il2CppModdingCodegen.Serialization
             InClassOnly = 16,
         }
 
+        internal string ConstructorName(IMethod method) => _stateMap[method.DeclaringType].type.Split(':')[^1];
+
         private (string, OpFlags) GetConversionOperatorInfo(string prefix, IMethod op)
         {
             if (op.ReturnType.ContainsOrEquals(op.DeclaringType))
-                return (prefix + _stateMap[op.DeclaringType].type, OpFlags.Constructor | OpFlags.InClassOnly);
+                return (prefix + ConstructorName(op), OpFlags.Constructor | OpFlags.InClassOnly);
             else
                 return ($"{prefix}operator {_resolvedReturns[op].TypeName(false)}", OpFlags.InClassOnly);
         }
@@ -431,20 +433,21 @@ namespace Il2CppModdingCodegen.Serialization
         {
             None,
             Return,
-            RealConstructor,
+            CppOnlyConstructor,
         }
         static bool NeedsReturn(ReturnMode mode) => mode == ReturnMode.Return;
 
         private static ReturnMode GetReturnMode(string retStr, string nameStr)
         {
             if (string.IsNullOrEmpty(retStr) && !nameStr.Contains("operator "))
-                return ReturnMode.RealConstructor;
+                return ReturnMode.CppOnlyConstructor;
             else if (retStr == "void")
                 return ReturnMode.None;
             else
                 return ReturnMode.Return;
         }
 
+        public static int CopyConstructorCount { get; private set; } = 0;
         private (string declaration, string cppName, ReturnMode returnMode) WriteMethod(
             MethodScope scope, IMethod method, bool asHeader, string? overrideName, bool banMethodIfFails = true)
         {
@@ -485,42 +488,49 @@ namespace Il2CppModdingCodegen.Serialization
             string paramString = method.Parameters.FormatParameters(_config.IllegalNames, _parameterMaps[method],
                 ParameterFormatFlags.Names | ParameterFormatFlags.Types, header: asHeader);
 
+            var returnMode = GetReturnMode(retStr, nameStr);
+
             // Handles i.e. ".ctor"
             if (IsCtor(method))
             {
-                if (method.DeclaringType.Namespace == "System" && method.DeclaringType.Name == "Object")
-                    // Special case for System.Object, needs to always return ::ObjectCppName
-                    retStr = $"::{Constants.ObjectCppName}*";
-                else if (method.DeclaringType.Namespace == "System" && method.DeclaringType.Name == "String")
-                    // Special case for System.String, needs to always return ::StringCppName
-                    retStr = $"::{Constants.StringCppName}*";
+                if (_declaringIsValueType)
+                {
+                    retStr = "";
+                    preRetStr = "";
+                    nameStr = ConstructorName(method);
+                }
                 else
                 {
-                    retStr = (!asHeader ? _declaringFullyQualified : _thisTypeName)!;
-                    if (retStr is null) throw new UnresolvedTypeException(method.DeclaringType, method.DeclaringType);
-                    // Force return type to be a pointer
-                    retStr = retStr.EndsWith("*") ? retStr : retStr + "*";
+                    if (method.DeclaringType.Namespace == "System" && method.DeclaringType.Name == "Object")
+                        // Special case for System.Object, needs to always return ::ObjectCppName
+                        retStr = $"::{Constants.ObjectCppName}*";
+                    else if (method.DeclaringType.Namespace == "System" && method.DeclaringType.Name == "String")
+                        // Special case for System.String, needs to always return ::StringCppName
+                        retStr = $"::{Constants.StringCppName}*";
+                    else
+                    {
+                        retStr = (!asHeader ? _declaringFullyQualified : _thisTypeName)!;
+                        if (retStr is null) throw new UnresolvedTypeException(method.DeclaringType, method.DeclaringType);
+                        // Force return type to be a pointer
+                        retStr = retStr.EndsWith("*") ? retStr : retStr + "*";
+                    }
+
+                    preRetStr = !namespaceQualified ? "static " : "";
+                    nameStr = "New" + nameStr;
+                    returnMode = ReturnMode.Return;
                 }
-                preRetStr = !namespaceQualified ? "static " : "";
-                nameStr = "New" + nameStr;
             }
 
-            if (retStr != "void" && _config.OutputStyle == OutputStyle.Normal)
-                retStr = "std::optional<" + retStr + ">";
             retStr = retStr.Trim();
-
-            var returnMode = GetReturnMode(retStr, nameStr);
+            if (!string.IsNullOrEmpty(retStr) && retStr != "void" && _config.OutputStyle == OutputStyle.Normal)
+                retStr = "std::optional<" + retStr + ">";
 
             // TODO: store the modifiers somewhere instead of including them in the string? (in ResolveName)
             string modifiers;
             (nameStr, modifiers) = ExtractMethodModifiers(nameStr);
 
-            if (returnMode == ReturnMode.RealConstructor)
-            {
-                var splits = nameStr.Split();
-                splits[^1] = splits[^1].Split(':')[^1];
-                nameStr = string.Join(' ', splits);
-            }
+            if (returnMode == ReturnMode.CppOnlyConstructor)
+                nameStr = ConstructorName(method);
 
             var typeOnlyParamString = method.Parameters.FormatParameters(_config.IllegalNames, _parameterMaps[method],
                 ParameterFormatFlags.Types, header: asHeader);
@@ -541,6 +551,12 @@ namespace Il2CppModdingCodegen.Serialization
                 if (banMethodIfFails && _aborted.Add(method))
                     Utils.Noop();
             }
+            else if (_declaringIsValueType && IsCtor(method) && method.Parameters.Count > 0 && method.DeclaringType == method.Parameters[0].Type)
+            {
+                preRetStr = "// ABORTED: is copy constructor. " + preRetStr;
+                if (banMethodIfFails && _aborted.Add(method))
+                    CopyConstructorCount++;
+            }
 
             if (!asHeader) modifiers = "";
 
@@ -550,6 +566,7 @@ namespace Il2CppModdingCodegen.Serialization
 
         internal void WriteCtor(CppStreamWriter writer, CppFieldSerializer fieldSer, ITypeData type, string name, bool asHeader)
         {
+            // TODO: somehow use ConstructorName instead of a "name" parameter?
             // If the type we are writing is a value type, we would like to make a constructor that takes in each non-static, non-const field.
             // This is to allow us to construct structs without having to provide initialization lists that are horribly long.
             if (type.Info.Refness == Refness.ValueType && asHeader)
@@ -608,7 +625,7 @@ namespace Il2CppModdingCodegen.Serialization
             }
         }
 
-        private static bool IsCtor(IMethod method) => method.Name == "_ctor" || method.Name == ".ctor";
+        private static bool IsCtor(IMethod method) => method.Il2CppName == ".ctor";
 
         private bool TemplateString(IMethod method, bool withTemps, [NotNullWhen(true)] out string? templateString)
         {
@@ -685,6 +702,7 @@ namespace Il2CppModdingCodegen.Serialization
             bool writeContent = !asHeader || NeedDefinitionInHeader(method);
             var scope = Scope[method];
             var (declaration, cppName, returnMode) = WriteMethod(scope, method, asHeader, overrideName);
+            bool commentMethod = declaration.StartsWith("/");
             bool needsReturn = NeedsReturn(returnMode);
             if (asHeader)
             {
@@ -703,7 +721,7 @@ namespace Il2CppModdingCodegen.Serialization
                 if (!writeContent)
                 {
                     if (TemplateString(method, asHeader, out var templateStr))
-                        writer.WriteLine((declaration.StartsWith("/") ? "// " : "") + templateStr);
+                        writer.WriteLine((commentMethod ? "// " : "") + templateStr);
                     writer.WriteDeclaration(declaration);
                 }
             }
@@ -714,7 +732,8 @@ namespace Il2CppModdingCodegen.Serialization
             if (writeContent)
             {
                 if (TemplateString(method, asHeader, out var templateStr))
-                    writer.WriteLine((declaration.StartsWith("/") ? "// " : "") + templateStr);
+                    writer.WriteLine((commentMethod ? "// " : "") + templateStr);
+
                 // Write the qualified name if not in the header
                 if (declaration.StartsWith("/"))
                 {
@@ -733,56 +752,57 @@ namespace Il2CppModdingCodegen.Serialization
                     classArgs = Il2CppNoArgClass(_thisTypeName);
 
                 var genTypesList = GenericTypesList(method);
+
+                string returnType = _resolvedReturns[method].TypeName(asHeader);
+
+                bool isNewCtor = IsCtor(method) && !_declaringIsValueType;
                 if (IsCtor(method))
                 {
+                    if (method.Generic)
+                        Utils.Noop();
                     // Always use thisTypeName for the cast type, since we are already within the context of the type.
-                    var typeName = _thisTypeName.EndsWith("*") ? _thisTypeName : _thisTypeName + "*";
-
-                    var paramNames = method.Parameters.FormatParameters(_config.IllegalNames, _parameterMaps[method], ParameterFormatFlags.Names, asHeader);
-                    if (!string.IsNullOrEmpty(paramNames))
-                        // Prefix , for parameters to New
-                        paramNames = ", " + paramNames;
-                    var newObject = $"il2cpp_utils::New({classArgs}{paramNames})";
-                    // TODO: Make this configurable
-                    writer.WriteDeclaration($"return ({typeName}){_config.MacroWrap(newObject, true)}");
-                    writer.CloseDefinition();
+                    returnType = (_thisTypeName.EndsWith("*") || _declaringIsValueType) ? _thisTypeName : _thisTypeName + "*";
+                    // var paramNames = method.Parameters.FormatParameters(_config.IllegalNames, _parameterMaps[method], ParameterFormatFlags.Names, asHeader);
                 }
-                else
+
+                string s = "";
+                string innard = "";
+                if (needsReturn)
+                    s = "return ";
+                else if (returnMode == ReturnMode.CppOnlyConstructor)
+                    s = "*this = " + (_declaringIsValueType ? "" : "*");
+
+                // `*this =` doesn't work without a cast either
+                if (returnMode != ReturnMode.None)
+                    innard = $"<{returnType}>";
+
+                var utilFunc = method.Generic ? "RunGenericMethod" : (isNewCtor ? "New" : "RunMethod");
+                var call = $"il2cpp_utils::{utilFunc}{innard}(";
+
+                var paramString = method.Parameters.FormatParameters(_config.IllegalNames, _parameterMaps[method], ParameterFormatFlags.Names, asHeader);
+                if (!isNewCtor)
                 {
-                    string s = "";
-                    string innard = "";
-                    if (needsReturn)
-                        s = "return ";
-                    else if (returnMode == ReturnMode.RealConstructor)
-                        s = "*this = " + (_declaringIsValueType ? "" : "*");
-
-                    if (returnMode != ReturnMode.None)
-                        innard = $"<{_resolvedReturns[method].TypeName(asHeader)}>";
-
-                    var utilFunc = method.Generic ? "RunGenericMethod" : "RunMethod";
-                    var call = $"il2cpp_utils::{utilFunc}{innard}(";
                     string thisArg = (_declaringIsValueType ? "*" : "") + "this";
-                    if (method.Specifiers.IsStatic())
-                        call += $"{classArgs}, ";
-                    else if (scope == MethodScope.Class)
-                        call += $"{thisArg}, ";
-
-                    var paramString = method.Parameters.FormatParameters(_config.IllegalNames, _parameterMaps[method], ParameterFormatFlags.Names);
                     if (!string.IsNullOrEmpty(paramString))
                         paramString = ", " + paramString;
                     if (method.Specifiers.IsStatic() && scope == MethodScope.Class)
                         paramString = ", " + thisArg + paramString;
+                    if (method.Specifiers.IsStatic())
+                        call += $"{classArgs}, ";
+                    else if (scope == MethodScope.Class)
+                        call += $"{thisArg}, ";
                     // Macro string should use Il2CppName (of course, without _, $ replacement)
-                    call += $"\"{method.Il2CppName}\"{genTypesList}{paramString})";
-                    // Write method with return
-                    writer.WriteDeclaration(s + _config.MacroWrap(call, needsReturn));
-                    // Close method
-                    writer.CloseDefinition();
+                    call += $"\"{method.Il2CppName}\"";
                 }
+                call += $"{genTypesList}{paramString})";
+                // Write call
+                writer.WriteDeclaration(s + _config.MacroWrap(call, needsReturn));
+                // Close method
+                writer.CloseDefinition();
             }
 
             var param = method.Parameters.Where(p => p.Modifier == ParameterModifier.Params).SingleOrDefault();
-            if (param != null)
+            if (param != null && !commentMethod)
             {
                 var (container, _) = _parameterMaps[method][^1];
                 var origMethod = $"{method.ReturnType} {method.Il2CppName}({method.Parameters.FormatParameters()})".TrimStart();
@@ -796,13 +816,13 @@ namespace Il2CppModdingCodegen.Serialization
 
                     var initializerListProxyInfo = WriteMethod(scope, method, asHeader, overrideName, false);
                     declaration = initializerListProxyInfo.declaration;
-                    bool commentMethod = declaration.StartsWith("/");
+                    bool commentProxy1 = declaration.StartsWith("/");
 
                     writer.WriteComment($"Creating initializer_list -> params proxy for: {origMethod}");
                     if (TemplateString(method, !writeContent, out var templateStr))
-                        writer.WriteLine((commentMethod ? "// " : "") + templateStr);
+                        writer.WriteLine((commentProxy1 ? "// " : "") + templateStr);
 
-                    if (commentMethod)
+                    if (commentProxy1)
                     {
                         writer.WriteComment("proxy would be redundant?!");
                         writer.WriteLine(declaration);
@@ -819,7 +839,7 @@ namespace Il2CppModdingCodegen.Serialization
                         writer.CloseDefinition();
                     }
 
-                    if (!commentMethod && asHeader)
+                    if (!commentProxy1 && asHeader)
                     {
                         var tempGens = _tempGenerics.GetOrAdd(method);
                         // Temporarily add a generic TParams

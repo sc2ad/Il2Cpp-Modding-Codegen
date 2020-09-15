@@ -180,7 +180,11 @@ namespace Il2CppModdingCodegen.Serialization
             if (type.Fields.Any() || type.Methods.Any() || type.NestedTypes.Any())
                 writer.WriteLine("public:");
             if (state.declaring != null)
-                writer.WriteLine($"using declaring_type = {state.declaring};");
+            {
+                writer.WriteDeclaration($"using declaring_type = {state.declaring}");
+                writer.WriteDeclaration($"static constexpr std::string_view NESTED_NAME = \"{typeName}\"");
+            }
+
             writer.Flush();
         }
 
