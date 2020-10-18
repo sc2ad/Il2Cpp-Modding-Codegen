@@ -134,7 +134,7 @@ namespace Il2CppModdingCodegen.Serialization
         /// </summary>
         /// <param name="writer"></param>
         /// <param name="type"></param>
-        internal void WriteInitialTypeDefinition(CppStreamWriter writer, ITypeData type, bool isNested)
+        internal void WriteInitialTypeDefinition(CppStreamWriter writer, ITypeData type, bool nestedInPlace)
         {
             if (!map.TryGetValue(type.This, out var state))
                 throw new UnresolvedTypeException(type.This, type.This);
@@ -160,7 +160,7 @@ namespace Il2CppModdingCodegen.Serialization
 
             if (type.This.IsGenericTemplate)
             {
-                var genericStr = CppTypeContext.GetTemplateLine(type, isNested);
+                var genericStr = CppTypeContext.GetTemplateLine(type, nestedInPlace);
                 if (!string.IsNullOrEmpty(genericStr))
                     writer.WriteLine(genericStr);
             }
@@ -168,7 +168,7 @@ namespace Il2CppModdingCodegen.Serialization
             // TODO: print enums as actual C++ smart enums? backing type is type of _value and A = #, should work for the lines inside the enum
             // TODO: We need to specify generic declaring types with their generic parameters
             var typeName = state.type;
-            if (isNested)
+            if (nestedInPlace)
             {
                 int idx = typeName.LastIndexOf("::");
                 if (idx >= 0)

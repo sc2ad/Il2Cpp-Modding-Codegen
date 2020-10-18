@@ -351,8 +351,8 @@ namespace Il2CppModdingCodegen.Serialization
                     var s = context.GetCppName(g, true, needAs: CppTypeContext.NeedAs.Declaration);
                     if (s is null)
                     {
-                        Console.Error.WriteLine($"context.GetCppName failed for generic parameter {g}, using g.Name instead.");
-                        s = g.Name;
+                        Console.Error.WriteLine($"context.GetCppName failed for generic parameter {g}, using g.CppName() instead.");
+                        s = g.CppName();
                     }
                     generics.Add(s);
 
@@ -717,7 +717,7 @@ namespace Il2CppModdingCodegen.Serialization
                 if (method.ImplementedFrom != null)
                     writer.WriteComment("Implemented from: " + method.ImplementedFrom);
                 foreach (var bm in method.BaseMethods)
-                    writer.WriteComment($"Base method: {bm.ReturnType} {bm.DeclaringType.Name}::{bm.Name}({method.Parameters.FormatParameters()})");
+                    writer.WriteComment($"Base method: {bm.ReturnType} {bm.DeclaringType.CppName()}::{bm.Name}({method.Parameters.FormatParameters()})");
                 if (!writeContent)
                 {
                     if (TemplateString(method, asHeader, out var templateStr))

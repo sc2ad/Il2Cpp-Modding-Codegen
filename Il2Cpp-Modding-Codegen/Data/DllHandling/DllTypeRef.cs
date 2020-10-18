@@ -27,7 +27,7 @@ namespace Il2CppModdingCodegen.Data.DllHandling
 
         public override IReadOnlyList<TypeRef> Generics { get; }
 
-        public override TypeRef? DeclaringType { get => From(This.DeclaringType); }
+        protected override TypeRef? OriginalDeclaringType { get => From(This.DeclaringType); }
         public override TypeRef? ElementType
         {
             get
@@ -89,6 +89,9 @@ namespace Il2CppModdingCodegen.Data.DllHandling
 
             if (IsGeneric && Generics.Count == 0)
                 throw new InvalidDataException($"Wtf? In DllTypeRef constructor, a generic with no generics: {this}, IsGenInst: {this.IsGenericInstance}");
+
+            if (This.Name == "GameNoteType" && This.DeclaringType?.Name == "GameNoteController")
+                UnNested = true;
 
             DllTypeRef? refDeclaring = null;
             if (!This.IsGenericParameter && This.IsNested)

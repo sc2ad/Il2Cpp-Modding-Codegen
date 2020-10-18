@@ -23,7 +23,9 @@ namespace Il2CppModdingCodegen.Data
         public abstract bool IsGenericTemplate { get; }
         public abstract IReadOnlyList<TypeRef> Generics { get; }
 
-        public abstract TypeRef? DeclaringType { get; }
+        protected bool UnNested { get; set; } = false;
+        public TypeRef? DeclaringType { get => UnNested ? null : OriginalDeclaringType; }
+        protected abstract TypeRef? OriginalDeclaringType { get; }
         public abstract TypeRef? ElementType { get; }
 
         private ITypeData? _resolvedType;
@@ -71,7 +73,14 @@ namespace Il2CppModdingCodegen.Data
         {
             if (Name.StartsWith("!"))
                 throw new InvalidOperationException("Tried to get the name of a copied generic parameter!");
-            return Name.Replace('`', '_').Replace('<', '$').Replace('>', '$');
+            var name = Name.Replace('`', '_').Replace('<', '$').Replace('>', '$');
+            if (UnNested)
+            {
+                if (OriginalDeclaringType == null)
+                    throw new NullReferenceException("DeclaringType was null despite UnNested being true!");
+                name = OriginalDeclaringType.CppName() + "_" + name;
+            }
+            return name;
         }
 
         public string GetQualifiedCppName()
@@ -91,10 +100,10 @@ namespace Il2CppModdingCodegen.Data
         {
             var name = Name;
             var dt = this;
-            while (dt.DeclaringType != null)
+            while (dt.OriginalDeclaringType != null)
             {
-                name = dt.DeclaringType.Name + "/" + name;
-                dt = dt.DeclaringType;
+                name = dt.OriginalDeclaringType.Name + "/" + name;
+                dt = dt.OriginalDeclaringType;
             }
             // Namespace obtained from final declaring type
             return (dt.Namespace.Replace("::", "."), name);

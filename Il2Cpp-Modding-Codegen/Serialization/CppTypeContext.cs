@@ -55,6 +55,7 @@ namespace Il2CppModdingCodegen.Serialization
         internal CppTypeContext? DeclaringContext { get; private set; }
         internal HashSet<TypeRef> UniqueInterfaces { get; } = new HashSet<TypeRef>();
         internal bool InPlace { get; private set; } = false;
+        internal bool UnNested { get; private set; } = false;
         internal IReadOnlyList<CppTypeContext> NestedContexts { get => _nestedContexts; }
 
         private CppTypeContext _rootContext;
@@ -168,10 +169,11 @@ namespace Il2CppModdingCodegen.Serialization
             // Add ourselves to our Definitions
             Definitions.AddOrThrow(data.This);
 
-            // Requiring it as a definition here simply makes it easier to remove (because we are asking for a definition of ourself, which we have)
-            QualifiedTypeName = GetCppName(data.This, true, true, NeedAs.Definition, ForceAsType.Literal) ?? throw new Exception($"Could not get QualifiedTypeName for {data.This}");
             TypeNamespace = data.This.CppNamespace();
             TypeName = data.This.CppName();
+
+            // Requiring it as a definition here simply makes it easier to remove (because we are asking for a definition of ourself, which we have)
+            QualifiedTypeName = GetCppName(data.This, true, true, NeedAs.Definition, ForceAsType.Literal) ?? throw new Exception($"Could not get QualifiedTypeName for {data.This}");
 
             // Declaring types need to declare (or define) ALL of their nested types
             foreach (var nested in data.NestedTypes)
@@ -398,7 +400,7 @@ namespace Il2CppModdingCodegen.Serialization
 
             // If the TypeRef is a generic parameter, return its name
             if (IsGenericParameter(data))
-                return data.Name;
+                return data.CppName();
 
             var resolved = ResolveAndStore(data, forceAsType, needAs);
             if (resolved is null)
@@ -494,8 +496,7 @@ namespace Il2CppModdingCodegen.Serialization
             {
                 if (qualified)
                     name = resolved.This.CppNamespace() + "::";
-                name += data.Name;
-                name = name.Replace('`', '_').Replace('<', '$').Replace('>', '$');
+                name += data.CppName();
                 if (generics && data.Generics.Count > 0)
                 {
                     name += "<";
@@ -508,7 +509,7 @@ namespace Il2CppModdingCodegen.Serialization
 
                         if (data.IsGenericTemplate)
                             // If this is a generic template, use literal names for our generic parameters
-                            name += g.Name;
+                            name += g.CppName();
                         else if (data.IsGenericInstance)
                             // If this is a generic instance, call each of the generic's GetCppName
                             name += GetCppName(g, qualified, true, NeedAsForGeneric(needAs));

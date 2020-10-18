@@ -27,7 +27,7 @@ namespace Il2CppModdingCodegen.Data
                 s += $"{attr}\n";
             foreach (var spec in Specifiers)
                 s += $"{spec} ";
-            s += $"{Type.ToString().ToLower()} {This.Name}";
+            s += $"{Type.ToString().ToLower()} {This.CppName()}";
             if (Parent != null)
                 s += $" : {Parent}";
             s += "\n{";

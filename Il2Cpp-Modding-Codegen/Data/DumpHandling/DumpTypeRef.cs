@@ -16,7 +16,7 @@ namespace Il2CppModdingCodegen.Data.DumpHandling
         public override bool IsGenericTemplate { get; }
         public override IReadOnlyList<TypeRef> Generics { get; }
 
-        public override TypeRef? DeclaringType { get; }
+        protected override TypeRef? OriginalDeclaringType { get; }
         public override TypeRef? ElementType { get; }
 
         public override bool IsPointer()
@@ -35,7 +35,8 @@ namespace Il2CppModdingCodegen.Data.DumpHandling
             IsGenericInstance = other.IsGenericInstance;
             IsGenericTemplate = other.IsGenericTemplate;
             Generics = new List<TypeRef>(other.Generics);
-            DeclaringType = other.DeclaringType;
+            OriginalDeclaringType = other.OriginalDeclaringType;
+            UnNested = other.UnNested;
             ElementType = other.ElementType;
         }
 
@@ -56,7 +57,8 @@ namespace Il2CppModdingCodegen.Data.DumpHandling
                     throw new UnresolvedTypeException(genericParameter, other);
             }
             Generics = newGenerics;
-            DeclaringType = other.DeclaringType;
+            OriginalDeclaringType = other.DeclaringType;
+            UnNested = other.UnNested;
             ElementType = other.ElementType;
         }
 
@@ -133,9 +135,9 @@ namespace Il2CppModdingCodegen.Data.DumpHandling
             if (declInd != -1)
             {
                 // Create a new TypeRef for the declaring type, it should recursively create more declaring types
-                DeclaringType = new DumpTypeRef(typeName.Substring(0, declInd));
+                OriginalDeclaringType = new DumpTypeRef(typeName.Substring(0, declInd));
                 // TODO: need to resolve DeclaringType before this will make sense?
-                Namespace = DeclaringType.Namespace;
+                Namespace = OriginalDeclaringType.Namespace;
             }
             Name = typeName.Replace('.', '/');
             if (IsArray())
