@@ -90,8 +90,11 @@ namespace Il2CppModdingCodegen.Data.DllHandling
             if (IsGeneric && Generics.Count == 0)
                 throw new InvalidDataException($"Wtf? In DllTypeRef constructor, a generic with no generics: {this}, IsGenInst: {this.IsGenericInstance}");
 
-            if (This.Name == "GameNoteType" && This.DeclaringType?.Name == "GameNoteController")
-                UnNested = true;
+            if ((This.Name == "GameNoteType" && This.DeclaringType?.Name == "GameNoteController") ||  // referenced by IGameNoteTypeProvider
+                (This.Name == "MessageType" && This.DeclaringType?.Name == "MultiplayerSessionManager") ||  // referenced by IMultiplayerSessionManager
+                (This.Name == "Score" && This.DeclaringType?.Name == "StandardScoreSyncState") ||  // SSSState implements IStateTable_2<SSSState::Score, int>
+                (This.Name == "NodePose" && This.DeclaringType?.Name == "NodePoseSyncState"))  // NPSState implements IStateTable_2<NPSState::NodePose, PoseSerializable>
+                  UnNested = true;
 
             DllTypeRef? refDeclaring = null;
             if (!This.IsGenericParameter && This.IsNested)

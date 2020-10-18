@@ -175,7 +175,8 @@ namespace Il2CppModdingCodegen.Serialization
                     typeName = typeName.Substring(idx + 2);
             }
             writer.WriteDefinition(type.Type.TypeName() + " " + typeName + s);
-            WriteGenericTypeConstraints(writer, state.genParamConstraints, true);
+            // TODO: debug is_complete
+            // WriteGenericTypeConstraints(writer, state.genParamConstraints, true);
 
             if (type.Fields.Any() || type.Methods.Any() || type.NestedTypes.Any())
                 writer.WriteLine("public:");

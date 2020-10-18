@@ -205,7 +205,7 @@ namespace Il2CppModdingCodegen.Serialization
             else
                 // If the name is not a special name, set it to be the method name
                 name = method.Name;
-            name = _config.SafeMethodName(name).Replace('<', '$').Replace('>', '$').Replace('.', '_');
+            name = _config.SafeMethodName(name).Replace('<', '$').Replace('>', '$').Replace('.', '_').Replace('|', '_');
 
             if (Operators.TryGetValue(name, out var info))
             {
