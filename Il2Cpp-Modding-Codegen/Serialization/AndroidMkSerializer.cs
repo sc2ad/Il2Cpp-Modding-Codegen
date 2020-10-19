@@ -124,7 +124,7 @@ rwildcard=$(wildcard $1$2) $(foreach d,$(wildcard $1*),$(call rwildcard,$d/,$2))
             _stream.WriteLine("LOCAL_SRC_FILES += $(call rwildcard,./src,*.cpp)");
             _stream.WriteLine("LOCAL_C_INCLUDES := ./include");
             _stream.WriteLine($"LOCAL_CFLAGS += -DMOD_ID='\"{_config.Id}\"' -DVERSION='\"{_config.Version}\"' -DNEED_UNSAFE_CSHARP -DNO_CODEGEN_USE");
-            _stream.WriteLine($"LOCAL_CFLAGS += -Wall -Wextra -Werror -Wno-unused-function -isystem'{_config.Libil2cpp}'");
+            _stream.WriteLine($"LOCAL_CFLAGS += -Wall -Wextra -Werror -Wno-unused-function -isystem'{_config.Libil2cpp}' -isystem'extern'");
             foreach (var l in lib.toBuild)
                 _stream.WriteLine("LOCAL_SHARED_LIBRARIES += " + l);
             _stream.WriteLine("LOCAL_LDLIBS := -llog");

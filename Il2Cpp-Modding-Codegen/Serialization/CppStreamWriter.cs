@@ -134,8 +134,8 @@ namespace Il2CppModdingCodegen.Serialization
 
         internal static void DeleteUnwrittenFiles()
         {
+            Console.WriteLine($"Deleting {ExistingFiles.Except(Written).LongCount()} files!");
             ExistingFiles.Except(Written).AsParallel().ForAll(s => File.Delete(s));
-            Console.WriteLine($"Deleted {ExistingFiles.Count - Written.Count} files!");
             Console.WriteLine($"Made changes to {NumChangedFiles} / {Written.Count} files = {NumChangedFiles * 100.0f / Written.Count}%");
         }
     }

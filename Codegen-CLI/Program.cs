@@ -95,7 +95,7 @@ namespace Codegen_CLI
                 PrintSerializationProgress = true,
                 PrintSerializationProgressFrequency = 1000,
                 Id = "il2cpp_codegen",
-                Version = "0.2.2",
+                Version = "0.2.5",
                 Libil2cpp = libIl2cpp
             };
 
