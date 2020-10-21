@@ -594,6 +594,20 @@ namespace Il2CppModdingCodegen.Serialization
             }
         }
 
+        internal void WriteInterfaceConversionOperator(CppStreamWriter writer, ITypeData type, string? interfaceType)
+        {
+            if (interfaceType is null) throw new ArgumentNullException(nameof(interfaceType));
+            var name = "operator " + interfaceType;
+            var sig = name + "()";
+            if (!CanWriteMethod(0, type.This, true, sig)) return;
+
+            var signature = $"{name}() noexcept";
+            writer.WriteComment("Creating interface conversion operator: " + name);
+            writer.WriteDefinition(signature);
+            writer.WriteDeclaration($"return *reinterpret_cast<{interfaceType}*>(this)");
+            writer.CloseDefinition();
+        }
+
         internal void WriteConversionOperator(CppStreamWriter writer, CppFieldSerializer fieldSer, ITypeData type,
             FieldConversionOperator op, bool asHeader)
         {

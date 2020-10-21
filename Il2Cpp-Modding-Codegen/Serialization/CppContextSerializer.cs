@@ -402,6 +402,8 @@ namespace Il2CppModdingCodegen.Serialization
                 typeSerializer.WriteInstanceFields(writer, context.LocalType);
                 typeSerializer.WriteSpecialCtors(writer, context.LocalType, context.LocalType.This.DeclaringType != null);
 
+                typeSerializer.WriteInterfaceConversionOperators(writer, context.LocalType);
+
                 var op = context.SoloFieldConversionOperator;
                 if (op.Field != null && op.Kind != ConversionOperatorKind.Inherited)
                 {
