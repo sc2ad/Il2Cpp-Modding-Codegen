@@ -10,6 +10,7 @@ namespace Il2CppModdingCodegen.Serialization
     public class CppTypeContext
     {
 #pragma warning disable CA1717 // Only FlagsAttribute enums should have plural names
+
         public enum NeedAs
 #pragma warning restore CA1717 // Only FlagsAttribute enums should have plural names
         {
@@ -33,6 +34,7 @@ namespace Il2CppModdingCodegen.Serialization
         internal HashSet<TypeRef> DefinitionsToGet { get; } = new HashSet<TypeRef>();
 
         private FieldConversionOperator? _soloFieldConversionOperator = null;
+
         internal FieldConversionOperator SoloFieldConversionOperator =>
             _soloFieldConversionOperator ?? throw new InvalidOperationException("Must call CreateConversionOperator first!");
 
@@ -55,7 +57,6 @@ namespace Il2CppModdingCodegen.Serialization
         internal CppTypeContext? DeclaringContext { get; private set; }
         internal HashSet<TypeRef> UniqueInterfaces { get; } = new HashSet<TypeRef>();
         internal bool InPlace { get; private set; } = false;
-        internal bool UnNested { get; private set; } = false;
         internal IReadOnlyList<CppTypeContext> NestedContexts { get => _nestedContexts; }
 
         private CppTypeContext _rootContext;
@@ -82,14 +83,17 @@ namespace Il2CppModdingCodegen.Serialization
         /// Returns true if this context uses primitive il2cpp types.
         /// </summary>
         internal bool NeedPrimitivesBeforeLateHeader { get; private set; } = false;
+
         internal void EnableNeedPrimitivesBeforeLateHeader() => NeedPrimitivesBeforeLateHeader = true;
 
         // whether the header will need il2cpp_utils functions
         internal bool NeedIl2CppUtilsFunctionsInHeader { get; private set; } = false;
+
         internal void EnableNeedIl2CppUtilsFunctionsInHeader() => NeedIl2CppUtilsFunctionsInHeader = true;
 
         // whether the header will need the include for std::initializer_list
         internal bool NeedInitializerList { get; private set; } = false;
+
         internal void EnableNeedInitializerList() => NeedInitializerList = true;
 
         internal bool NeedStdint { get; private set; } = false;

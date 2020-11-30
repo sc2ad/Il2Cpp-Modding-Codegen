@@ -28,6 +28,7 @@ namespace Il2CppModdingCodegen.Data.DllHandling
         public override IReadOnlyList<TypeRef> Generics { get; }
 
         protected override TypeRef? OriginalDeclaringType { get => From(This.DeclaringType); }
+
         public override TypeRef? ElementType
         {
             get
@@ -39,10 +40,10 @@ namespace Il2CppModdingCodegen.Data.DllHandling
         }
 
         public override bool IsVoid() => This.MetadataType == MetadataType.Void;
+
         public override bool IsPointer() => This.IsPointer;
+
         public override bool IsArray() => This.IsArray;
-
-
 
         public override TypeRef MakePointer() => From(This.MakePointerType());
 
@@ -80,12 +81,9 @@ namespace Il2CppModdingCodegen.Data.DllHandling
             }
             _name = This.Name;
 
-            if (IsGenericInstance)
-                Generics = ((GenericInstanceType)This).GenericArguments.Select(g => From(g)).ToList();
-            else if (IsGenericTemplate)
-                Generics = This.GenericParameters.Select(g => From(g)).ToList();
-            else
-                Generics = new List<TypeRef>();
+            Generics = IsGenericInstance
+                ? ((GenericInstanceType)This).GenericArguments.Select(g => From(g)).ToList()
+                : IsGenericTemplate ? This.GenericParameters.Select(g => From(g)).ToList() : (IReadOnlyList<TypeRef>)new List<TypeRef>();
 
             if (IsGeneric && Generics.Count == 0)
                 throw new InvalidDataException($"Wtf? In DllTypeRef constructor, a generic with no generics: {this}, IsGenInst: {this.IsGenericInstance}");
@@ -94,7 +92,15 @@ namespace Il2CppModdingCodegen.Data.DllHandling
                 (This.Name == "MessageType" && This.DeclaringType?.Name == "MultiplayerSessionManager") ||  // referenced by IMultiplayerSessionManager
                 (This.Name == "Score" && This.DeclaringType?.Name == "StandardScoreSyncState") ||  // SSSState implements IStateTable_2<SSSState::Score, int>
                 (This.Name == "NodePose" && This.DeclaringType?.Name == "NodePoseSyncState"))  // NPSState implements IStateTable_2<NPSState::NodePose, PoseSerializable>
-                  UnNested = true;
+                UnNested = true;
+
+            //if (This.DeclaringType is not null)
+            //{
+            //    // Because nested types have extra data in them, their size doesn't match what they should be.
+            //    // For this reason, we shall unnest EVERYTHING!
+            //    // Much to the disappointment of ourselves...
+            //    UnNested = true;
+            //}
 
             DllTypeRef? refDeclaring = null;
             if (!This.IsGenericParameter && This.IsNested)

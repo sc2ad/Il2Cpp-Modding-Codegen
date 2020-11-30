@@ -187,10 +187,18 @@ namespace Il2CppModdingCodegen.Serialization
                 writer.WriteComment("Get static field: " + fieldCommentString);
                 writer.WriteDefinition(GetGetter(resolvedType, field, !_asHeader));
 
+                // TODO: Check invalid name
+                var loggerId = "___internal__logger";
+
+                writer.WriteDeclaration($"static auto {loggerId} = Logger::get().WithContext(\"codegen\")" +
+                    $".WithContext(\"{field.DeclaringType.CppNamespace()}\")" +
+                    $".WithContext(\"{field.DeclaringType.CppName()}\")" +
+                    $".WithContext(\"{SafeConfigName($"_get_{field.Name}")}\")");
+
                 var innard = $"<{resolvedType}>";
                 var call = $"il2cpp_utils::GetFieldValue{innard}(";
                 call += $"{classArgs}, \"{field.Name}\")";
-                writer.WriteDeclaration("return " + _config.MacroWrap(call, true));
+                writer.WriteDeclaration("return " + _config.MacroWrap(loggerId, call, true));
                 writer.CloseDefinition();
 
                 // Write setter
@@ -198,9 +206,14 @@ namespace Il2CppModdingCodegen.Serialization
                 writer.WriteComment("Set static field: " + fieldCommentString);
                 writer.WriteDefinition(GetSetter(resolvedType, field, !_asHeader));
 
+                writer.WriteDeclaration($"static auto {loggerId} = Logger::get().WithContext(\"codegen\")" +
+                    $".WithContext(\"{field.DeclaringType.CppNamespace()}\")" +
+                    $".WithContext(\"{field.DeclaringType.CppName()}\")" +
+                    $".WithContext(\"{SafeConfigName($"_set_{field.Name}")}\")");
+
                 call = $"il2cpp_utils::SetFieldValue(";
                 call += $"{classArgs}, \"{field.Name}\", value)";
-                writer.WriteDeclaration(_config.MacroWrap(call, false));
+                writer.WriteDeclaration(_config.MacroWrap(loggerId, call, false));
                 writer.CloseDefinition();
             }
             writer.Flush();

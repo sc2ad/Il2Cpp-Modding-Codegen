@@ -6,6 +6,7 @@ using Il2CppModdingCodegen.Serialization;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Globalization;
 using System.IO;
 
 namespace Codegen_CLI
@@ -14,11 +15,10 @@ namespace Codegen_CLI
     {
         private static void Main(string[] args)
         {
+            Console.WriteLine(DateTime.UtcNow.ToString("yyyy'-'MM'-'dd'T'HH':'mm':'ss'.'fff'Z'"));
             Console.WriteLine("Drag and drop your dump.cs file (or a partial of it of the correct format) then press enter...");
-            string path;
-            if (Directory.Exists(@"C:\Users\Sc2ad\Desktop\Code\Android Modding\BeatSaber\1.8.0\DummyDll"))
-                path = @"C:\Users\Sc2ad\Desktop\Code\Android Modding\BeatSaber\1.8.0\DummyDll";
-            else
+            string path = @"C:\Users\Sc2ad\Desktop\Code\Android Modding\BeatSaber\1.13.0\DummyDll";
+            if (!Directory.Exists(path))
                 path = Console.ReadLine().Replace("\"", string.Empty);
             bool parseDlls = false;
             IParser parser;
@@ -35,7 +35,7 @@ namespace Codegen_CLI
             }
 
             Console.WriteLine("Parsing...");
-            Stopwatch watch = new Stopwatch();
+            Stopwatch watch = new();
             watch.Start();
             IParsedData parsed;
             if (parseDlls)
@@ -50,12 +50,13 @@ namespace Codegen_CLI
             Console.WriteLine($"Parsing took: {watch.Elapsed}!");
             Console.WriteLine("============================================");
             Console.WriteLine("Type the name of an output style (or don't for Normal) then press enter to serialize:");
-            var input = Console.ReadLine();
+            var input = "ThrowUnless";
+            //var input = Console.ReadLine();
             // TODO: strip non-alphabetic characters out of input before parsing it
             if (Enum.TryParse(input, true, out OutputStyle style))
                 Console.WriteLine($"Parsed style '{style}'");
 
-            var libIl2cpp = "C:/Program Files/Unity/Editor/Data/il2cpp/libil2cpp";
+            var libIl2cpp = @"C:\Program Files\Unity\Hub\Editor\2019.3.15f1\Editor\Data\il2cpp\libil2cpp";
             if (!Directory.Exists(libIl2cpp))
             {
                 Console.WriteLine("Drag and drop your libil2cpp folder into this window then press enter:");
@@ -94,7 +95,7 @@ namespace Codegen_CLI
                 },
                 PrintSerializationProgress = true,
                 PrintSerializationProgressFrequency = 1000,
-                Id = "il2cpp_codegen",
+                Id = "codegen",
                 Version = "0.2.5",
                 Libil2cpp = libIl2cpp
             };

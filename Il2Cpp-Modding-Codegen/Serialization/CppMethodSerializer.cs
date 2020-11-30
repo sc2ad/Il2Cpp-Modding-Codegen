@@ -121,6 +121,7 @@ namespace Il2CppModdingCodegen.Serialization
 
         // The int is the number of generic parameters that the method has
         private readonly Dictionary<int, HashSet<(TypeRef, bool, string)>> _signatures = new Dictionary<int, HashSet<(TypeRef, bool, string)>>();
+
         private readonly HashSet<IMethod> _aborted = new HashSet<IMethod>();
 
         // Holds a mapping of IMethod to the name, as well as if the name has been specifically converted already.
@@ -435,7 +436,8 @@ namespace Il2CppModdingCodegen.Serialization
             Return,
             CppOnlyConstructor,
         }
-        static bool NeedsReturn(ReturnMode mode) => mode == ReturnMode.Return;
+
+        private static bool NeedsReturn(ReturnMode mode) => mode == ReturnMode.Return;
 
         private static ReturnMode GetReturnMode(string retStr, string nameStr)
         {
@@ -448,6 +450,7 @@ namespace Il2CppModdingCodegen.Serialization
         }
 
         public static int CopyConstructorCount { get; private set; } = 0;
+
         private (string declaration, string cppName, ReturnMode returnMode) WriteMethod(
             MethodScope scope, IMethod method, bool asHeader, string? overrideName, bool banMethodIfFails = true)
         {
@@ -678,9 +681,9 @@ namespace Il2CppModdingCodegen.Serialization
             {
                 var str = string.Join(", ", generics.Select(Il2CppNoArgClass));
                 if (!string.IsNullOrEmpty(str))
-                    return $", {{{str}}}";
+                    return $"{{{str}}}";
             }
-            return "";
+            return "{}";
         }
 
         // Write the method here
@@ -779,6 +782,16 @@ namespace Il2CppModdingCodegen.Serialization
                     // var paramNames = method.Parameters.FormatParameters(_config.IllegalNames, _parameterMaps[method], ParameterFormatFlags.Names, asHeader);
                 }
 
+                // TODO: Potentially conflicting naming
+                var loggerId = "___internal__logger";
+                var mName = "___internal__method";
+                var genMName = "___generic__method";
+
+                writer.WriteDeclaration($"static auto {loggerId} = ::Logger::get().WithContext(\"codegen\")" +
+                    $".WithContext(\"{method.DeclaringType.CppNamespace()}\")" +
+                    $".WithContext(\"{method.DeclaringType.CppName()}\")" +
+                    $".WithContext(\"{method.Name}\")");
+
                 string s = "";
                 string innard = "";
                 if (needsReturn)
@@ -787,30 +800,62 @@ namespace Il2CppModdingCodegen.Serialization
                     s = "*this = " + (_declaringIsValueType ? "" : "*");
 
                 // `*this =` doesn't work without a cast either
-                if (returnMode != ReturnMode.None)
-                    innard = $"<{returnType}>";
-
-                var utilFunc = method.Generic ? "RunGenericMethod" : (isNewCtor ? "New" : "RunMethod");
-                var call = $"il2cpp_utils::{utilFunc}{innard}(";
-
-                var paramString = method.Parameters.FormatParameters(_config.IllegalNames, _parameterMaps[method], ParameterFormatFlags.Names, asHeader);
                 if (!isNewCtor)
                 {
-                    string thisArg = (_declaringIsValueType ? "*" : "") + "this";
-                    if (!string.IsNullOrEmpty(paramString))
-                        paramString = ", " + paramString;
-                    if (method.Specifiers.IsStatic() && scope == MethodScope.Class)
-                        paramString = ", " + thisArg + paramString;
-                    if (method.Specifiers.IsStatic())
-                        call += $"{classArgs}, ";
-                    else if (scope == MethodScope.Class)
-                        call += $"{thisArg}, ";
-                    // Macro string should use Il2CppName (of course, without _, $ replacement)
-                    call += $"\"{method.Il2CppName}\"";
+                    // Innard should be set to not perform type checking
+                    innard = returnMode != ReturnMode.None ? $"<{returnType}, false>" : "<void, false>";
                 }
-                call += $"{genTypesList}{paramString})";
+                else
+                {
+                    innard = "<" + returnType + ">";
+                }
+
+                // We should avoid calling RunMethod, as we can be very explicit that we are confident we are calling it correctly.
+                // TODO: Eventually optimize New as well as RunGenericMethod and RunMethod
+                var utilFunc = isNewCtor ? "New" : "RunMethodThrow";
+
+                // If we are calling RunGenericMethodThrow or RunMethodThrow, we should cache the found method first.
+                var paramString = method.Parameters.FormatParameters(_config.IllegalNames, _parameterMaps[method], ParameterFormatFlags.Names, asHeader);
+                string thisArg = (_declaringIsValueType ? "*" : "") + "this";
+                var call = $"::il2cpp_utils::{utilFunc}{innard}(";
+
+                if (!isNewCtor)
+                {
+                    writer.WriteDeclaration($"static auto* ___internal__method = " +
+                        _config.MacroWrap(loggerId, $"::il2cpp_utils::FindMethod({(method.Specifiers.IsStatic() ? classArgs : thisArg)}, il2cpp_utils::NoArgClass<{returnType}>(), \"{method.Il2CppName}\", {genTypesList}, ::il2cpp_utils::ExtractTypes({paramString}))", true));
+                    if (method.Generic)
+                    {
+                        writer.WriteDeclaration($"static auto* ___generic__method = " +
+                            _config.MacroWrap(loggerId, $"::il2cpp_utils::MakeGenericMethod({mName}, {genTypesList})", true));
+                        mName = genMName;
+                    }
+                    call += $"{(method.Specifiers.IsStatic() ? "static_cast<Il2CppClass*>(nullptr)" : thisArg)}, ___internal__method" + (paramString.Length > 0 ? (", " + paramString) : "") + ")";
+                }
+                else
+                {
+                    // If it is not {}
+                    call += $"{(genTypesList.Length > 2 ? ", " + genTypesList : "")}{paramString})";
+                }
+
+                //if (!isNewCtor)
+                //{
+                //    if (!string.IsNullOrEmpty(paramString))
+                //        paramString = ", " + paramString;
+                //    if (method.Specifiers.IsStatic() && scope == MethodScope.Class)
+                //        paramString = ", " + thisArg + paramString;
+                //    if (method.Specifiers.IsStatic())
+                //        call += $"{classArgs}, ";
+                //    else if (scope == MethodScope.Class)
+                //        call += $"{thisArg}, ";
+                //    // Macro string should use Il2CppName (of course, without _, $ replacement)
+                //    call += $"\"{method.Il2CppName}\"";
+                //}
+                //call += $"{genTypesList}{paramString})";
                 // Write call
-                writer.WriteDeclaration(s + _config.MacroWrap(call, needsReturn));
+                if (_config.OutputStyle != OutputStyle.ThrowUnless || isNewCtor)
+                    writer.WriteDeclaration(s + _config.MacroWrap(loggerId, call, needsReturn));
+                else
+                    writer.WriteDeclaration(s + call);
                 // Close method
                 writer.CloseDefinition();
             }

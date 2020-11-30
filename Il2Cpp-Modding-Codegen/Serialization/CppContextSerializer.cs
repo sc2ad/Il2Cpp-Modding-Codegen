@@ -14,7 +14,10 @@ namespace Il2CppModdingCodegen.Serialization
     public class CppContextSerializer
     {
         private readonly ITypeCollection _collection;
-        class ContextMap : Dictionary<CppTypeContext, (HashSet<CppTypeContext>, Dictionary<string, HashSet<TypeRef>>, HashSet<string>)> { }
+
+        private class ContextMap : Dictionary<CppTypeContext, (HashSet<CppTypeContext>, Dictionary<string, HashSet<TypeRef>>, HashSet<string>)>
+        { }
+
         private readonly ContextMap _headerContextMap = new ContextMap();
         private readonly ContextMap _sourceContextMap = new ContextMap();
         private readonly SerializationConfig _config;
@@ -429,7 +432,34 @@ namespace Il2CppModdingCodegen.Serialization
             writer.Flush();
 
             if (asHeader)
+            {
                 CppTypeDataSerializer.CloseDefinition(writer, context.LocalType);
+                // TODO: Check size of created type here
+                if (context.LocalType.InstanceFields.Any() && !context.LocalType.This.IsGeneric)
+                {
+                    var f = context.LocalType.InstanceFields.Last();
+                    var fSize = "sizeof(void*)";
+                    if (!f.Type.IsPointer() && !f.Type.IsArray())
+                    {
+                        var resolved = f.Type.Resolve(_collection)!;
+                        if (resolved.Info.Refness != Refness.ReferenceType)
+                            fSize = "sizeof(" + context.GetCppName(f.Type, true, forceAsType: CppTypeContext.ForceAsType.Literal) + ")";
+                    }
+                    if (f.Offset >= 0)
+                    {
+                        var typeName = _config.SafeName(context.GetCppName(context.LocalType.This, false, false, CppTypeContext.NeedAs.Definition, CppTypeContext.ForceAsType.Literal));
+                        writer.WriteDeclaration($"check_size<sizeof({typeName}), {f.Offset} + {fSize} + 8 - ({f.Offset} + {fSize}) % 8> __{context.LocalType.This.CppNamespace().Replace("::", "_")}_{typeName?.Replace("::", "_")}SizeCheck");
+                    }
+                    else
+                    {
+                        writer.WriteComment($"Could not write size check! Last field: {f.Name} Offset: {f.Offset} is of type: {f.Type}");
+                    }
+                }
+                else if (context.LocalType.This.IsGeneric)
+                {
+                    writer.WriteComment($"Could not write size check! Type: {context.LocalType.This} is generic!");
+                }
+            }
             if (!context.InPlace)
                 WriteNamespacedMethods(writer, context, asHeader);
         }
