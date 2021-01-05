@@ -18,6 +18,7 @@ namespace Il2CppModdingCodegen.Serialization
         }
 
         private bool hasIl2CppTypeCheckInclude;
+
         private void IncludeIl2CppTypeCheckIfNotAlready(CppStreamWriter writer)
         {
             if (hasIl2CppTypeCheckInclude) return;
@@ -67,7 +68,12 @@ namespace Il2CppModdingCodegen.Serialization
             writer.WriteComment("=========================================================================");
             writer.WriteLine("#pragma once");
             // TODO: determine when/if we need this
-            writer.WriteLine("#pragma pack(push, 8)");
+            // For sizes that are valid, we ALSO want to write with pack of 1
+            // Invalid sizes are ignored.
+            if (context.LocalType.Layout > ITypeData.LayoutKind.Auto || context.GetSize(context.LocalType.This) != -1)
+                writer.WriteLine("#pragma pack(push, 1)");
+            else
+                writer.WriteLine("#pragma pack(push, 8)");
             // Write SerializerContext and actual type
             try
             {

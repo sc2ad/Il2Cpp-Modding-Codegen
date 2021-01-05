@@ -1,5 +1,6 @@
 ﻿using Il2CppModdingCodegen.Config;
 using Il2CppModdingCodegen.Data;
+using Il2CppModdingCodegen.Data.DllHandling;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -383,7 +384,7 @@ namespace Il2CppModdingCodegen.Serialization
                     writer.WriteDefinition("namespace " + context.TypeNamespace);
                 }
 
-                typeSerializer.WriteInitialTypeDefinition(writer, context.LocalType, context.InPlace);
+                typeSerializer.WriteInitialTypeDefinition(writer, context.LocalType, context.InPlace, context.BaseHasFields);
 
                 // Now, we must also write all of the nested contexts of this particular context object that have InPlace = true
                 // We want to recurse on this, writing the declarations for our types first, followed by our nested types
@@ -435,29 +436,54 @@ namespace Il2CppModdingCodegen.Serialization
             {
                 CppTypeDataSerializer.CloseDefinition(writer, context.LocalType);
                 // TODO: Check size of created type here
-                if (context.LocalType.InstanceFields.Any() && !context.LocalType.This.IsGeneric)
+                if (context.LocalType.InstanceFields.Any(fi => fi.HasSize() && fi.Offset >= 0) && !context.LocalType.This.IsGeneric)
                 {
-                    var f = context.LocalType.InstanceFields.Last();
-                    var fSize = "sizeof(void*)";
-                    if (!f.Type.IsPointer() && !f.Type.IsArray())
+                    var typeName = _config.SafeName(context.GetCppName(context.LocalType.This, false, false, CppTypeContext.NeedAs.Definition, CppTypeContext.ForceAsType.Literal));
+                    //writer.WriteLine("#if defined(__clang__)");
+                    //writer.WriteLine("#pragma clang diagnostic push");
+                    //writer.WriteLine("#pragma clang diagnostic ignored \"-Winvalid-offsetof\"");
+                    //writer.WriteLine("#else");
+                    //writer.WriteLine("#pragma GCC diagnostic push");
+                    //writer.WriteLine("#pragma GCC diagnostic ignored \"-Winvalid-offsetof\"");
+                    //writer.WriteLine("#endif");
+                    //foreach (var fi in context.LocalType.InstanceFields)
+                    //{
+                    //    if (fi.Offset >= 0 && fi.HasSize())
+                    //        //  __{context.LocalType.This.CppNamespace().Replace("::", "_")}_{typeName?.Replace("::", "_")}_{fi.SafeFieldName(_config)}OffsetCheck"
+                    //        writer.WriteDeclaration($"static_assert(offsetof({typeName}, {fi.SafeFieldName(_config)}) == {fi.Offset})");
+                    //}
+                    //writer.WriteLine("#if defined(__clang__)");
+                    //writer.WriteLine("#pragma clang diagnostic pop");
+                    //writer.WriteLine("#else");
+                    //writer.WriteLine("#pragma GCC diagnostic pop");
+                    //writer.WriteLine("#endif");
+                    var f = context.LocalType.InstanceFields.LastOrDefault(fi => fi.HasSize());
+                    if (f is not null && f.Offset >= 0)
                     {
-                        var resolved = f.Type.Resolve(_collection)!;
-                        if (resolved.Info.Refness != Refness.ReferenceType)
-                            fSize = "sizeof(" + context.GetCppName(f.Type, true, forceAsType: CppTypeContext.ForceAsType.Literal) + ")";
-                    }
-                    if (f.Offset >= 0)
-                    {
-                        var typeName = _config.SafeName(context.GetCppName(context.LocalType.This, false, false, CppTypeContext.NeedAs.Definition, CppTypeContext.ForceAsType.Literal));
-                        writer.WriteDeclaration($"check_size<sizeof({typeName}), {f.Offset} + {fSize} + 8 - ({f.Offset} + {fSize}) % 8> __{context.LocalType.This.CppNamespace().Replace("::", "_")}_{typeName?.Replace("::", "_")}SizeCheck");
+                        // Also need to account for padding
+                        // Don't actually need size checks, since offset checks should cover everything feasible.
+                        // Extra bytes don't really matter, assuming it doesn't impact any OTHER structure.
+                        //if (context.LocalType.Info.Refness == Refness.ValueType)
+                        //    // For value types, we don't pad
+                        writer.WriteDeclaration($"static check_size<sizeof({typeName}), {f.Offset} + sizeof({context.GetCppName(f.Type, true)})> __{context.LocalType.This.CppNamespace().Replace("::", "_")}_{typeName?.Replace("::", "_")}SizeCheck");
+                        //else
+                        //    // For multiple fields, we need to ensure we are align 8
+                        //    writer.WriteDeclaration($"static check_size<sizeof({typeName}), ({f.Offset} + sizeof({context.GetCppName(f.Type, true)})) % 8 != 0 ? (8 - ({f.Offset} + sizeof({context.GetCppName(f.Type, true)})) % 8) + {f.Offset} + sizeof({context.GetCppName(f.Type, true)}) : {f.Offset} + sizeof({context.GetCppName(f.Type, true)})> __{context.LocalType.This.CppNamespace().Replace("::", "_")}_{typeName?.Replace("::", "_")}SizeCheck");
                     }
                     else
                     {
-                        writer.WriteComment($"Could not write size check! Last field: {f.Name} Offset: {f.Offset} is of type: {f.Type}");
+                        if (f is null)
+                            writer.WriteComment($"Could not write field size check! There are no fields that have sizes! (they all have IgnoreAttribute)");
+                        else
+                            writer.WriteComment($"Could not write field size check! Last field: {f.Name} Offset: {f.Offset} is of type: {f.Type}");
                     }
+                    var localTypeSize = context.GetSize(context.LocalType.This);
+                    if (localTypeSize > 0)
+                        writer.WriteDeclaration($"static_assert(sizeof({typeName}) == 0x{localTypeSize:X})");
                 }
                 else if (context.LocalType.This.IsGeneric)
                 {
-                    writer.WriteComment($"Could not write size check! Type: {context.LocalType.This} is generic!");
+                    writer.WriteComment($"Could not write size check! Type: {context.LocalType.This} is generic, or has no fields that are valid for size checks!");
                 }
             }
             if (!context.InPlace)

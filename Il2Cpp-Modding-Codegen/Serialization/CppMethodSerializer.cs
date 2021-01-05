@@ -572,12 +572,16 @@ namespace Il2CppModdingCodegen.Serialization
             // TODO: somehow use ConstructorName instead of a "name" parameter?
             // If the type we are writing is a value type, we would like to make a constructor that takes in each non-static, non-const field.
             // This is to allow us to construct structs without having to provide initialization lists that are horribly long.
-            if (type.Info.Refness == Refness.ValueType && asHeader)
+            // Always write at least one constexpr constructor.
+            if (asHeader)
             {
                 var sig = $"{name}({string.Join(", ", fieldSer.ResolvedTypeNames.Select(pair => pair.Value))})";
                 if (!CanWriteMethod(0, type.This, asHeader, sig)) return;
 
                 var signature = $"constexpr {name}(";
+                if (type.Info.Refness != Refness.ValueType)
+                    // Reference types will have non-constexpr constructors.
+                    signature = name + "(";
                 signature += string.Join(", ", fieldSer.ResolvedTypeNames.Select(pair =>
                 {
                     var typeName = pair.Value;
@@ -822,11 +826,11 @@ namespace Il2CppModdingCodegen.Serialization
                 if (!isNewCtor)
                 {
                     writer.WriteDeclaration($"static auto* ___internal__method = " +
-                        _config.MacroWrap(loggerId, $"::il2cpp_utils::FindMethod({(method.Specifiers.IsStatic() ? classArgs : thisArg)}, il2cpp_utils::NoArgClass<{returnType}>(), \"{method.Il2CppName}\", {genTypesList}, ::il2cpp_utils::ExtractTypes({paramString}))", true));
+                        _config.MacroWrap(loggerId, $"::il2cpp_utils::FindMethod({(method.Specifiers.IsStatic() ? classArgs : thisArg)}, \"{method.Il2CppName}\", std::vector<Il2CppClass*>{genTypesList}, ::il2cpp_utils::ExtractTypes({paramString}))", true));
                     if (method.Generic)
                     {
                         writer.WriteDeclaration($"static auto* ___generic__method = " +
-                            _config.MacroWrap(loggerId, $"::il2cpp_utils::MakeGenericMethod({mName}, {genTypesList})", true));
+                            _config.MacroWrap(loggerId, $"::il2cpp_utils::MakeGenericMethod({mName}, std::vector<Il2CppClass*>{genTypesList})", true));
                         mName = genMName;
                     }
                     call += $"{(method.Specifiers.IsStatic() ? "static_cast<Il2CppClass*>(nullptr)" : thisArg)}, ___internal__method" + (paramString.Length > 0 ? (", " + paramString) : "") + ")";

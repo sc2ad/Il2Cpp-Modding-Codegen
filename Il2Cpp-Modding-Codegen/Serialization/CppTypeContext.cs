@@ -33,6 +33,11 @@ namespace Il2CppModdingCodegen.Serialization
         internal HashSet<TypeRef> Definitions { get; } = new HashSet<TypeRef>();
         internal HashSet<TypeRef> DefinitionsToGet { get; } = new HashSet<TypeRef>();
 
+        /// <summary>
+        /// True if the base type has a non-zero size, false otherwise
+        /// </summary>
+        internal bool BaseHasFields { get; }
+
         private FieldConversionOperator? _soloFieldConversionOperator = null;
 
         internal FieldConversionOperator SoloFieldConversionOperator =>
@@ -164,6 +169,18 @@ namespace Il2CppModdingCodegen.Serialization
                     UniqueInterfaces.Remove(i);
         }
 
+        private bool IsNonEmpty(ITypeData? data)
+        {
+            if (data is null)
+                return false;
+            if (data.This.Namespace == "System" && data.This.Name == "ValueType")
+                return false;
+            if (data.This.Namespace == "System" && data.This.Name == "Object")
+                return true;
+            // Reference types at least have Il2CppObject as a base type
+            return data.InstanceFields.Any() || IsNonEmpty(data.Parent?.Resolve(_types)!);
+        }
+
         internal CppTypeContext(ITypeCollection types, ITypeData data, CppTypeContext? declaring)
         {
             _rootContext = this;
@@ -189,6 +206,9 @@ namespace Il2CppModdingCodegen.Serialization
 
             // Check all declaring types (and ourselves) if we have generic arguments/parameters. If we do, add them to _genericTypes.
             AddGenericTypes(data.This);
+
+            // Determine whether this type has a base type that has size or not.
+            BaseHasFields = IsNonEmpty(data.Parent?.Resolve(_types));
 
             // Create a hashset of all the unique interfaces implemented explicitly by this type.
             // Necessary for avoiding base ambiguity.
@@ -384,6 +404,17 @@ namespace Il2CppModdingCodegen.Serialization
         }
 
         private static NeedAs NeedAsForGeneric(NeedAs _) => NeedAs.BestMatch;
+
+        /// <summary>
+        /// Returns the size of a <see cref="TypeRef"/>.
+        /// This is <see cref="Constants.PointerSize"/> if the type is a reference type, the size of the type otherwise.
+        /// </summary>
+        /// <param name="data">The TypeRef to get the size of.</param>
+        /// <returns>The returned size.</returns>
+        public int GetSize(TypeRef data)
+        {
+            return SizeTracker.GetSize(_types, data);
+        }
 
         /// <summary>
         /// Gets the C++ fully qualified name for the TypeRef.

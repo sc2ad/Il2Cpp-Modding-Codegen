@@ -156,6 +156,12 @@ namespace Il2CppModdingCodegen.Serialization
             if (_resolvedTypes[field] is null)
                 throw new UnresolvedTypeException(field.DeclaringType, field.Type);
             string resolvedType = _resolvedTypes[field]!;
+            // Write attributes as []
+            foreach (var attr in field.Attributes)
+            {
+                if (attr.Offset != -1)
+                    writer.WriteComment($"[{attr.Name}] Offset: 0x{attr.Offset:X}");
+            }
             var fieldCommentString = "";
             foreach (var spec in field.Specifiers)
                 fieldCommentString += $"{spec} ";

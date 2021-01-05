@@ -1,4 +1,6 @@
-﻿using Mono.Cecil;
+﻿using Il2CppModdingCodegen.Config;
+using Il2CppModdingCodegen.Data;
+using Mono.Cecil;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -64,6 +66,24 @@ namespace Il2CppModdingCodegen
                 dict.Add(key, values);
         }
 
+        private static readonly char[] angleBrackets = new char[] { '<', '>' };
+
+        internal static string SafeFieldName(this IField field, SerializationConfig config)
+        {
+            var name = field.Name;
+            if (name.EndsWith("k__BackingField"))
+                name = name.Split(angleBrackets, StringSplitOptions.RemoveEmptyEntries)[0];
+            name = string.Join("$", name.Split(angleBrackets)).Trim('_');
+            if (char.IsDigit(name[0])) name = "_" + name;
+            var tmp = config.SafeName(name);
+            return tmp != "base" ? tmp : "_base";
+        }
+
+        internal static bool HasSize(this IField field)
+        {
+            return field.Attributes.Find(a => a.Name.Equals("IgnoreAttribute")) is null;
+        }
+
         // Mostly for unobtrusive break lines
         internal static void Noop() { }
 
@@ -90,12 +110,14 @@ namespace Il2CppModdingCodegen
             return map;
         }
 
-        class QuickComparer : IEqualityComparer<TypeReference>
+        private class QuickComparer : IEqualityComparer<TypeReference>
         {
             public bool Equals(TypeReference r1, TypeReference r2) => r1?.FullName == r2?.FullName;
+
             public int GetHashCode(TypeReference r) => r?.FullName.GetHashCode() ?? 0;
         };
-        static readonly QuickComparer quickCompare = new QuickComparer();
+
+        private static readonly QuickComparer quickCompare = new QuickComparer();
 
         // Returns all methods with the same name and parameters as `self` in any base type or interface of `type`.
         private static HashSet<MethodDefinition> FindIn(this MethodDefinition self, TypeDefinition type, Dictionary<string, TypeReference> genericMapping)
