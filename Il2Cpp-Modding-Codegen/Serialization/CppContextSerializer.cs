@@ -386,15 +386,19 @@ namespace Il2CppModdingCodegen.Serialization
 
                 typeSerializer.WriteInitialTypeDefinition(writer, context.LocalType, context.InPlace, context.BaseHasFields);
 
-                // We may need to add a padding field here for base type --> first instance field offset.
-
-                var firstField = context.LocalType.InstanceFields.FirstOrDefault();
-                if (context.GetBaseSize() > 0 && firstField is not null && firstField.Offset > 0 && firstField.Offset - context.GetBaseSize() != 0)
+                if (context.GetBaseSize() != -1)
                 {
-                    // If we have any fields that have a positive offset, we need to perform the math to create our padding.
-                    writer.WriteComment($"Writing base type padding for base size: 0x{context.GetBaseSize():X} to desired offset: 0x{firstField.Offset:X}");
-                    writer.WriteDeclaration($"private: char ___base_padding[0x{firstField.Offset - context.GetBaseSize():X}]");
-                    writer.WriteLine("public:");
+                    // Only when our parent is #pragma pack(push, 1) do we want to perform this.
+                    // If we don't have a valid size, then we don't bother writing our base type
+                    // We may need to add a padding field here for base type --> first instance field offset.
+                    var firstField = context.LocalType.InstanceFields.FirstOrDefault();
+                    if (context.GetBaseSize() > 0 && firstField is not null && firstField.Offset > 0 && firstField.Offset - context.GetBaseSize() != 0)
+                    {
+                        // If we have any fields that have a positive offset, we need to perform the math to create our padding.
+                        writer.WriteComment($"Writing base type padding for base size: 0x{context.GetBaseSize():X} to desired offset: 0x{firstField.Offset:X}");
+                        writer.WriteDeclaration($"private: char ___base_padding[0x{firstField.Offset - context.GetBaseSize():X}] = {{}}");
+                        writer.WriteLine("public:");
+                    }
                 }
 
                 // Now, we must also write all of the nested contexts of this particular context object that have InPlace = true

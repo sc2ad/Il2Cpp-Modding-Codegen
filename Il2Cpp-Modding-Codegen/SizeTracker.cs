@@ -14,6 +14,28 @@ namespace Il2CppModdingCodegen
     {
         private static readonly Dictionary<ITypeData, int> sizeMap = new();
 
+        public static int GetGenericInstanceSize(ITypeCollection types, TypeRef type, ITypeData td)
+        {
+            // If we are a generic instance, we will compute our size right here.
+            // In order to do so, we need to iterate over every field in the template type (with the correct alignment, presumably 8)
+            // this is actually VERY IMPORTANT
+            // For generic types, we may need to actually pad them ourselves so that they get alignment 8 as well
+            // However, this means we have to actually understand the padding rules, which shouldn't be too bad.
+            // Of course, padding is practically impossible if we have generic parameters as fields in the middle between other fields, so that can be taken with a grain of salt.
+            // However, the size of generic instances should still be somewhat feasible to get in isolation, assuming their padding rules don't change based off of the generic type (please don't)
+            // And count up their sizes, replacing each generic parameter that appears with the arguments provided in this instance.
+
+            // Techincally speaking, we are fucked if a generic type has multiple generic arguments as fields in arbitrary locations since we can't pad them properly.
+            // If that happens, we should have a compile time failure, but we probably want to handle it more reasonably.
+
+            // 0x21: 0x21 bool
+            // 0x22: padding[0x2]
+            // 0x24: int, 0x2 padding
+            // 0x28: bool
+            // Padding = offset % sizeof(field)
+            return -1;
+        }
+
         public static int GetSize(ITypeCollection types, TypeRef type)
         {
             if (type is null)
@@ -29,16 +51,13 @@ namespace Il2CppModdingCodegen
                 throw new InvalidOperationException("Cannot get size of something that cannot be resolved!");
             if (td.Info.Refness == Refness.ReferenceType || type.IsPointer())
                 return Constants.PointerSize;
+            if (type.IsGenericInstance)
+                return GetGenericInstanceSize(types, type, td);
             return GetSize(types, td);
         }
 
-        public static int GetSize(ITypeCollection types, ITypeData type)
+        private static int GetPrimitiveSize(ITypeData type)
         {
-            if (sizeMap.TryGetValue(type, out var res))
-                return res;
-            // Otherwise, we need to compute the size of this type.
-            if (type.This.IsGeneric)
-                return -1;
             // Handle primitive types explicitly
             if (type.This.Namespace == "System")
             {
@@ -64,6 +83,28 @@ namespace Il2CppModdingCodegen
                     case "Double":
                         return 8;
                 }
+            }
+            return -1;
+        }
+
+        public static int GetSize(ITypeCollection types, ITypeData type)
+        {
+            if (sizeMap.TryGetValue(type, out var res))
+                return res;
+            // Otherwise, we need to compute the size of this type.
+            if (type.This.IsGeneric)
+            {
+                // Generic templates actually DO have a size, however, it needs to be carefully computed and adjusted when calculating the size of an instance.
+                // Do we pad this type explicitly? Does #pragma pack(push, 8) do the trick? Probably.
+                sizeMap.Add(type, -1);
+                return -1;
+            }
+
+            var primSize = GetPrimitiveSize(type);
+            if (primSize >= 0)
+            {
+                sizeMap.Add(type, primSize);
+                return primSize;
             }
             var last = type.InstanceFields.LastOrDefault();
             if (last is null)
