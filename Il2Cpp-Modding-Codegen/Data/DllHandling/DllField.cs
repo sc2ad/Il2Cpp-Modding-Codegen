@@ -14,9 +14,11 @@ namespace Il2CppModdingCodegen.Data.DllHandling
         public TypeRef DeclaringType { get; }
         public string Name { get; }
         public int Offset { get; }
+        public int LayoutOffset { get; } = -1;
 
         internal DllField(FieldDefinition f)
         {
+            LayoutOffset = f.Offset;
             DeclaringType = DllTypeRef.From(f.DeclaringType);
             Type = DllTypeRef.From(f.FieldType);
             Name = f.Name;

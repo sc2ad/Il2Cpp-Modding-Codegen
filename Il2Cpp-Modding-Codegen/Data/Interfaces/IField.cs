@@ -10,5 +10,6 @@ namespace Il2CppModdingCodegen.Data
         TypeRef DeclaringType { get; }
         string Name { get; }
         int Offset { get; }
+        int LayoutOffset { get; }
     }
 }

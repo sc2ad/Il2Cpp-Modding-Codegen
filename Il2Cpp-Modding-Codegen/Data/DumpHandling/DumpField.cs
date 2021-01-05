@@ -12,6 +12,7 @@ namespace Il2CppModdingCodegen.Data.DumpHandling
         public TypeRef DeclaringType { get; }
         public string Name { get; }
         public int Offset { get; }
+        public int LayoutOffset { get => throw new InvalidOperationException(); }
 
         internal DumpField(TypeRef declaring, PeekableStreamReader fs)
         {

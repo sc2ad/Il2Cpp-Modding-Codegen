@@ -28,6 +28,7 @@ namespace Il2CppModdingCodegen.Data.DumpHandling
         public List<IField> StaticFields { get; } = new List<IField>();
         public List<IProperty> Properties { get; } = new List<IProperty>();
         public List<IMethod> Methods { get; } = new List<IMethod>();
+        public ITypeData.LayoutKind Layout { get => throw new InvalidOperationException(); }
 
         private readonly DumpConfig _config;
 

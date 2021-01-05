@@ -21,6 +21,7 @@ namespace Il2CppModdingCodegen.Data.DllHandling
         public List<IField> StaticFields { get; } = new List<IField>();
         public List<IProperty> Properties { get; } = new List<IProperty>();
         public List<IMethod> Methods { get; } = new List<IMethod>();
+        public ITypeData.LayoutKind Layout { get; }
 
         private readonly DllConfig _config;
 
@@ -45,6 +46,7 @@ namespace Il2CppModdingCodegen.Data.DllHandling
 
             if (_config.ParseTypeAttributes && def.HasCustomAttributes)
                 Attributes.AddRange(def.CustomAttributes.Select(ca => new DllAttribute(ca)));
+            Layout = (ITypeData.LayoutKind)(def.Attributes & TypeAttributes.LayoutMask);
             if (_config.ParseTypeFields)
             {
                 InstanceFields.AddRange(def.Fields.Where(f => !f.IsStatic).Select(f => new DllField(f)));

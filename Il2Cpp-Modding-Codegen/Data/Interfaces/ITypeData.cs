@@ -5,6 +5,13 @@ namespace Il2CppModdingCodegen.Data
 {
     public interface ITypeData
     {
+        public enum LayoutKind
+        {
+            Auto = 0,
+            Sequential = 8,
+            Explicit = 16
+        }
+
         TypeRef This { get; }
         TypeEnum Type { get; }
         TypeInfo Info { get; }
@@ -19,6 +26,7 @@ namespace Il2CppModdingCodegen.Data
         IEnumerable<IField> Fields => InstanceFields.Concat(StaticFields);
         List<IProperty> Properties { get; }
         List<IMethod> Methods { get; }
+        LayoutKind Layout { get; }
 
         string ToString()
         {
