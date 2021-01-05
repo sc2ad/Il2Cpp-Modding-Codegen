@@ -130,15 +130,12 @@ namespace Il2CppModdingCodegen.Serialization
                 var nextField = fields[fInd + 1];
                 if (field.Offset >= 0 && nextField.Offset > field.Offset && size > 0)
                 {
-                    writer.WriteComment($"Padding between fields: {SafeFieldNames[field]} and: {SafeFieldNames[nextField]}");
                     if (nextField.Offset - field.Offset > size)
                     {
                         // If our next field's offset is more than the size of our current field, we need to write some padding.
-                        writer.WriteDeclaration($"char __padding{fInd}[0x{nextField.Offset - field.Offset - size:X}]");
-                    }
-                    else
-                    {
-                        writer.WriteComment($"No padding necessary! Offset (0x{field.Offset:X}) + Size (0x{size:X}) == Next Offset (0x{nextField.Offset:X})");
+                        writer.WriteComment($"Padding between fields: {SafeFieldNames[field]} and: {SafeFieldNames[nextField]}");
+                        writer.WriteDeclaration($"private: char __padding{fInd}[0x{nextField.Offset - field.Offset - size:X}]");
+                        writer.WriteLine("public:");
                     }
                 }
                 else

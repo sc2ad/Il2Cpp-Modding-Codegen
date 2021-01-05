@@ -421,6 +421,11 @@ namespace Il2CppModdingCodegen.Serialization
             return SizeTracker.GetSize(_types, LocalType);
         }
 
+        public int GetBaseSize()
+        {
+            return LocalType.Parent is not null ? SizeTracker.GetSize(_types, LocalType.Parent.Resolve(_types)!) : -1;
+        }
+
         /// <summary>
         /// Gets the C++ fully qualified name for the TypeRef.
         /// </summary>
