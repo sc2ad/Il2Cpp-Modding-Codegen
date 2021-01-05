@@ -69,24 +69,25 @@ namespace Il2CppModdingCodegen
             if (last is null)
             {
                 if (type.Parent is null)
+                {
+                    sizeMap.Add(type, 0);
                     // We have 0 size if we have no parent and no fields.
                     return 0;
+                }
                 // Our size is just our parent's size
                 var pt = type.Parent.Resolve(types);
                 if (pt is null)
+                {
+                    sizeMap.Add(type, -1);
                     // We probably inherit a generic type, or something similar
                     return -1;
+                }
                 int parentSize = GetSize(types, type.Parent.Resolve(types)!);
                 // Add our size to the map
                 sizeMap.Add(type, parentSize);
                 return parentSize;
             }
-            if (type.Parent is null && type.InstanceFields.Count == 1 && last.Offset == 0)
-            {
-                int fSize = GetSize(types, last.Type);
-                sizeMap.Add(type, fSize);
-                return fSize;
-            }
+            // If the offset is greater than 0, we trust it.
             if (last.Offset > 0)
             {
                 int fSize = GetSize(types, last.Type);
@@ -98,6 +99,26 @@ namespace Il2CppModdingCodegen
                 sizeMap.Add(type, fSize + last.Offset);
                 return fSize + last.Offset;
             }
+            bool acceptZeroOffset = type.Parent is null;
+            if (type.Parent is not null)
+            {
+                // If we have a parent
+                var resolved = type.Parent.Resolve(types);
+                if (resolved is null)
+                {
+                    sizeMap.Add(type, -1);
+                    return -1;
+                }
+                acceptZeroOffset = GetSize(types, resolved) == 0;
+            }
+            // If we have no parent, or we have a parent of size 0, and we only have one field, then we trust offset 0
+            if (acceptZeroOffset && type.InstanceFields.Count == 1 && last.Offset == 0)
+            {
+                int fSize = GetSize(types, last.Type);
+                sizeMap.Add(type, fSize);
+                return fSize;
+            }
+            // We don't know how to handle negative offsets, so we return -1 for those.
             return -1;
         }
     }

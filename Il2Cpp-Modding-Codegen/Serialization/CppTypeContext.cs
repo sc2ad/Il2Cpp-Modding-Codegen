@@ -416,6 +416,11 @@ namespace Il2CppModdingCodegen.Serialization
             return SizeTracker.GetSize(_types, data);
         }
 
+        public int GetLocalSize()
+        {
+            return SizeTracker.GetSize(_types, LocalType);
+        }
+
         /// <summary>
         /// Gets the C++ fully qualified name for the TypeRef.
         /// </summary>

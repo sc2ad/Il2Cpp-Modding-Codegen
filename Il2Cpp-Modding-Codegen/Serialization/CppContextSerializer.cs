@@ -477,7 +477,7 @@ namespace Il2CppModdingCodegen.Serialization
                         else
                             writer.WriteComment($"Could not write field size check! Last field: {f.Name} Offset: {f.Offset} is of type: {f.Type}");
                     }
-                    var localTypeSize = context.GetSize(context.LocalType.This);
+                    var localTypeSize = context.GetLocalSize();
                     if (localTypeSize > 0)
                         writer.WriteDeclaration($"static_assert(sizeof({typeName}) == 0x{localTypeSize:X})");
                 }

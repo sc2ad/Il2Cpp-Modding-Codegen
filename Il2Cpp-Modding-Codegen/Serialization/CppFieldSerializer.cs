@@ -102,7 +102,7 @@ namespace Il2CppModdingCodegen.Serialization
             foreach (var spec in field.Specifiers)
                 fieldString += $"{spec} ";
             writer.WriteComment(fieldString + field.Type + " " + field.Name);
-            writer.WriteComment($"Size: 0x{ResolvedFieldSizes[field]}");
+            writer.WriteComment($"Size: 0x{ResolvedFieldSizes[field]:X}");
             writer.WriteComment($"Offset: 0x{field.Offset:X}");
             if (field.LayoutOffset >= 0)
                 writer.WriteComment($"Layout Offset: 0x{field.LayoutOffset:X}");
@@ -134,11 +134,11 @@ namespace Il2CppModdingCodegen.Serialization
                     if (nextField.Offset - field.Offset > size)
                     {
                         // If our next field's offset is more than the size of our current field, we need to write some padding.
-                        writer.WriteDeclaration($"char[0x{(nextField.Offset - field.Offset - size):X}] __padding{fInd}");
+                        writer.WriteDeclaration($"char __padding{fInd}[0x{nextField.Offset - field.Offset - size:X}]");
                     }
                     else
                     {
-                        writer.WriteComment($"No padding necessary! Offset (0x{field.Offset}:X) + Size (0x{size}:X) == Next Offset (0x{nextField.Offset}:X)");
+                        writer.WriteComment($"No padding necessary! Offset (0x{field.Offset:X}) + Size (0x{size:X}) == Next Offset (0x{nextField.Offset:X})");
                     }
                 }
                 else
