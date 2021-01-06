@@ -25,6 +25,7 @@ namespace Il2CppModdingCodegen.Serialization
         private readonly SerializationConfig _config;
         private readonly List<IField> fields = new();
         private readonly List<IField> hiddenFields = new();
+        private int localSize;
 
         internal CppFieldSerializer(SerializationConfig config)
         {
@@ -65,6 +66,7 @@ namespace Il2CppModdingCodegen.Serialization
                 }
             }
             var resolvedName = context.GetCppName(field.Type, true);
+            localSize = context.GetLocalSize();
             ResolvedFieldSizes.Add(field, context.GetSize(field.Type));
             if (!string.IsNullOrEmpty(resolvedName))
                 Resolved(field);
@@ -122,7 +124,8 @@ namespace Il2CppModdingCodegen.Serialization
             // Ideally, in all cases where we have offset checks, we have padding fields as well.
             // In cases where we do NOT have offset checks, we hope for the best. ex: generics.
 
-            if (!field.Specifiers.IsStatic() && !field.Equals(fields.Last()))
+            // Only write padding if we have a known size, otherwise our unpacked state is good enough for us.
+            if (!field.Specifiers.IsStatic() && !field.Equals(fields.Last()) && localSize >= 0)
             {
                 // fields must contain field. If not, we throw here.
                 var fInd = fields.FindIndex(f => f.Equals(field));

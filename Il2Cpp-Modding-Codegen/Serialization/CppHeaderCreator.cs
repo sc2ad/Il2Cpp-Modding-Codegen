@@ -71,10 +71,11 @@ namespace Il2CppModdingCodegen.Serialization
             // For sizes that are valid, we ALSO want to write with pack of 1
             // Invalid sizes are ignored.
 
-            if (context.LocalType.Layout > ITypeData.LayoutKind.Auto || context.GetLocalSize() != -1)
+            if (context.GetLocalSize() != -1)
                 writer.WriteLine("#pragma pack(push, 1)");
-            //else
-            //    writer.WriteLine("#pragma pack(push, 8)");
+
+            if (context.LocalType.Layout > ITypeData.LayoutKind.Auto)
+                writer.WriteComment($"WARNING Layout: {context.LocalType.Layout} may not be correctly taken into account!");
 
             // Write SerializerContext and actual type
             try
@@ -109,7 +110,7 @@ namespace Il2CppModdingCodegen.Serialization
             DefineIl2CppArgTypes(writer, context);
             writer.Flush();
 
-            if (context.LocalType.Layout > ITypeData.LayoutKind.Auto || context.GetLocalSize() != -1)
+            if (context.GetLocalSize() != -1)
                 writer.WriteLine("#pragma pack(pop)");
             writer.Flush();
 

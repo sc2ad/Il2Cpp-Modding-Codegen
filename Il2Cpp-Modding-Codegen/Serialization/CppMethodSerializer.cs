@@ -137,7 +137,7 @@ namespace Il2CppModdingCodegen.Serialization
             _stateMap = map;
         }
 
-        private static bool NeedDefinitionInHeader(IMethod method) => method.DeclaringType.IsGenericTemplate || method.Generic;
+        private static bool NeedDefinitionInHeader(IMethod method) => method.DeclaringType.IsGenericTemplate || method.Generic || IsCtor(method);
 
         /// <summary>
         /// Returns whether the given method should be written as a definition or a declaration
@@ -666,6 +666,13 @@ namespace Il2CppModdingCodegen.Serialization
                 if (withTemps)
                     str += string.Join(", ", temps.Select(s => "class " + s));
             }
+            if (IsCtor(method))
+            {
+                if (hadGenerics)
+                    str += ", ";
+                hadGenerics = true;
+                str += "::il2cpp_utils::CreationType creationType = ::il2cpp_utils::CreationType::Temporary";
+            }
             if (hadGenerics)
             {
                 templateString = $"template<{str}>";
@@ -811,7 +818,8 @@ namespace Il2CppModdingCodegen.Serialization
                 }
                 else
                 {
-                    innard = "<" + returnType + ">";
+                    // We specify creationType for our New calls.
+                    innard = "<" + returnType + ", creationType>";
                 }
 
                 // We should avoid calling RunMethod, as we can be very explicit that we are confident we are calling it correctly.

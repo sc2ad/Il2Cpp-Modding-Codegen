@@ -384,6 +384,11 @@ namespace Il2CppModdingCodegen.Serialization
                     writer.WriteDefinition("namespace " + context.TypeNamespace);
                 }
 
+                if (context.GetLocalSize() == -1)
+                    writer.WriteComment("WARNING Size may be invalid!");
+                else
+                    writer.WriteComment($"Size: 0x{context.GetLocalSize():X}");
+
                 typeSerializer.WriteInitialTypeDefinition(writer, context.LocalType, context.InPlace, context.BaseHasFields);
 
                 if (context.GetBaseSize() != -1)
@@ -478,12 +483,13 @@ namespace Il2CppModdingCodegen.Serialization
                         // Also need to account for padding
                         // Don't actually need size checks, since offset checks should cover everything feasible.
                         // Extra bytes don't really matter, assuming it doesn't impact any OTHER structure.
-                        //if (context.LocalType.Info.Refness == Refness.ValueType)
-                        //    // For value types, we don't pad
-                        writer.WriteDeclaration($"static check_size<sizeof({typeName}), {f.Offset} + sizeof({context.GetCppName(f.Type, true)})> __{context.LocalType.This.CppNamespace().Replace("::", "_")}_{typeName?.Replace("::", "_")}SizeCheck");
-                        //else
-                        //    // For multiple fields, we need to ensure we are align 8
-                        //    writer.WriteDeclaration($"static check_size<sizeof({typeName}), ({f.Offset} + sizeof({context.GetCppName(f.Type, true)})) % 8 != 0 ? (8 - ({f.Offset} + sizeof({context.GetCppName(f.Type, true)})) % 8) + {f.Offset} + sizeof({context.GetCppName(f.Type, true)}) : {f.Offset} + sizeof({context.GetCppName(f.Type, true)})> __{context.LocalType.This.CppNamespace().Replace("::", "_")}_{typeName?.Replace("::", "_")}SizeCheck");
+                        if (context.GetLocalSize() != -1)
+                            // If we know the explicit size, we check it because we will be packed.
+                            writer.WriteDeclaration($"static check_size<sizeof({typeName}), {f.Offset} + sizeof({context.GetCppName(f.Type, true)})> __{context.LocalType.This.CppNamespace().Replace("::", "_")}_{typeName?.Replace("::", "_")}SizeCheck");
+                        else
+                            writer.WriteComment("WARNING Not writing size check since size may be invalid!");
+                        // For multiple fields, we need to ensure we are align 8
+                        //writer.WriteDeclaration($"static check_size<sizeof({typeName}), ({f.Offset} + sizeof({context.GetCppName(f.Type, true)})) % 8 != 0 ? (8 - ({f.Offset} + sizeof({context.GetCppName(f.Type, true)})) % 8) + {f.Offset} + sizeof({context.GetCppName(f.Type, true)}) : {f.Offset} + sizeof({context.GetCppName(f.Type, true)})> __{context.LocalType.This.CppNamespace().Replace("::", "_")}_{typeName?.Replace("::", "_")}SizeCheck");
                     }
                     else
                     {

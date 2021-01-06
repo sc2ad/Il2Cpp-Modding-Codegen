@@ -128,6 +128,12 @@ namespace Il2CppModdingCodegen
                 sizeMap.Add(type, parentSize);
                 return parentSize;
             }
+            if (type.InstanceFields.Any(f => GetSize(types, f.Type) == -1))
+            {
+                // If we have any invalid fields, we take on a size of -1, even if we are potentially still capable of knowing our size.
+                sizeMap.Add(type, -1);
+                return -1;
+            }
             // If the offset is greater than 0, we trust it.
             if (last.Offset > 0)
             {
