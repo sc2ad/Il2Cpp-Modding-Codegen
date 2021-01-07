@@ -77,7 +77,8 @@ namespace Codegen_CLI
                     "private", "protected", "public", "reflexpr", "register", "reinterpret_cast", "requires", "return",
                     "short", "signed", "sizeof", "static", "static_assert", "static_cast", "struct", "switch", "synchronized",
                     "template", "this", "thread_local", "throw", "true", "try", "typedef", "typeid", "typename", "union",
-                    "unsigned", "using", "virtual", "void", "volatile", "wchar_t", "while", "xor", "xor_eq", "INT_MAX", "INT_MIN"
+                    "unsigned", "using", "virtual", "void", "volatile", "wchar_t", "while", "xor", "xor_eq", "INT_MAX", "INT_MIN",
+                    "Assert", "bzero"
                 },
                 IllegalMethodNames = new HashSet<string> {
                     "bzero", "Assert"
@@ -99,6 +100,7 @@ namespace Codegen_CLI
                 Version = "0.2.5",
                 Libil2cpp = libIl2cpp
             };
+            Utils.Init(config);
 
             var serializer = new CppDataSerializer(config, parsed);
             Console.WriteLine("Resolving types...");

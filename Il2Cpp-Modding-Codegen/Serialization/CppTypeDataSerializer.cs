@@ -40,7 +40,7 @@ namespace Il2CppModdingCodegen.Serialization
         internal void Resolve(CppTypeContext context, ITypeData type)
         {
             // Asking for ourselves as a definition will simply make things easier when resolving ourselves.
-            var resolved = _config.SafeName(context.GetCppName(type.This, false, false, CppTypeContext.NeedAs.Definition, CppTypeContext.ForceAsType.Literal));
+            var resolved = context.GetCppName(type.This, false, false, CppTypeContext.NeedAs.Definition, CppTypeContext.ForceAsType.Literal);
             if (resolved is null)
                 throw new InvalidOperationException($"Could not resolve provided type: {type.This}!");
 
@@ -66,11 +66,11 @@ namespace Il2CppModdingCodegen.Serialization
                     s.unsafeParents.Add("System::Object");
                 else
                     // TODO: just use type.Parent's QualifiedTypeName instead?
-                    s.unsafeParents.Add(_config.SafeName(context.GetCppName(type.Parent, true, true, CppTypeContext.NeedAs.Definition, CppTypeContext.ForceAsType.Literal)));
+                    s.unsafeParents.Add(context.GetCppName(type.Parent, true, true, CppTypeContext.NeedAs.Definition, CppTypeContext.ForceAsType.Literal));
 
             if (type.This.DeclaringType != null && type.This.DeclaringType.IsGeneric)
             {
-                s.declaring = _config.SafeName(context.GetCppName(type.This.DeclaringType, false, true, CppTypeContext.NeedAs.Definition));
+                s.declaring = context.GetCppName(type.This.DeclaringType, false, true, CppTypeContext.NeedAs.Definition);
                 s.parentNames.Add("::il2cpp_utils::il2cpp_type_check::NestedType");
                 // TODO: include type-check instead?
                 context.EnableNeedIl2CppUtilsFunctionsInHeader();
@@ -79,7 +79,7 @@ namespace Il2CppModdingCodegen.Serialization
             // That is, if we explicitly implement a type that is already implemented within our set of interface types, we need to ignore it.
             // We offload this logic to context's construction (context.UniqueInterfaces)
             foreach (var @interface in context.UniqueInterfaces)
-                s.unsafeParents.Add(_config.SafeName(context.GetCppName(@interface, true, true, CppTypeContext.NeedAs.Definition, CppTypeContext.ForceAsType.Literal)));
+                s.unsafeParents.Add(context.GetCppName(@interface, true, true, CppTypeContext.NeedAs.Definition, CppTypeContext.ForceAsType.Literal));
 
             // TODO: actually move any interface that will add no duplicates? place them before the first parent?
 

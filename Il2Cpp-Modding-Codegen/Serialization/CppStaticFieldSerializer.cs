@@ -112,7 +112,7 @@ namespace Il2CppModdingCodegen.Serialization
             }
         }
 
-        private string SafeConfigName(string name) => _config.SafeName(name.Replace('<', '$').Replace('>', '$'));
+        private static string SafeConfigName(string name) => Utils.SafeName(name.Replace('<', '$').Replace('>', '$'));
 
         private string SafeName(IField field)
         {

@@ -3,13 +3,35 @@ using Il2CppModdingCodegen.Data;
 using Mono.Cecil;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Text.RegularExpressions;
 
 namespace Il2CppModdingCodegen
 {
-    internal static class Utils
+    public static class Utils
     {
+        private static HashSet<string>? illegalNames;
+
+        public static void Init(SerializationConfig cfg)
+        {
+            illegalNames = cfg.IllegalNames;
+        }
+
+        /// <summary>
+        /// Returns a name that is definitely not within IllegalNames
+        /// </summary>
+        /// <param name="name"></param>
+        /// <returns></returns>
+        [return: NotNullIfNotNull("name")]
+        internal static string? SafeName(string? name)
+        {
+            if (name is null) return null;
+            while (illegalNames?.Contains(name) is true)
+                name = "_" + name;
+            return name;
+        }
+
         internal static string ReplaceFirst(this string text, string search, string replace)
         {
             int pos = text.IndexOf(search);
@@ -68,14 +90,14 @@ namespace Il2CppModdingCodegen
 
         private static readonly char[] angleBrackets = new char[] { '<', '>' };
 
-        internal static string SafeFieldName(this IField field, SerializationConfig config)
+        internal static string SafeFieldName(this IField field)
         {
             var name = field.Name;
             if (name.EndsWith("k__BackingField"))
                 name = name.Split(angleBrackets, StringSplitOptions.RemoveEmptyEntries)[0];
             name = string.Join("$", name.Split(angleBrackets)).Trim('_');
             if (char.IsDigit(name[0])) name = "_" + name;
-            var tmp = config.SafeName(name);
+            var tmp = SafeName(name);
             return tmp != "base" ? tmp : "_base";
         }
 

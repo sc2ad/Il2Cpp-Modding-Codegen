@@ -67,13 +67,17 @@ namespace Il2CppModdingCodegen.Serialization
             }
             var resolvedName = context.GetCppName(field.Type, true);
             localSize = context.GetLocalSize();
-            ResolvedFieldSizes.Add(field, context.GetSize(field.Type));
+            var fSize = context.GetSize(field.Type);
+            if (fSize == 0)
+                // If fSize is 0, that means that the field would be 0 size. However, that's not allowed, so make it a 1.
+                fSize = 1;
+            ResolvedFieldSizes.Add(field, fSize);
             if (!string.IsNullOrEmpty(resolvedName))
                 Resolved(field);
             // In order to ensure we get an UnresolvedTypeException when we serialize
             ResolvedTypeNames.Add(field, resolvedName);
 
-            SafeFieldNames.Add(field, field.SafeFieldName(_config));
+            SafeFieldNames.Add(field, Utils.SafeFieldName(field));
         }
 
         // Write the field here
@@ -137,8 +141,7 @@ namespace Il2CppModdingCodegen.Serialization
                     {
                         // If our next field's offset is more than the size of our current field, we need to write some padding.
                         writer.WriteComment($"Padding between fields: {SafeFieldNames[field]} and: {SafeFieldNames[nextField]}");
-                        writer.WriteDeclaration($"private: char __padding{fInd}[0x{nextField.Offset - field.Offset - size:X}] = {{}}");
-                        writer.WriteLine("public:");
+                        writer.WriteDeclaration($"char __padding{fInd}[0x{nextField.Offset - field.Offset - size:X}] = {{}}");
                     }
                 }
                 else

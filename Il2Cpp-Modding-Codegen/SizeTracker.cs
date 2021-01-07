@@ -134,6 +134,25 @@ namespace Il2CppModdingCodegen
                 sizeMap.Add(type, -1);
                 return -1;
             }
+            bool acceptZeroOffset = type.Parent is null;
+            if (type.Parent is not null)
+            {
+                // If we have a parent
+                var resolved = type.Parent.Resolve(types);
+                if (resolved is null)
+                {
+                    sizeMap.Add(type, -1);
+                    return -1;
+                }
+                var pSize = GetSize(types, resolved);
+                if (pSize == -1)
+                {
+                    sizeMap.Add(type, -1);
+                    return -1;
+                }
+                acceptZeroOffset = GetSize(types, resolved) == 0;
+                // If our parent's size is -1, we are also -1.
+            }
             // If the offset is greater than 0, we trust it.
             if (last.Offset > 0)
             {
@@ -145,18 +164,6 @@ namespace Il2CppModdingCodegen
                 }
                 sizeMap.Add(type, fSize + last.Offset);
                 return fSize + last.Offset;
-            }
-            bool acceptZeroOffset = type.Parent is null;
-            if (type.Parent is not null)
-            {
-                // If we have a parent
-                var resolved = type.Parent.Resolve(types);
-                if (resolved is null)
-                {
-                    sizeMap.Add(type, -1);
-                    return -1;
-                }
-                acceptZeroOffset = GetSize(types, resolved) == 0;
             }
             // If we have no parent, or we have a parent of size 0, and we only have one field, then we trust offset 0
             if (acceptZeroOffset && type.InstanceFields.Count == 1 && last.Offset == 0)

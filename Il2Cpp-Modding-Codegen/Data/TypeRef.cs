@@ -17,8 +17,10 @@ namespace Il2CppModdingCodegen.Data
         public virtual bool IsGenericParameter { get; } = false;
         public virtual bool IsCovariant { get; } = false;
         public virtual IReadOnlyList<TypeRef> GenericParameterConstraints { get; } = new List<TypeRef>();
+
         // True iff the type has any Generics (generic arguments/parameters). Generic parameters themselves don't count!
         internal bool IsGeneric { get => IsGenericInstance || IsGenericTemplate; }
+
         public abstract bool IsGenericInstance { get; }
         public abstract bool IsGenericTemplate { get; }
         public abstract IReadOnlyList<TypeRef> Generics { get; }
@@ -31,6 +33,7 @@ namespace Il2CppModdingCodegen.Data
         private ITypeData? _resolvedType;
 
         internal DllTypeRef AsDllTypeRef { get => this as DllTypeRef ?? throw new Exception("DumpTypeRefs in my DllTypeRefs?!"); }
+
         public abstract TypeRef MakePointer();
 
         /// <summary>
@@ -46,7 +49,9 @@ namespace Il2CppModdingCodegen.Data
         }
 
         internal class GenericTypeMap : Dictionary<TypeRef, TypeRef> { };
+
         internal abstract TypeRef MakeGenericInstance(GenericTypeMap genericTypes);
+
         internal GenericTypeMap ExtractGenericMap(ITypeCollection types)
         {
             if (!IsGenericInstance) throw new InvalidOperationException("Must be called on a generic instance!");
@@ -74,6 +79,7 @@ namespace Il2CppModdingCodegen.Data
             if (Name.StartsWith("!"))
                 throw new InvalidOperationException("Tried to get the name of a copied generic parameter!");
             var name = Name.Replace('`', '_').Replace('<', '$').Replace('>', '$');
+            name = Utils.SafeName(name);
             if (UnNested)
             {
                 if (OriginalDeclaringType == null)
@@ -150,6 +156,7 @@ namespace Il2CppModdingCodegen.Data
             if (DeclaringType != null && !IsGenericParameter && DeclaringType.IsOrContainsMatch(pred)) return true;
             return false;
         }
+
         internal bool ContainsOrEquals(TypeRef targetType) => IsOrContainsMatch(t => t.Equals(targetType));
 
         /// <summary>

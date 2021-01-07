@@ -401,8 +401,7 @@ namespace Il2CppModdingCodegen.Serialization
                     {
                         // If we have any fields that have a positive offset, we need to perform the math to create our padding.
                         writer.WriteComment($"Writing base type padding for base size: 0x{context.GetBaseSize():X} to desired offset: 0x{firstField.Offset:X}");
-                        writer.WriteDeclaration($"private: char ___base_padding[0x{firstField.Offset - context.GetBaseSize():X}] = {{}}");
-                        writer.WriteLine("public:");
+                        writer.WriteDeclaration($"char ___base_padding[0x{firstField.Offset - context.GetBaseSize():X}] = {{}}");
                     }
                 }
 
@@ -458,7 +457,7 @@ namespace Il2CppModdingCodegen.Serialization
                 // TODO: Check size of created type here
                 if (context.LocalType.InstanceFields.Any(fi => fi.HasSize() && fi.Offset >= 0) && !context.LocalType.This.IsGeneric)
                 {
-                    var typeName = _config.SafeName(context.GetCppName(context.LocalType.This, false, false, CppTypeContext.NeedAs.Definition, CppTypeContext.ForceAsType.Literal));
+                    var typeName = context.GetCppName(context.LocalType.This, false, false, CppTypeContext.NeedAs.Definition, CppTypeContext.ForceAsType.Literal);
                     //writer.WriteLine("#if defined(__clang__)");
                     //writer.WriteLine("#pragma clang diagnostic push");
                     //writer.WriteLine("#pragma clang diagnostic ignored \"-Winvalid-offsetof\"");

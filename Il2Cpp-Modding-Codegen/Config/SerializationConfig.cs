@@ -126,20 +126,6 @@ namespace Il2CppModdingCodegen.Config
         /// </summary>
         public int PrintSerializationProgressFrequency { get; set; }
 
-        /// <summary>
-        /// Returns a name that is definitely not within IllegalNames
-        /// </summary>
-        /// <param name="name"></param>
-        /// <returns></returns>
-        [return: NotNullIfNotNull("name")]
-        public string? SafeName(string? name)
-        {
-            if (name is null) return null;
-            while (IllegalNames?.Contains(name) is true)
-                name = "_" + name;
-            return name;
-        }
-
         public static Dictionary<string, int> SpecialMethodNames { get; private set; } = new Dictionary<string, int>();
 
         public string SafeMethodName(string name)
