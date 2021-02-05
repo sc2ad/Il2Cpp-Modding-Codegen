@@ -119,6 +119,8 @@ namespace Il2CppModdingCodegen.Serialization
             var names = new List<string>();
             var libs = new List<AndroidMkSerializer.Library>();
             int currentPathLength = 0;
+
+            var serializer = new CppSourceCreator(_config, _contextSerializer);
             foreach (var pair in _map)
             {
                 i++;
@@ -163,9 +165,17 @@ namespace Il2CppModdingCodegen.Serialization
                     currentPathLength += name.Length;
                     names.Add(name);
                 }
-                new CppSourceCreator(_config, _contextSerializer).Serialize(pair.Value);
+                if (i % _config.ChunkFrequency == 0 && _config.OneSourceFile)
+                {
+                    serializer.Close();
+                    serializer.SetupChunkedSerialization(i);
+                }
+
+                serializer.Serialize(pair.Value);
             }
-            CppStreamWriter.DeleteUnwrittenFiles();
+            serializer.Close();
+            if (!_config.OneSourceFile)
+                CppStreamWriter.DeleteUnwrittenFiles();
             Console.WriteLine($"Copy constructor count: {CppMethodSerializer.CopyConstructorCount}.");
 
             // After all static libraries are created, aggregate them all and collpase them into a single Android.mk file.

@@ -82,6 +82,12 @@ namespace Il2CppModdingCodegen
                     case "UInt64":
                     case "Double":
                         return 8;
+
+                    case "Object":
+                        return 0x10;
+
+                    case "ValueType":
+                        return 0;
                 }
             }
             return -1;

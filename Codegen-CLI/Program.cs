@@ -17,7 +17,7 @@ namespace Codegen_CLI
         {
             Console.WriteLine(DateTime.UtcNow.ToString("yyyy'-'MM'-'dd'T'HH':'mm':'ss'.'fff'Z'"));
             Console.WriteLine("Drag and drop your dump.cs file (or a partial of it of the correct format) then press enter...");
-            string path = @"C:\Users\Sc2ad\Desktop\Code\Android Modding\BeatSaber\1.13.0\DummyDll";
+            string path = @"C:\Users\Sc2ad\Desktop\Code\Android Modding\BeatSaber\1.13.2\DummyDll";
             if (!Directory.Exists(path))
                 path = Console.ReadLine().Replace("\"", string.Empty);
             bool parseDlls = false;
@@ -66,6 +66,8 @@ namespace Codegen_CLI
             Console.WriteLine("Creating serializer...");
             var config = new SerializationConfig
             {
+                OneSourceFile = true,
+                ChunkFrequency = 100,
                 // from https://en.cppreference.com/w/cpp/keyword
                 IllegalNames = new HashSet<string> {
                     "alignas", "alignof", "and", "and_eq", "asm", "atomic_cancel", "atomic_commit", "atomic_noexcept", "auto",
@@ -98,7 +100,7 @@ namespace Codegen_CLI
                 PrintSerializationProgressFrequency = 1000,
                 Id = "codegen",
                 Version = "0.2.5",
-                Libil2cpp = libIl2cpp
+                Libil2cpp = libIl2cpp,
             };
             Utils.Init(config);
 

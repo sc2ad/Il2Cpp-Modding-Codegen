@@ -196,10 +196,8 @@ namespace Il2CppModdingCodegen.Serialization
                 // TODO: Check invalid name
                 var loggerId = "___internal__logger";
 
-                writer.WriteDeclaration($"static auto {loggerId} = Logger::get().WithContext(\"codegen\")" +
-                    $".WithContext(\"{field.DeclaringType.CppNamespace()}\")" +
-                    $".WithContext(\"{field.DeclaringType.CppName()}\")" +
-                    $".WithContext(\"{SafeConfigName($"_get_{field.Name}")}\")");
+                writer.WriteDeclaration($"static auto {loggerId} = ::Logger::get()" +
+                    $".WithContext(\"{field.DeclaringType.GetQualifiedCppName()}::{SafeConfigName($"_get_{field.Name}")}\")");
 
                 var innard = $"<{resolvedType}>";
                 var call = $"il2cpp_utils::GetFieldValue{innard}(";
@@ -212,10 +210,8 @@ namespace Il2CppModdingCodegen.Serialization
                 writer.WriteComment("Set static field: " + fieldCommentString);
                 writer.WriteDefinition(GetSetter(resolvedType, field, !_asHeader));
 
-                writer.WriteDeclaration($"static auto {loggerId} = Logger::get().WithContext(\"codegen\")" +
-                    $".WithContext(\"{field.DeclaringType.CppNamespace()}\")" +
-                    $".WithContext(\"{field.DeclaringType.CppName()}\")" +
-                    $".WithContext(\"{SafeConfigName($"_set_{field.Name}")}\")");
+                writer.WriteDeclaration($"static auto {loggerId} = ::Logger::get()" +
+                    $".WithContext(\"{field.DeclaringType.GetQualifiedCppName()}::{SafeConfigName($"_set_{field.Name}")}\")");
 
                 call = $"il2cpp_utils::SetFieldValue(";
                 call += $"{classArgs}, \"{field.Name}\", value)";

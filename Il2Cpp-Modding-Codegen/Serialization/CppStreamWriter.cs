@@ -106,20 +106,26 @@ namespace Il2CppModdingCodegen.Serialization
             stream.Position = 0;
             bool ret = false;
             long positionOfDifference = 0;
-            using (var fileRead = File.Open(filePath, FileMode.OpenOrCreate, FileAccess.Read))
+            if (File.Exists(filePath))
             {
-                int a = 0, b = 0;
-                while (a != -1 && b != -1)
-                    if ((a = fileRead.ReadByte()) != (b = stream.ReadByte()))
-                    {
-                        ret = true;
-                        if (a != -1) fileRead.Position -= 1;
-                        if (b != -1) stream.Position -= 1;
-                        if (fileRead.Position != stream.Position)
-                            throw new Exception("WriteIfDifferent file position logic is wrong!");
-                        positionOfDifference = fileRead.Position;
-                        break;
-                    }
+                using (var fileRead = File.Open(filePath, FileMode.OpenOrCreate, FileAccess.Read))
+                {
+                    int a = 0, b = 0;
+                    while (a != -1 && b != -1)
+                        if ((a = fileRead.ReadByte()) != (b = stream.ReadByte()))
+                        {
+                            ret = true;
+                            if (a != -1) fileRead.Position -= 1;
+                            if (b != -1) stream.Position -= 1;
+                            if (fileRead.Position != stream.Position)
+                                throw new Exception("WriteIfDifferent file position logic is wrong!");
+                            positionOfDifference = fileRead.Position;
+                            break;
+                        }
+                }
+            } else
+            {
+                ret = true;
             }
             if (ret)
             {

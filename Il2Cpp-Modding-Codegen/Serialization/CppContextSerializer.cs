@@ -215,6 +215,7 @@ namespace Il2CppModdingCodegen.Serialization
             if (asHeader ? context.NeedPrimitivesBeforeLateHeader : context.PrimitiveDeclarations.Count > 0)
             {
                 // Primitives include
+
                 if (includesWritten.Add("extern/beatsaber-hook/shared/utils/typedefs.h"))
                     writer.WriteInclude("extern/beatsaber-hook/shared/utils/typedefs.h");
             }
@@ -257,8 +258,20 @@ namespace Il2CppModdingCodegen.Serialization
             // Overall il2cpp-utils include
             if (!asHeader || context.NeedIl2CppUtilsFunctionsInHeader)
             {
-                if (includesWritten.Add("extern/beatsaber-hook/shared/utils/il2cpp-utils.hpp"))
-                    writer.WriteInclude("extern/beatsaber-hook/shared/utils/il2cpp-utils.hpp");
+                if (!asHeader)
+                {
+                    if (includesWritten.Add("extern/beatsaber-hook/shared/utils/il2cpp-utils.hpp"))
+                        writer.WriteInclude("extern/beatsaber-hook/shared/utils/il2cpp-utils.hpp");
+                }
+                else
+                {
+                    if (includesWritten.Add("extern/beatsaber-hook/shared/utils/il2cpp-utils-methods.hpp"))
+                        writer.WriteInclude("extern/beatsaber-hook/shared/utils/il2cpp-utils-methods.hpp");
+                    if (includesWritten.Add("extern/beatsaber-hook/shared/utils/il2cpp-utils-properties.hpp"))
+                        writer.WriteInclude("extern/beatsaber-hook/shared/utils/il2cpp-utils-properties.hpp");
+                    if (includesWritten.Add("extern/beatsaber-hook/shared/utils/il2cpp-utils-fields.hpp"))
+                        writer.WriteInclude("extern/beatsaber-hook/shared/utils/il2cpp-utils-fields.hpp");
+                }
                 if (includesWritten.Add("extern/beatsaber-hook/shared/utils/utils.h"))
                     writer.WriteInclude("extern/beatsaber-hook/shared/utils/utils.h");
             }
@@ -389,6 +402,12 @@ namespace Il2CppModdingCodegen.Serialization
                 else
                     writer.WriteComment($"Size: 0x{context.GetLocalSize():X}");
 
+                if (context.GetLocalSize() != -1)
+                    writer.WriteLine("#pragma pack(push, 1)");
+
+                if (context.LocalType.Layout > ITypeData.LayoutKind.Auto)
+                    writer.WriteComment($"WARNING Layout: {context.LocalType.Layout} may not be correctly taken into account!");
+
                 typeSerializer.WriteInitialTypeDefinition(writer, context.LocalType, context.InPlace, context.BaseHasFields);
 
                 if (context.GetBaseSize() != -1)
@@ -397,7 +416,9 @@ namespace Il2CppModdingCodegen.Serialization
                     // If we don't have a valid size, then we don't bother writing our base type
                     // We may need to add a padding field here for base type --> first instance field offset.
                     var firstField = context.LocalType.InstanceFields.FirstOrDefault();
-                    if (context.GetBaseSize() > 0 && firstField is not null && firstField.Offset > 0 && firstField.Offset - context.GetBaseSize() != 0)
+                    // If we have an EXPLICIT layout, it doesn't matter if we have a non-zero base or not.
+                    // In fact, it ALWAYS doesn't matter if we have a non-zero base, we should ensure it is fixed.
+                    if (firstField is not null && firstField.Offset > 0 && firstField.Offset - context.GetBaseSize() != 0)
                     {
                         // If we have any fields that have a positive offset, we need to perform the math to create our padding.
                         writer.WriteComment($"Writing base type padding for base size: 0x{context.GetBaseSize():X} to desired offset: 0x{firstField.Offset:X}");
@@ -454,6 +475,9 @@ namespace Il2CppModdingCodegen.Serialization
             if (asHeader)
             {
                 CppTypeDataSerializer.CloseDefinition(writer, context.LocalType);
+                // Close packing here
+                if (context.GetLocalSize() != -1)
+                    writer.WriteLine("#pragma pack(pop)");
                 // TODO: Check size of created type here
                 if (context.LocalType.InstanceFields.Any(fi => fi.HasSize() && fi.Offset >= 0) && !context.LocalType.This.IsGeneric)
                 {
@@ -476,6 +500,8 @@ namespace Il2CppModdingCodegen.Serialization
                     //writer.WriteLine("#else");
                     //writer.WriteLine("#pragma GCC diagnostic pop");
                     //writer.WriteLine("#endif");
+
+                    // TODO: We want the largest type of all field types that are at this offset
                     var f = context.LocalType.InstanceFields.LastOrDefault(fi => fi.HasSize());
                     if (f is not null && f.Offset >= 0)
                     {

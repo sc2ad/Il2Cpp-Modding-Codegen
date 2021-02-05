@@ -12,6 +12,16 @@ namespace Il2CppModdingCodegen.Config
         public string? OutputSourceDirectory { get; set; }
 
         /// <summary>
+        /// If all of the C++ code should end up in one source file instead of spanned across multiple files.
+        /// </summary>
+        public bool OneSourceFile { get; set; } = false;
+
+        /// <summary>
+        /// How often to chunk .cpp files when <see cref="OneSourceFile"/> is true.
+        /// </summary>
+        public int ChunkFrequency { get; set; } = 500;
+
+        /// <summary>
         /// Id for the mod to use, also the resultant library name
         /// </summary>
         public string? Id { get; set; }

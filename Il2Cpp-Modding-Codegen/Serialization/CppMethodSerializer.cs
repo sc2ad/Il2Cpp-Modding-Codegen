@@ -582,14 +582,14 @@ namespace Il2CppModdingCodegen.Serialization
                 if (type.Info.Refness != Refness.ValueType)
                     // Reference types will have non-constexpr constructors.
                     signature = name + "(";
-                signature += string.Join(", ", fieldSer.ResolvedTypeNames.Select(pair =>
+                signature += string.Join(", ", fieldSer.ResolvedTypeNames.Where(p => fieldSer.FirstOrNotInUnion(p.Key)).Select(pair =>
                 {
                     var typeName = pair.Value;
                     var fieldName = fieldSer.SafeFieldNames[pair.Key];
                     return typeName + " " + fieldName + "_ = {}";
                 }));
                 signature += ") noexcept";
-                string subConstructors = string.Join(", ", fieldSer.SafeFieldNames.Select(pair =>
+                string subConstructors = string.Join(", ", fieldSer.SafeFieldNames.Where(p => fieldSer.FirstOrNotInUnion(p.Key)).Select(pair =>
                 {
                     return pair.Value + "{" + pair.Value + "_}";
                 }));
@@ -658,6 +658,13 @@ namespace Il2CppModdingCodegen.Serialization
                 hadGenerics = true;
                 str += string.Join(", ", generics.Select(s => "class " + s));
             }
+            if (IsCtor(method))
+            {
+                if (hadGenerics)
+                    str += ", ";
+                hadGenerics = true;
+                str += "::il2cpp_utils::CreationType creationType = ::il2cpp_utils::CreationType::Temporary";
+            }
             if (_tempGenerics.TryGetValue(method, out var temps) && temps.Any())
             {
                 if (hadGenerics)
@@ -665,13 +672,6 @@ namespace Il2CppModdingCodegen.Serialization
                 hadGenerics = true;
                 if (withTemps)
                     str += string.Join(", ", temps.Select(s => "class " + s));
-            }
-            if (IsCtor(method))
-            {
-                if (hadGenerics)
-                    str += ", ";
-                hadGenerics = true;
-                str += "::il2cpp_utils::CreationType creationType = ::il2cpp_utils::CreationType::Temporary";
             }
             if (hadGenerics)
             {
@@ -798,10 +798,8 @@ namespace Il2CppModdingCodegen.Serialization
                 var mName = "___internal__method";
                 var genMName = "___generic__method";
 
-                writer.WriteDeclaration($"static auto {loggerId} = ::Logger::get().WithContext(\"codegen\")" +
-                    $".WithContext(\"{method.DeclaringType.CppNamespace()}\")" +
-                    $".WithContext(\"{method.DeclaringType.CppName()}\")" +
-                    $".WithContext(\"{method.Name}\")");
+                writer.WriteDeclaration($"static auto {loggerId} = ::Logger::get()" +
+                    $".WithContext(\"{method.DeclaringType.GetQualifiedCppName()}::{method.Name}\")");
 
                 string s = "";
                 string innard = "";
@@ -833,15 +831,17 @@ namespace Il2CppModdingCodegen.Serialization
 
                 if (!isNewCtor)
                 {
-                    writer.WriteDeclaration($"static auto* ___internal__method = " +
+                    var invokeMethodName = "___internal__method";
+                    writer.WriteDeclaration($"static auto* {invokeMethodName} = " +
                         _config.MacroWrap(loggerId, $"::il2cpp_utils::FindMethod({(method.Specifiers.IsStatic() ? classArgs : thisArg)}, \"{method.Il2CppName}\", std::vector<Il2CppClass*>{genTypesList}, ::il2cpp_utils::ExtractTypes({paramString}))", true));
                     if (method.Generic)
                     {
                         writer.WriteDeclaration($"static auto* ___generic__method = " +
                             _config.MacroWrap(loggerId, $"::il2cpp_utils::MakeGenericMethod({mName}, std::vector<Il2CppClass*>{genTypesList})", true));
                         mName = genMName;
+                        invokeMethodName = "___generic__method";
                     }
-                    call += $"{(method.Specifiers.IsStatic() ? "static_cast<Il2CppClass*>(nullptr)" : thisArg)}, ___internal__method" + (paramString.Length > 0 ? (", " + paramString) : "") + ")";
+                    call += $"{(method.Specifiers.IsStatic() ? "static_cast<Il2CppClass*>(nullptr)" : thisArg)}, {invokeMethodName}" + (paramString.Length > 0 ? (", " + paramString) : "") + ")";
                 }
                 else
                 {
@@ -905,6 +905,8 @@ namespace Il2CppModdingCodegen.Serialization
                         writer.WriteDefinition(declaration);
                         // Call original method (return as necessary)
                         string s = needsReturn ? "return " : "";
+                        if (cppName.EndsWith("New_ctor"))
+                            cppName += "<creationType>";
                         s += $"{cppName}({method.Parameters.FormatParameters(_config.IllegalNames, _parameterMaps[method], ParameterFormatFlags.Names, asHeader)})";
                         writer.WriteDeclaration(s);
                         writer.CloseDefinition();
@@ -928,7 +930,10 @@ namespace Il2CppModdingCodegen.Serialization
                             writer.WriteDefinition(declaration);
                             // Call original method (return as necessary)
                             string s = NeedsReturn(initializerListProxyInfo.returnMode) ? "return " : "";
-                            s += $"{initializerListProxyInfo.cppName}({method.Parameters.FormatParameters(_config.IllegalNames, _parameterMaps[method], ParameterFormatFlags.Names, asHeader)})";
+                            var typeArg = "";
+                            if (initializerListProxyInfo.cppName.EndsWith("New_ctor"))
+                                typeArg = "<creationType>";
+                            s += $"{initializerListProxyInfo.cppName}{typeArg}({method.Parameters.FormatParameters(_config.IllegalNames, _parameterMaps[method], ParameterFormatFlags.Names, asHeader)})";
                             writer.WriteDeclaration(s);
                             writer.CloseDefinition();
                         }

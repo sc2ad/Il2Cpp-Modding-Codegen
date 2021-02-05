@@ -27,6 +27,8 @@ namespace Il2CppModdingCodegen.Serialization
         private readonly List<IField> hiddenFields = new();
         private int localSize;
 
+        private bool isInUnion = false;
+
         internal CppFieldSerializer(SerializationConfig config)
         {
             _config = config;
@@ -38,7 +40,27 @@ namespace Il2CppModdingCodegen.Serialization
         /// <param name="fieldCollection"></param>
         internal void InitializeFields(List<IField> fieldCollection)
         {
+            isInUnion = false;
             fields.AddRange(fieldCollection);
+        }
+
+        /// <summary>
+        /// Returns true if the provided field is the first field in a union or is not in a union.
+        /// </summary>
+        /// <param name="f"></param>
+        /// <returns></returns>
+        internal bool FirstOrNotInUnion(IField field)
+        {
+            if (localSize > 0)
+            {
+                var fInd = fields.FindIndex(f => f.Equals(field));
+                // If this field is not the first field, and it matches the previous field's offset, return false.
+                if (fInd != 0 && fields[fInd - 1].Offset == field.Offset && fields[fInd - 1].HasSize())
+                    // A field with the same offset as a field immediately before it is in a union.
+                    return false;
+            }
+            // Fields on types with unknown sizes are never in unions
+            return true;
         }
 
         // Resolve the field into context here
@@ -71,6 +93,8 @@ namespace Il2CppModdingCodegen.Serialization
             if (fSize == 0)
                 // If fSize is 0, that means that the field would be 0 size. However, that's not allowed, so make it a 1.
                 fSize = 1;
+            // TODO: Determine if and what fields to put in union here
+            // TODO: If we need to create a wrapper structure, do that here, possibly even earlier.
             ResolvedFieldSizes.Add(field, fSize);
             if (!string.IsNullOrEmpty(resolvedName))
                 Resolved(field);
@@ -78,6 +102,53 @@ namespace Il2CppModdingCodegen.Serialization
             ResolvedTypeNames.Add(field, resolvedName);
 
             SafeFieldNames.Add(field, Utils.SafeFieldName(field));
+        }
+
+        private void WriteField(CppStreamWriter writer, IField field)
+        {
+            var fieldString = "";
+            foreach (var spec in field.Specifiers)
+                fieldString += $"{spec} ";
+            writer.WriteComment(fieldString + field.Type + " " + field.Name);
+            writer.WriteComment($"Size: 0x{ResolvedFieldSizes[field]:X}");
+            writer.WriteComment($"Offset: 0x{field.Offset:X}");
+            if (field.LayoutOffset >= 0)
+                writer.WriteComment($"Layout Offset: 0x{field.LayoutOffset:X}");
+            if (!field.Specifiers.IsStatic() && !field.Specifiers.IsConst())
+                writer.WriteFieldDeclaration(ResolvedTypeNames[field]!, SafeFieldNames[field]);
+            // If the field has a size, we can write a quick static_assert check to ensure the sizeof this field matches our computed size.
+
+            if (ResolvedFieldSizes[field] > 0)
+            {
+                writer.WriteComment("Field size check");
+                writer.WriteDeclaration($"static_assert(sizeof({ResolvedTypeNames[field]!}) == 0x{ResolvedFieldSizes[field]:X})");
+            }
+            // If we aren't the last field, add the padding necessary to ensure our next field is in the correct location.
+            // This is actually quite tricky, as we need to account for quite a few things (specifically when we don't HAVE an offset to take advantage of)
+            // If our fields do NOT have offsets, we need to make some assumptions, namely that we are okay with standard #pragma pack(push, 8)
+            // Otherwise, we actually want a #pragma pack(push, 1) and to place all of the fields within that block
+            // Ideally, in all cases where we have offset checks, we have padding fields as well.
+            // In cases where we do NOT have offset checks, we hope for the best. ex: generics.
+
+            // Only write padding if we have a known size, otherwise our unpacked state is good enough for us.
+            if (!field.Specifiers.IsStatic() && !field.Equals(fields.Last()) && localSize >= 0 && !isInUnion)
+            {
+                // fields must contain field. If not, we throw here.
+                var fInd = fields.FindIndex(f => f.Equals(field));
+                int size = ResolvedFieldSizes[field];
+                var nextField = fields[fInd + 1];
+                if (field.Offset >= 0 && nextField.Offset > field.Offset && size > 0)
+                {
+                    if (nextField.Offset - field.Offset > size)
+                    {
+                        // If our next field's offset is more than the size of our current field, we need to write some padding.
+                        writer.WriteComment($"Padding between fields: {SafeFieldNames[field]} and: {SafeFieldNames[nextField]}");
+                        writer.WriteDeclaration($"char __padding{fInd}[0x{nextField.Offset - field.Offset - size:X}] = {{}}");
+                    }
+                }
+                else
+                    writer.WriteComment($"WARNING Could not write padding for field: {SafeFieldNames[field]}! Ignoring it instead (and assuming correct layout regardless)...");
+            }
         }
 
         // Write the field here
@@ -104,49 +175,32 @@ namespace Il2CppModdingCodegen.Serialization
             if (ResolvedTypeNames[field] == null)
                 throw new UnresolvedTypeException(field.DeclaringType, field.Type);
 
-            var fieldString = "";
-            foreach (var spec in field.Specifiers)
-                fieldString += $"{spec} ";
-            writer.WriteComment(fieldString + field.Type + " " + field.Name);
-            writer.WriteComment($"Size: 0x{ResolvedFieldSizes[field]:X}");
-            writer.WriteComment($"Offset: 0x{field.Offset:X}");
-            if (field.LayoutOffset >= 0)
-                writer.WriteComment($"Layout Offset: 0x{field.LayoutOffset:X}");
-            if (!field.Specifiers.IsStatic() && !field.Specifiers.IsConst())
-                writer.WriteFieldDeclaration(ResolvedTypeNames[field]!, SafeFieldNames[field]);
-            // If the field has a size, we can write a quick static_assert check to ensure the sizeof this field matches our computed size.
-
-            if (ResolvedFieldSizes[field] > 0)
+            if (localSize > 0)
             {
-                writer.WriteComment("Field size check");
-                writer.WriteDeclaration($"static_assert(sizeof({ResolvedTypeNames[field]!}) == 0x{ResolvedFieldSizes[field]:X})");
-            }
-            // If we aren't the last field, add the padding necessary to ensure our next field is in the correct location.
-            // This is actually quite tricky, as we need to account for quite a few things (specifically when we don't HAVE an offset to take advantage of)
-            // If our fields do NOT have offsets, we need to make some assumptions, namely that we are okay with standard #pragma pack(push, 8)
-            // Otherwise, we actually want a #pragma pack(push, 1) and to place all of the fields within that block
-            // Ideally, in all cases where we have offset checks, we have padding fields as well.
-            // In cases where we do NOT have offset checks, we hope for the best. ex: generics.
-
-            // Only write padding if we have a known size, otherwise our unpacked state is good enough for us.
-            if (!field.Specifiers.IsStatic() && !field.Equals(fields.Last()) && localSize >= 0)
-            {
-                // fields must contain field. If not, we throw here.
-                var fInd = fields.FindIndex(f => f.Equals(field));
-                int size = ResolvedFieldSizes[field];
-                var nextField = fields[fInd + 1];
-                if (field.Offset >= 0 && nextField.Offset > field.Offset && size > 0)
+                var nextF = fields.FindIndex(f => f.Equals(field));
+                if (nextF == -1)
+                    throw new InvalidOperationException("All fields must exist!");
+                nextF++;
+                if (nextF < fields.Count && fields[nextF].Offset == field.Offset && !isInUnion)
                 {
-                    if (nextField.Offset - field.Offset > size)
-                    {
-                        // If our next field's offset is more than the size of our current field, we need to write some padding.
-                        writer.WriteComment($"Padding between fields: {SafeFieldNames[field]} and: {SafeFieldNames[nextField]}");
-                        writer.WriteDeclaration($"char __padding{fInd}[0x{nextField.Offset - field.Offset - size:X}] = {{}}");
-                    }
+                    // If this field has the same offset as our next field offset, we create a union with it.
+                    writer.WriteComment($"Creating union for fields at offset: 0x{field.Offset:X}");
+                    writer.WriteDefinition($"union");
+                    isInUnion = true;
                 }
-                else
-                    writer.WriteComment($"WARNING Could not write padding for field: {SafeFieldNames[field]}! Ignoring it instead (and assuming correct layout regardless)...");
+                else if (isInUnion && (nextF >= fields.Count || fields[nextF].Offset != field.Offset))
+                {
+                    // If we are in a union, but our next field isn't at the same offset, exit the union, but only after we write our CURRENT field.
+                    WriteField(writer, field);
+                    writer.CloseDefinition(";");
+                    isInUnion = false;
+                    writer.Flush();
+                    Serialized(field);
+                    return;
+                }
             }
+            WriteField(writer, field);
+
             writer.Flush();
             Serialized(field);
         }
