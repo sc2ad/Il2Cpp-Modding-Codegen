@@ -42,6 +42,10 @@ namespace Il2CppModdingCodegen.Serialization
         {
             isInUnion = false;
             fields.AddRange(fieldCollection);
+            // Here we need to determine if we need to make nested structures with internals for use in unions
+            // Essentially, if we are making a union, yet we find that our field is not the same size as our other fields in our union, we need to struct-ify
+            // In order to struct-ify, we need to combine all fields that when offset + size is applied, they are still within the size of the largest union member
+            // This will only happen if there are TWO fields with DIFFERENT sizes at the SAME offset
         }
 
         /// <summary>

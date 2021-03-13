@@ -55,6 +55,17 @@ namespace Il2CppModdingCodegen.Data.DllHandling
             {
                 if (genericParameter.IsGeneric)
                     genericArgumentsInOrder.Add(genericParameter.MakeGenericInstance(genericTypes).AsDllTypeRef.This);
+                else if (genericParameter.IsArray() && genericParameter.ElementType!.IsGenericParameter)
+                {
+                    if (genericTypes.TryGetValue(genericParameter.ElementType, out var genArg))
+                    {
+                        genericArgumentsInOrder.Add(genArg.AsDllTypeRef.This.MakeArrayType());
+                    }
+                    else
+                    {
+                        throw new UnresolvedTypeException(genericParameter, this);
+                    }
+                }
                 else if (genericTypes.TryGetValue(genericParameter, out var genericArgument))
                     genericArgumentsInOrder.Add(genericArgument.AsDllTypeRef.This);
                 else
@@ -85,6 +96,16 @@ namespace Il2CppModdingCodegen.Data.DllHandling
                 ? ((GenericInstanceType)This).GenericArguments.Select(g => From(g)).ToList()
                 : IsGenericTemplate ? This.GenericParameters.Select(g => From(g)).ToList() : (IReadOnlyList<TypeRef>)new List<TypeRef>();
 
+            //if ((IsArray() || IsPointer()) && This.GetElementType() != null && Generics.Count == 0)
+            //{
+            //    var elemT = This.GetElementType();
+            //    // If we have an element type that is generic, we need to properly handle it
+            //    if (elemT.IsGenericParameter)
+            //    {
+            //        Generics = new List<TypeRef> { From(elemT) };
+            //    }
+            //}
+
             if (IsGeneric && Generics.Count == 0)
                 throw new InvalidDataException($"Wtf? In DllTypeRef constructor, a generic with no generics: {this}, IsGenInst: {this.IsGenericInstance}");
 
@@ -92,6 +113,11 @@ namespace Il2CppModdingCodegen.Data.DllHandling
                 (This.Name == "MessageType" && This.DeclaringType?.Name == "MultiplayerSessionManager") ||  // referenced by IMultiplayerSessionManager
                 (This.Name == "Score" && This.DeclaringType?.Name == "StandardScoreSyncState") ||  // SSSState implements IStateTable_2<SSSState::Score, int>
                 (This.Name == "NodePose" && This.DeclaringType?.Name == "NodePoseSyncState"))  // NPSState implements IStateTable_2<NPSState::NodePose, PoseSerializable>
+                UnNested = true;
+
+            if ((This.Name == "CombineTexturesIntoAtlasesCoroutineResult" && This.DeclaringType?.Name == "MB3_TextureCombiner") ||
+                (This.Name == "BrainEvent" && This.DeclaringType?.Name == "CinemachineBrain") ||
+                (This.Name == "CallbackContext" && This.DeclaringType?.Name == "InputAction"))
                 UnNested = true;
 
             //if (This.DeclaringType is not null)

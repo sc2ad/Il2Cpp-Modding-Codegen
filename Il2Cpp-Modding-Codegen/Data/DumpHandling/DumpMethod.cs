@@ -24,6 +24,8 @@ namespace Il2CppModdingCodegen.Data.DumpHandling
         public List<Parameter> Parameters { get; } = new List<Parameter>();
         public bool Generic { get; }
         public IReadOnlyList<TypeRef> GenericParameters { get; }
+        public bool IsSpecialName { get; }
+        public bool IsVirtual { get; }
 
         internal DumpMethod(TypeRef declaring, PeekableStreamReader fs)
         {

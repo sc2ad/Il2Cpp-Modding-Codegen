@@ -10,6 +10,7 @@ namespace Il2CppModdingCodegen.Data.DllHandling
     {
         [System.Diagnostics.CodeAnalysis.SuppressMessage("CodeQuality", "IDE0052:Remove unread private members", Justification = "aids with debugging")]
         private readonly MethodDefinition This;
+
         public List<IAttribute> Attributes { get; } = new List<IAttribute>();
         public List<ISpecifier> Specifiers { get; } = new List<ISpecifier>();
         public int RVA { get; }
@@ -27,6 +28,8 @@ namespace Il2CppModdingCodegen.Data.DllHandling
         public List<Parameter> Parameters { get; } = new List<Parameter>();
         public bool Generic { get; }
         public IReadOnlyList<TypeRef> GenericParameters { get; }
+        public bool IsSpecialName { get; }
+        public bool IsVirtual { get; }
 
         // Use the specific hash comparer to ensure validity!
         private static readonly DllMethodDefinitionHash comparer = new DllMethodDefinitionHash();
@@ -46,8 +49,9 @@ namespace Il2CppModdingCodegen.Data.DllHandling
             cache.Add(m, this);
             This = m;
             // Il2CppName is the MethodDefinition Name (hopefully we don't need to convert it for il2cpp, but we might)
+            var isNewSlot = m.Attributes.HasFlag(MethodAttributes.NewSlot);
             Il2CppName = m.Name;
-            Name = m.Name;
+            Name = isNewSlot ? m.Name + "_NEW" : m.Name;
             Parameters.AddRange(m.Parameters.Select(p => new Parameter(p)));
             Specifiers.AddRange(DllSpecifierHelpers.From(m));
             // This is not necessary: m.GenericParameters.Any(param => !m.DeclaringType.GenericParameters.Contains(param));
@@ -56,43 +60,47 @@ namespace Il2CppModdingCodegen.Data.DllHandling
 
             // This may not always be the case, we could have a special name in which case we have to do some sorcery
             // Grab the special name, grab the type from the special name
-            int idxDot = Name.LastIndexOf('.');
-            if (idxDot >= 2)
+            if (!isNewSlot)
             {
-                // Call a utilities function for converting a special name method to a proper base method
-                var baseMethod = m.GetSpecialNameBaseMethod(out var iface, idxDot);
-                if (baseMethod is null) throw new Exception("Failed to find baseMethod for dotted method name!");
-                if (iface is null) throw new Exception("Failed to get iface for dotted method name!");
-                if (!mappedBaseMethods.Add(baseMethod))
-                    throw new InvalidOperationException($"Base method: {baseMethod} has already been overriden!");
-                // Only one base method for special named methods
-                BaseMethods.Add(From(baseMethod, ref mappedBaseMethods));
-                ImplementedFrom = DllTypeRef.From(iface);
-            }
-            else
-            {
-                var baseMethod = m.GetBaseMethod();
-                if (baseMethod == m)
+                int idxDot = Name.LastIndexOf('.');
+                if (idxDot >= 2 && !Name.StartsWith("<"))
                 {
-                    var baseMethods = m.GetBaseMethods();
-                    if (baseMethods.Count > 0)
-                        HidesBase = true;
-                    // We need to check here SPECIFICALLY for a method in our declaring type that shares the same name as us, since we could have the same BaseMethod as it.
-                    // If either ourselves or a method of the same safe name (after . prefixes) exists, we need to ensure that only the one with the dots gets the base method
-                    // It correctly describes.
-                    // Basically, we need to take all our specially named methods on our type that have already been defined and remove them from our current list of baseMethods.
-                    // We should only ever have baseMethods of methods that are of methods that we haven't already used yet.
-                    if (baseMethods.Count > 0)
-                        foreach (var baseM in mappedBaseMethods)
-                            baseMethods.Remove(baseM);
-                    foreach (var bm in baseMethods)
-                        BaseMethods.Add(From(bm, ref mappedBaseMethods));
+                    // Call a utilities function for converting a special name method to a proper base method
+                    var baseMethod = m.GetSpecialNameBaseMethod(out var iface, idxDot);
+                    if (baseMethod is null) throw new Exception("Failed to find baseMethod for dotted method name!");
+                    if (iface is null) throw new Exception("Failed to get iface for dotted method name!");
+                    if (!mappedBaseMethods.Add(baseMethod))
+                        throw new InvalidOperationException($"Base method: {baseMethod} has already been overriden!");
+                    // Only one base method for special named methods
+                    BaseMethods.Add(From(baseMethod, ref mappedBaseMethods));
+                    ImplementedFrom = DllTypeRef.From(iface);
+                    IsSpecialName = true;
                 }
                 else
                 {
-                    if (!mappedBaseMethods.Add(baseMethod))
-                        throw new InvalidOperationException($"Base method: {baseMethod} has already been overriden!");
-                    BaseMethods.Add(From(baseMethod, ref mappedBaseMethods));
+                    var baseMethod = m.GetBaseMethod();
+                    if (baseMethod == m)
+                    {
+                        var baseMethods = m.GetBaseMethods();
+                        if (baseMethods.Count > 0)
+                            HidesBase = true;
+                        // We need to check here SPECIFICALLY for a method in our declaring type that shares the same name as us, since we could have the same BaseMethod as it.
+                        // If either ourselves or a method of the same safe name (after . prefixes) exists, we need to ensure that only the one with the dots gets the base method
+                        // It correctly describes.
+                        // Basically, we need to take all our specially named methods on our type that have already been defined and remove them from our current list of baseMethods.
+                        // We should only ever have baseMethods of methods that are of methods that we haven't already used yet.
+                        if (baseMethods.Count > 0)
+                            foreach (var baseM in mappedBaseMethods)
+                                baseMethods.Remove(baseM);
+                        foreach (var bm in baseMethods)
+                            BaseMethods.Add(From(bm, ref mappedBaseMethods));
+                    }
+                    else
+                    {
+                        if (!mappedBaseMethods.Add(baseMethod))
+                            throw new InvalidOperationException($"Base method: {baseMethod} has already been overriden!");
+                        BaseMethods.Add(From(baseMethod, ref mappedBaseMethods));
+                    }
                 }
             }
             if (BaseMethods.Count > 0)
@@ -111,6 +119,8 @@ namespace Il2CppModdingCodegen.Data.DllHandling
             // This is a very rare condition that we need to handle if it ever happens, but for now just log it
             if (m.HasOverrides)
                 Console.WriteLine($"{m}.HasOverrides!!! Overrides: {string.Join(", ", m.Overrides)}");
+
+            IsVirtual = m.Attributes.HasFlag(MethodAttributes.Virtual | MethodAttributes.Abstract);
 
             RVA = -1;
             Offset = -1;

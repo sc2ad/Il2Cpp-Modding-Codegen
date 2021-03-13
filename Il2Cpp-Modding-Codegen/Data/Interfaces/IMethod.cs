@@ -17,9 +17,12 @@ namespace Il2CppModdingCodegen.Data
         TypeRef? ImplementedFrom { get; }
         List<IMethod> BaseMethods { get; }
         List<IMethod> ImplementingMethods { get; }
+        bool IsVirtual { get; }
 
         // Does this method hide (by signature or override) an existing method in a base class or interface?
         bool HidesBase { get; }
+
+        bool IsSpecialName { get; }
 
         string Name { get; }
 

@@ -186,7 +186,6 @@ namespace Il2CppModdingCodegen.Serialization
                 }
 
             // If the method has a special name, we need to use it.
-            int idxDot = method.Name.LastIndexOf('.');
             // Here we need to add our method to a mapping, we need to ensure that if we need to make changes to the name we can do so without issue
             // Basically, for any special name methods that have base methods, we need to change the name of the base method as well.
             // We do this by holding a static mapping of IMethod --> Name
@@ -196,8 +195,9 @@ namespace Il2CppModdingCodegen.Serialization
             // Create name
             string name;
             bool fullName = false;
-            if (idxDot >= 2)
+            if (method.IsSpecialName)
             {
+                var idxDot = method.Name.LastIndexOf('.');
                 var tName = method.Name.Substring(idxDot + 1);
                 var implementedFrom = method.ImplementedFrom ?? throw new InvalidOperationException("Tried to construct name from null ImplementedFrom!");
                 name = implementedFrom.GetQualifiedCppName().Replace("::", "_") + "_" + tName;
@@ -206,7 +206,7 @@ namespace Il2CppModdingCodegen.Serialization
             else
                 // If the name is not a special name, set it to be the method name
                 name = method.Name;
-            name = _config.SafeMethodName(name).Replace('<', '$').Replace('>', '$').Replace('.', '_').Replace('|', '_');
+            name = _config.SafeMethodName(name.Replace('<', '$').Replace('>', '$').Replace('.', '_').Replace('|', '_').Replace(',', '_'));
 
             if (Operators.TryGetValue(name, out var info))
             {
@@ -725,7 +725,7 @@ namespace Il2CppModdingCodegen.Serialization
             // If the method is specially named, then we need to print it normally, don't worry about any of this rename garbage
             bool performProxy = method.BaseMethods.Count >= 1 && method.Il2CppName.IndexOf('.') < 1;
             if (performProxy)
-                overrideName = _config.SafeMethodName(method.Name.Replace('<', '$').Replace('>', '$').Replace('.', '_'));
+                overrideName = _config.SafeMethodName(method.Name.Replace('<', '$').Replace('>', '$').Replace('.', '_').Replace(',', '_'));
 
             bool writeContent = !asHeader || NeedDefinitionInHeader(method);
             var scope = Scope[method];
@@ -825,6 +825,8 @@ namespace Il2CppModdingCodegen.Serialization
                 var utilFunc = isNewCtor ? "New" : "RunMethodThrow";
 
                 // If we are calling RunGenericMethodThrow or RunMethodThrow, we should cache the found method first.
+                // ONLY IF we are not an abstract/virtual method!
+                // If we are, we need to perform a standard RunMethodThrow call, with FindMethod from the instance.
                 var paramString = method.Parameters.FormatParameters(_config.IllegalNames, _parameterMaps[method], ParameterFormatFlags.Names, asHeader);
                 string thisArg = (_declaringIsValueType ? "*" : "") + "this";
                 var call = $"::il2cpp_utils::{utilFunc}{innard}(";
@@ -832,7 +834,8 @@ namespace Il2CppModdingCodegen.Serialization
                 if (!isNewCtor)
                 {
                     var invokeMethodName = "___internal__method";
-                    writer.WriteDeclaration($"static auto* {invokeMethodName} = " +
+                    bool cache = !method.IsVirtual;
+                    writer.WriteDeclaration($"{(cache ? "static " : "")}auto* {invokeMethodName} = " +
                         _config.MacroWrap(loggerId, $"::il2cpp_utils::FindMethod({(method.Specifiers.IsStatic() ? classArgs : thisArg)}, \"{method.Il2CppName}\", std::vector<Il2CppClass*>{genTypesList}, ::il2cpp_utils::ExtractTypes({paramString}))", true));
                     if (method.Generic)
                     {
@@ -849,20 +852,6 @@ namespace Il2CppModdingCodegen.Serialization
                     call += $"{(genTypesList.Length > 2 ? ", " + genTypesList : "")}{paramString})";
                 }
 
-                //if (!isNewCtor)
-                //{
-                //    if (!string.IsNullOrEmpty(paramString))
-                //        paramString = ", " + paramString;
-                //    if (method.Specifiers.IsStatic() && scope == MethodScope.Class)
-                //        paramString = ", " + thisArg + paramString;
-                //    if (method.Specifiers.IsStatic())
-                //        call += $"{classArgs}, ";
-                //    else if (scope == MethodScope.Class)
-                //        call += $"{thisArg}, ";
-                //    // Macro string should use Il2CppName (of course, without _, $ replacement)
-                //    call += $"\"{method.Il2CppName}\"";
-                //}
-                //call += $"{genTypesList}{paramString})";
                 // Write call
                 if (_config.OutputStyle != OutputStyle.ThrowUnless || isNewCtor)
                     writer.WriteDeclaration(s + _config.MacroWrap(loggerId, call, needsReturn));

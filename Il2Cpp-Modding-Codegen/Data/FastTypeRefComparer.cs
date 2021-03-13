@@ -21,7 +21,7 @@ namespace Il2CppModdingCodegen.Data
             if (x.IsGeneric && y.IsGeneric)
             {
                 // If both x and y are generic
-                if (x.IsGenericInstance == y.IsGenericInstance || x.IsGenericTemplate || y.IsGenericTemplate)
+                if (x.IsGenericInstance == y.IsGenericInstance || x.IsGenericTemplate == y.IsGenericTemplate)
                     // If they are both an instance or both a template, return sequence equal
                     return x.Generics is null ? y.Generics is null : x.Generics.SequenceEqual(y.Generics, this);
                 // Otherwise, if one is a template and the other is an instance, if their counts match, consider it good enough.
