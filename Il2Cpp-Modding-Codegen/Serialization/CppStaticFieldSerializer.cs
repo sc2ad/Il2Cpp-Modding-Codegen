@@ -83,6 +83,8 @@ namespace Il2CppModdingCodegen.Serialization
                                 value = val.ToLower();
                                 if (value == long.MinValue.ToString())
                                     value = (long.MinValue + 1).ToString() + " - 1";
+                                if (type == "float" || type == "double" || type == "long double")
+                                    value = value.Replace(',', '.');
                             }
                             else
                                 Console.WriteLine($"{field.DeclaringType}'s {resolvedName} {field.Name} has constant that is not valid C++: {val}");
