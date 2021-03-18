@@ -49,9 +49,8 @@ namespace Il2CppModdingCodegen.Data.DllHandling
             cache.Add(m, this);
             This = m;
             // Il2CppName is the MethodDefinition Name (hopefully we don't need to convert it for il2cpp, but we might)
-            var isNewSlot = m.Attributes.HasFlag(MethodAttributes.NewSlot);
             Il2CppName = m.Name;
-            Name = isNewSlot ? m.Name + "_NEW" : m.Name;
+            Name = m.Name;
             Parameters.AddRange(m.Parameters.Select(p => new Parameter(p)));
             Specifiers.AddRange(DllSpecifierHelpers.From(m));
             // This is not necessary: m.GenericParameters.Any(param => !m.DeclaringType.GenericParameters.Contains(param));
@@ -60,7 +59,8 @@ namespace Il2CppModdingCodegen.Data.DllHandling
 
             // This may not always be the case, we could have a special name in which case we have to do some sorcery
             // Grab the special name, grab the type from the special name
-            if (!isNewSlot)
+            // This only applies to methods that are not new slot
+            if (!m.IsNewSlot)
             {
                 int idxDot = Name.LastIndexOf('.');
                 if (idxDot >= 2 && !Name.StartsWith("<"))
@@ -120,7 +120,7 @@ namespace Il2CppModdingCodegen.Data.DllHandling
             if (m.HasOverrides)
                 Console.WriteLine($"{m}.HasOverrides!!! Overrides: {string.Join(", ", m.Overrides)}");
 
-            IsVirtual = m.Attributes.HasFlag(MethodAttributes.Virtual | MethodAttributes.Abstract);
+            IsVirtual = m.IsVirtual || m.IsAbstract;
 
             RVA = -1;
             Offset = -1;

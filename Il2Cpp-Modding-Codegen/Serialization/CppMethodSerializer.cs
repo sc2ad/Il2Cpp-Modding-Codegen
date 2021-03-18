@@ -127,6 +127,8 @@ namespace Il2CppModdingCodegen.Serialization
         // Holds a mapping of IMethod to the name, as well as if the name has been specifically converted already.
         private static readonly Dictionary<IMethod, (string, bool)> _nameMap = new Dictionary<IMethod, (string, bool)>();
 
+        private readonly Dictionary<string, List<IMethod>> _methodNameMap = new();
+
         private bool _declaringIsValueType;
 
         private readonly Dictionary<TypeRef, CppTypeDataSerializer.State> _stateMap;
@@ -153,7 +155,7 @@ namespace Il2CppModdingCodegen.Serialization
 
         private void ResolveName(IMethod method)
         {
-            static void FixNames(IMethod m, string n, bool isFullName, HashSet<IMethod> skip)
+            void FixNames(IMethod m, string n, bool isFullName, HashSet<IMethod> skip)
             {
                 if (!skip.Add(m))
                     return;
@@ -171,10 +173,22 @@ namespace Il2CppModdingCodegen.Serialization
                             // In cases where we have multiple base methods, this does not matter.
                             Console.WriteLine($"Method: {m.Name} already has rectified name: {pair.Item1}! Was trying new name: {n}");
                     if (isFullName)
+                    {
                         _nameMap[m] = (n, isFullName);
+                        if (_methodNameMap.TryGetValue(n, out var existing))
+                            existing.Add(m);
+                        else
+                            _methodNameMap.Add(n, new List<IMethod> { m });
+                    }
                 }
                 else
+                {
                     _nameMap[m] = (n, isFullName);
+                    if (_methodNameMap.TryGetValue(n, out var existing))
+                        existing.Add(m);
+                    else
+                        _methodNameMap.Add(n, new List<IMethod> { m });
+                }
             }
 
             // If this method is already in the _nameMap, with a true value in the pair, we are done.
@@ -270,6 +284,40 @@ namespace Il2CppModdingCodegen.Serialization
                     if (fullName)
                         throw new InvalidOperationException($"Should not have more than one base method for special name method: {method}!");
                     break;
+                }
+                // Failsafe add _ to avoid overload naming
+                // Ensure we have a method that is named as such that isn't the exact same
+                // Fun fact: This doesn't even happen on BS 1.13.5, it might in some other scenarios though.
+                while (_methodNameMap.TryGetValue(name, out var methods))
+                {
+                    if (methods.Any(m =>
+                    {
+                        if (!m.DeclaringType.Equals(method.DeclaringType))
+                            return false;
+                        if (m.Parameters.Count != method.Parameters.Count)
+                            return false;
+                        // Parameter count and types must match, otherwise the overload would work
+                        for (int i = 0; i < m.Parameters.Count; i++)
+                        {
+                            if (!m.Parameters[i].Type.Equals(method.Parameters[i].Type))
+                                return false;
+                        }
+                        if (m.GenericParameters.Count != method.GenericParameters.Count)
+                            return false;
+                        for (int i = 0; i < m.GenericParameters.Count; i++)
+                        {
+                            if (!m.GenericParameters[i].Equals(method.GenericParameters[i]))
+                                return false;
+                        }
+                        return true;
+                    }))
+                    {
+                        name += "_";
+                    }
+                    else
+                    {
+                        break;
+                    }
                 }
                 FixNames(method, name, fullName, skips);
                 // Should only have one or fewer BaseMethods at this point
@@ -683,7 +731,7 @@ namespace Il2CppModdingCodegen.Serialization
 
         private static string Il2CppNoArgClass(string t)
         {
-            return $"il2cpp_utils::il2cpp_type_check::il2cpp_no_arg_class<{t}>::get()";
+            return $"::il2cpp_utils::il2cpp_type_check::il2cpp_no_arg_class<{t}>::get()";
         }
 
         private string GenericTypesList(IMethod method)
@@ -834,12 +882,13 @@ namespace Il2CppModdingCodegen.Serialization
                 if (!isNewCtor)
                 {
                     var invokeMethodName = "___internal__method";
-                    bool cache = !method.IsVirtual;
+                    // Static methods are cacheable, virtual methods should never be cached.
+                    bool cache = !method.IsVirtual || method.Specifiers.IsStatic();
                     writer.WriteDeclaration($"{(cache ? "static " : "")}auto* {invokeMethodName} = " +
                         _config.MacroWrap(loggerId, $"::il2cpp_utils::FindMethod({(method.Specifiers.IsStatic() ? classArgs : thisArg)}, \"{method.Il2CppName}\", std::vector<Il2CppClass*>{genTypesList}, ::il2cpp_utils::ExtractTypes({paramString}))", true));
                     if (method.Generic)
                     {
-                        writer.WriteDeclaration($"static auto* ___generic__method = " +
+                        writer.WriteDeclaration($"{(cache ? "static " : "")}auto* ___generic__method = " +
                             _config.MacroWrap(loggerId, $"::il2cpp_utils::MakeGenericMethod({mName}, std::vector<Il2CppClass*>{genTypesList})", true));
                         mName = genMName;
                         invokeMethodName = "___generic__method";

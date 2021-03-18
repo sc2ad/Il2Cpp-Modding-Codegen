@@ -80,7 +80,7 @@ namespace Codegen_CLI
                     "short", "signed", "sizeof", "static", "static_assert", "static_cast", "struct", "switch", "synchronized",
                     "template", "this", "thread_local", "throw", "true", "try", "typedef", "typeid", "typename", "union",
                     "unsigned", "using", "virtual", "void", "volatile", "wchar_t", "while", "xor", "xor_eq", "INT_MAX", "INT_MIN",
-                    "Assert", "bzero"
+                    "Assert", "bzero", "ID", "VERSION"
                 },
                 IllegalMethodNames = new HashSet<string> {
                     "bzero", "Assert"
