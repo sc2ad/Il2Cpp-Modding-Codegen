@@ -107,7 +107,7 @@ namespace Codegen_CLI
             {
                 // If we have one source file, yeet our destination src
                 if (Directory.Exists(Path.Combine(config.OutputDirectory, config.OutputSourceDirectory)))
-                    Directory.Delete(Path.Combine(config.OutputDirectory, config.OutputSourceDirectory));
+                    Directory.Delete(Path.Combine(config.OutputDirectory, config.OutputSourceDirectory), true);
             }
             Utils.Init(config);
 
