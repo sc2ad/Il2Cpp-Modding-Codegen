@@ -96,7 +96,7 @@ namespace Il2CppModdingCodegen.Serialization
 
             if (type.Type != TypeEnum.Interface)
             {
-                FieldSerializer.InitializeFields(type.InstanceFields);
+                FieldSerializer.Initialize(type.InstanceFields, type.Methods);
                 // do the non-static fields first
                 foreach (var f in type.InstanceFields)
                     FieldSerializer.PreSerialize(context, f);

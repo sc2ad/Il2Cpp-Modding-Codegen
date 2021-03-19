@@ -24,6 +24,7 @@ namespace Il2CppModdingCodegen.Serialization
 
         private readonly SerializationConfig _config;
         private readonly List<IField> fields = new();
+        private readonly List<IMethod> methods = new();
         private readonly List<IField> hiddenFields = new();
         private int localSize;
 
@@ -38,10 +39,11 @@ namespace Il2CppModdingCodegen.Serialization
         /// Initializes the list of fields to use for offset resolution
         /// </summary>
         /// <param name="fieldCollection"></param>
-        internal void InitializeFields(List<IField> fieldCollection)
+        internal void Initialize(List<IField> fieldCollection, List<IMethod> methods)
         {
             isInUnion = false;
             fields.AddRange(fieldCollection);
+            this.methods.AddRange(methods);
             // Here we need to determine if we need to make nested structures with internals for use in unions
             // Essentially, if we are making a union, yet we find that our field is not the same size as our other fields in our union, we need to struct-ify
             // In order to struct-ify, we need to combine all fields that when offset + size is applied, they are still within the size of the largest union member
@@ -100,8 +102,14 @@ namespace Il2CppModdingCodegen.Serialization
             // TODO: Determine if and what fields to put in union here
             // TODO: If we need to create a wrapper structure, do that here, possibly even earlier.
             ResolvedFieldSizes.Add(field, fSize);
+            // First, check to see if we have an existing field at the same offset.
+            // If we do, and it is a different size, we need to create an internal struct.
+            // The fields then need to be written within this struct, and this struct itself needs to be initializable from any of the fields.
             if (!string.IsNullOrEmpty(resolvedName))
                 Resolved(field);
+            // Suffix _ for field names with same name as methods
+            while (methods.Any(m => m.Name == resolvedName))
+                resolvedName += "_";
             // In order to ensure we get an UnresolvedTypeException when we serialize
             ResolvedTypeNames.Add(field, resolvedName);
 
