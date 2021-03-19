@@ -107,13 +107,14 @@ namespace Il2CppModdingCodegen.Serialization
             // The fields then need to be written within this struct, and this struct itself needs to be initializable from any of the fields.
             if (!string.IsNullOrEmpty(resolvedName))
                 Resolved(field);
-            // Suffix _ for field names with same name as methods
-            while (methods.Any(m => m.Name == resolvedName))
-                resolvedName += "_";
+
             // In order to ensure we get an UnresolvedTypeException when we serialize
             ResolvedTypeNames.Add(field, resolvedName);
-
-            SafeFieldNames.Add(field, Utils.SafeFieldName(field));
+            var fName = Utils.SafeFieldName(field);
+            // Suffix _ for field names with same name as methods
+            while (methods.Any(m => m.Name == fName))
+                fName += "_";
+            SafeFieldNames.Add(field, fName);
         }
 
         private void WriteField(CppStreamWriter writer, IField field)
