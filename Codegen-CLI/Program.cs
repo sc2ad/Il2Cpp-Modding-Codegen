@@ -102,6 +102,13 @@ namespace Codegen_CLI
                 Version = "0.2.5",
                 Libil2cpp = libIl2cpp,
             };
+
+            if (config.OneSourceFile)
+            {
+                // If we have one source file, yeet our destination src
+                if (Directory.Exists(Path.Combine(config.OutputDirectory, config.OutputSourceDirectory)))
+                    Directory.Delete(Path.Combine(config.OutputDirectory, config.OutputSourceDirectory));
+            }
             Utils.Init(config);
 
             var serializer = new CppDataSerializer(config, parsed);
