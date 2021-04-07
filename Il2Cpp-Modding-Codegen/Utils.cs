@@ -97,6 +97,9 @@ namespace Il2CppModdingCodegen
                 name = name.Split(angleBrackets, StringSplitOptions.RemoveEmptyEntries)[0];
             name = string.Join("$", name.Split(angleBrackets)).Trim('_');
             if (char.IsDigit(name[0])) name = "_" + name;
+            var sstr = name.LastIndexOf('.');
+            if (sstr != -1 && sstr < name.Length)
+                name = name.Substring(sstr + 1);
             var tmp = SafeName(name);
             return tmp != "base" ? tmp : "_base";
         }

@@ -505,6 +505,7 @@ namespace Il2CppModdingCodegen.Serialization
                     var f = context.LocalType.InstanceFields.LastOrDefault(fi => fi.HasSize());
                     if (f is not null && f.Offset >= 0)
                     {
+                        // TODO: Check issues with final fields being unions
                         // Also need to account for padding
                         // Don't actually need size checks, since offset checks should cover everything feasible.
                         // Extra bytes don't really matter, assuming it doesn't impact any OTHER structure.
