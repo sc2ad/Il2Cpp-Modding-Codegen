@@ -11,7 +11,7 @@ namespace Il2CppModdingCodegen.Data.DllHandling
     {
         public string Name => "Dll Data";
         public List<IImage> Images { get; } = new List<IImage>();
-        public IEnumerable<ITypeData> Types { get { return _types.Values; } }
+        public IEnumerable<ITypeData> Types => _types.Values;
         private readonly DllConfig _config;
         private readonly string _dir;
         private readonly ReaderParameters _readerParams;

@@ -1,6 +1,7 @@
 using Il2CppModdingCodegen;
 using Il2CppModdingCodegen.Config;
 using Il2CppModdingCodegen.Data;
+using Il2CppModdingCodegen.Data.DllHandling;
 using Il2CppModdingCodegen.Parsers;
 using Il2CppModdingCodegen.Serialization;
 using System;
@@ -8,6 +9,8 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Globalization;
 using System.IO;
+using System.Text.Json;
+using System.Text.Json.Serialization;
 
 namespace Codegen_CLI
 {
@@ -17,7 +20,8 @@ namespace Codegen_CLI
         {
             Console.WriteLine(DateTime.UtcNow.ToString("yyyy'-'MM'-'dd'T'HH':'mm':'ss'.'fff'Z'"));
             Console.WriteLine("Drag and drop your dump.cs file (or a partial of it of the correct format) then press enter...");
-            string path = @"C:\Users\Sc2ad\Desktop\Code\Android Modding\BeatSaber\1.13.2\DummyDll";
+            string path = @"C:\Users\Sc2ad\Desktop\Code\Android Modding\BeatSaber\1.14.0\DummyDll";
+            //string path = @"C:\Users\Sc2ad\Desktop\Code\Android Modding\GorillaTag\DummyDll";
             if (!Directory.Exists(path))
                 path = Console.ReadLine().Replace("\"", string.Empty);
             bool parseDlls = false;
@@ -125,6 +129,28 @@ namespace Codegen_CLI
             {
                 Console.WriteLine(e);
             }
+
+            Console.WriteLine("Performing JSON dump...");
+            watch.Restart();
+            var jsonOutput = Path.Combine(Environment.CurrentDirectory, "json_output");
+            Directory.CreateDirectory(jsonOutput);
+            var outp = Path.Combine(jsonOutput, "parsed.json");
+            if (File.Exists(outp))
+                File.Delete(outp);
+            var conf = new JsonSerializerOptions
+            {
+                WriteIndented = false,
+            };
+            var strc = new SimpleTypeRefConverter(parsed.Types);
+            conf.Converters.Add(strc);
+            conf.Converters.Add(new TypeDataConverter(parsed, strc));
+            conf.Converters.Add(new MethodConverter());
+            conf.Converters.Add(new JsonStringEnumConverter());
+            using var fs = File.OpenWrite(outp);
+            JsonSerializer.SerializeAsync(fs, parsed as DllData, conf).Wait();
+            watch.Stop();
+            Console.WriteLine($"Json Dump took: {watch.Elapsed}!");
+            Console.WriteLine("============================================");
 
             Console.WriteLine("Serializing...");
             try

@@ -10,7 +10,7 @@ namespace Il2CppModdingCodegen
     /// <summary>
     /// Tracks the size of all used value types.
     /// </summary>
-    internal class SizeTracker
+    public class SizeTracker
     {
         private static readonly Dictionary<ITypeData, int> sizeMap = new();
 
