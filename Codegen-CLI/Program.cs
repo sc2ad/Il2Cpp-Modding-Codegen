@@ -139,15 +139,20 @@ namespace Codegen_CLI
                 File.Delete(outp);
             var conf = new JsonSerializerOptions
             {
-                WriteIndented = false,
+                WriteIndented = true,
             };
             var strc = new SimpleTypeRefConverter(parsed.Types);
             conf.Converters.Add(strc);
             conf.Converters.Add(new TypeDataConverter(parsed, strc));
             conf.Converters.Add(new MethodConverter());
             conf.Converters.Add(new JsonStringEnumConverter());
-            using var fs = File.OpenWrite(outp);
-            JsonSerializer.SerializeAsync(fs, parsed as DllData, conf).Wait();
+            conf.Converters.Add(new FieldConverter());
+            conf.Converters.Add(new SpecifierConverter());
+            conf.Converters.Add(new PropertyConverter());
+            using (var fs = File.OpenWrite(outp))
+            {
+                JsonSerializer.SerializeAsync(fs, parsed as DllData, conf).Wait();
+            }
             watch.Stop();
             Console.WriteLine($"Json Dump took: {watch.Elapsed}!");
             Console.WriteLine("============================================");

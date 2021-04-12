@@ -147,8 +147,11 @@ namespace Il2CppModdingCodegen.Data.DllHandling
                             }
                     }
                     else
-                        // Ignore the DummyDll attributes
-                        Attributes.Add(new DllAttribute(ca));
+                    {
+                        var atr = new DllAttribute(ca);
+                        if (!string.IsNullOrEmpty(atr.Name))
+                            Attributes.Add(atr);
+                    }
                 }
         }
 

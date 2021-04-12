@@ -31,8 +31,12 @@ namespace Il2CppModdingCodegen.Data.DllHandling
                             Offset = Convert.ToInt32(ca.Fields.FirstOrDefault().Argument.Value as string, 16);
                     }
                     else
+                    {
                         // Ignore the DummyDll attributes
-                        Attributes.Add(new DllAttribute(ca));
+                        var atr = new DllAttribute(ca);
+                        if (!string.IsNullOrEmpty(atr.Name))
+                            Attributes.Add(atr);
+                    }
 
             Specifiers.AddRange(DllSpecifierHelpers.From(f));
 

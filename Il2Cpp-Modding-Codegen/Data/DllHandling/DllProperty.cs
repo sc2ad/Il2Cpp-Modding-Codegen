@@ -22,7 +22,7 @@ namespace Il2CppModdingCodegen.Data.DllHandling
             GetMethod = p.GetMethod != null;
             SetMethod = p.SetMethod != null;
             if (p.HasCustomAttributes)
-                Attributes.AddRange(p.CustomAttributes.Select(ca => new DllAttribute(ca)));
+                Attributes.AddRange(p.CustomAttributes.Select(ca => new DllAttribute(ca)).Where(a => !string.IsNullOrEmpty(a.Name)));
             Specifiers.AddRange(DllSpecifierHelpers.From(p));
         }
 

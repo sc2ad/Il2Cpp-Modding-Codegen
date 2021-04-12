@@ -29,8 +29,6 @@ namespace Codegen_CLI
             writer.WriteStartObject();
             writer.WritePropertyName(nameof(value.Attributes));
             JsonSerializer.Serialize(writer, value.Attributes, options);
-            writer.WritePropertyName(nameof(value.DeclaringType));
-            JsonSerializer.Serialize(writer, value.DeclaringType, options);
             writer.WritePropertyName(nameof(value.Generic));
             JsonSerializer.Serialize(writer, value.Generic, options);
             writer.WritePropertyName(nameof(value.GenericParameters));
@@ -62,16 +60,16 @@ namespace Codegen_CLI
             writer.WritePropertyName(nameof(value.VA));
             JsonSerializer.Serialize(writer, value.VA, options);
 
-            writer.WritePropertyName(nameof(value.BaseMethods));
-            writer.WriteStartArray();
-            foreach (var bm in value.BaseMethods)
-                WriteSimple(writer, bm, options);
-            writer.WriteEndArray();
-            writer.WritePropertyName(nameof(value.ImplementingMethods));
-            writer.WriteStartArray();
-            foreach (var im in value.ImplementingMethods)
-                WriteSimple(writer, im, options);
-            writer.WriteEndArray();
+            //writer.WritePropertyName(nameof(value.BaseMethods));
+            //writer.WriteStartArray();
+            //foreach (var bm in value.BaseMethods)
+            //    WriteSimple(writer, bm, options);
+            //writer.WriteEndArray();
+            //writer.WritePropertyName(nameof(value.ImplementingMethods));
+            //writer.WriteStartArray();
+            //foreach (var im in value.ImplementingMethods)
+            //    WriteSimple(writer, im, options);
+            //writer.WriteEndArray();
             writer.WriteEndObject();
         }
     }

@@ -29,11 +29,6 @@ namespace Codegen_CLI
             // Write simple here, only relevant details and a TID
             writer.WriteString(nameof(value.Namespace), value.Namespace);
             writer.WriteString(nameof(value.Name), value.Name);
-            writer.WriteString("QualifiedCppName", value.GetQualifiedCppName());
-            writer.WriteBoolean(nameof(value.IsGenericInstance), value.IsGenericInstance);
-            writer.WriteBoolean(nameof(value.IsGenericTemplate), value.IsGenericTemplate);
-            writer.WriteBoolean(nameof(value.IsGenericParameter), value.IsGenericParameter);
-            writer.WriteBoolean(nameof(value.IsCovariant), value.IsCovariant);
             var ind = types.FindIndex(d => comparer.Equals(value, d.This));
             if (ind < 0 && !value.IsGenericParameter && !value.IsArray() && !value.IsPointer())
                 throw new InvalidOperationException("TypeRef could not be found in types! Is this a generic parameter?");

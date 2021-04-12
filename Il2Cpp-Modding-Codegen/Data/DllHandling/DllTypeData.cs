@@ -45,7 +45,9 @@ namespace Il2CppModdingCodegen.Data.DllHandling
             TypeDefIndex = -1;
 
             if (_config.ParseTypeAttributes && def.HasCustomAttributes)
-                Attributes.AddRange(def.CustomAttributes.Select(ca => new DllAttribute(ca)));
+            {
+                Attributes.AddRange(def.CustomAttributes.Select(ca => new DllAttribute(ca)).Where(a => !string.IsNullOrEmpty(a.Name)));
+            }
             Layout = (ITypeData.LayoutKind)(def.Attributes & TypeAttributes.LayoutMask);
             if (_config.ParseTypeFields)
             {

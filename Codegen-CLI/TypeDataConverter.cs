@@ -36,20 +36,8 @@ namespace Codegen_CLI
             writer.WriteString(nameof(value.Namespace), value.Namespace);
             writer.WriteString(nameof(value.Name), value.Name);
             writer.WriteString("QualifiedCppName", value.GetQualifiedCppName());
-            writer.WriteBoolean(nameof(value.IsGenericInstance), value.IsGenericInstance);
             writer.WriteBoolean(nameof(value.IsGenericTemplate), value.IsGenericTemplate);
-            writer.WriteBoolean(nameof(value.IsGenericParameter), value.IsGenericParameter);
-            writer.WriteBoolean(nameof(value.IsCovariant), value.IsCovariant);
-            if (value.DeclaringType != null)
-            {
-                // Declaring types never have a cycle
-                writer.WritePropertyName(nameof(value.DeclaringType));
-                simpleConv.Write(writer, value.DeclaringType, options);
-            }
-            else
-            {
-                writer.WriteNull(nameof(value.DeclaringType));
-            }
+            writer.WriteBoolean("IsNested", value.DeclaringType != null);
             if (value.ElementType != null)
             {
                 // Element types can have a cycle

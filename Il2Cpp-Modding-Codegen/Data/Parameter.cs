@@ -9,9 +9,9 @@ namespace Il2CppModdingCodegen.Data
 {
     public class Parameter
     {
-        internal TypeRef Type { get; }
-        internal string Name { get; } = "";
-        internal ParameterModifier Modifier { get; } = ParameterModifier.None;
+        public TypeRef Type { get; }
+        public string Name { get; } = "";
+        public ParameterModifier Modifier { get; } = ParameterModifier.None;
 
         internal Parameter(string innard)
         {
@@ -75,7 +75,8 @@ namespace Il2CppModdingCodegen.Data
         }
 
         internal static string FormatParameters(this List<Parameter> parameters, HashSet<string>? illegalNames = null,
-            List<(MethodTypeContainer, ParameterModifier)>? resolvedNames = null, ParameterFormatFlags mode = ParameterFormatFlags.Normal, bool header = false)
+            List<(MethodTypeContainer, ParameterModifier)>? resolvedNames = null, ParameterFormatFlags mode = ParameterFormatFlags.Normal, bool header = false,
+            Func<(MethodTypeContainer, ParameterModifier), string, string>? nameOverride = null)
         {
             var s = "";
             for (int i = 0; i < parameters.Count; i++)
@@ -113,7 +114,10 @@ namespace Il2CppModdingCodegen.Data
                             nameStr = "&" + nameStr;
                     }
                     // Only names
-                    s += $"{nameStr}";
+                    if (resolvedNames != null && nameOverride != null)
+                        s += nameOverride(resolvedNames[i], nameStr);
+                    else
+                        s += nameStr;
                 }
                 else if (mode == ParameterFormatFlags.Types)
                 {
