@@ -881,11 +881,24 @@ namespace Il2CppModdingCodegen.Serialization
 
                 if (!isNewCtor)
                 {
+                    var extractionString = method.Parameters.FormatParameters(_config.IllegalNames, _parameterMaps[method], ParameterFormatFlags.Names, asHeader, (pm, s) =>
+                    {
+                        // The string used for extracting types matters here. Parameters that are non-out parameters are simply: ExtractType(name)
+                        // Parameters that are types are: ExtractIndependentType<TParam>()
+                        if (pm.Item2 == ParameterModifier.Out)
+                        {
+                            return $"::il2cpp_utils::ExtractIndependentType<{pm.PrintParameter(asHeader)}>()";
+                        }
+                        else
+                        {
+                            return $"::il2cpp_utils::ExtractType({s})";
+                        }
+                    });
                     var invokeMethodName = "___internal__method";
-                    // Static methods are cacheable, virtual methods should never be cached.
-                    bool cache = !method.IsVirtual || method.Specifiers.IsStatic();
+                    // Static methods are cacheable, virtual methods should never be cached, methods on generic types that used generic args should not be cached.
+                    bool cache = !method.IsVirtual || method.Specifiers.IsStatic() && !method.Parameters.Any(p => method.DeclaringType.Generics.Any(p2 => p2.Equals(p)));
                     writer.WriteDeclaration($"{(cache ? "static " : "")}auto* {invokeMethodName} = " +
-                        _config.MacroWrap(loggerId, $"::il2cpp_utils::FindMethod({(method.Specifiers.IsStatic() ? classArgs : thisArg)}, \"{method.Il2CppName}\", std::vector<Il2CppClass*>{genTypesList}, ::il2cpp_utils::ExtractTypes({paramString}))", true));
+                        _config.MacroWrap(loggerId, $"::il2cpp_utils::FindMethod({(method.Specifiers.IsStatic() ? classArgs : thisArg)}, \"{method.Il2CppName}\", std::vector<Il2CppClass*>{genTypesList}, ::std::vector<const Il2CppType*>{{{extractionString}}})", true));
                     if (method.Generic)
                     {
                         writer.WriteDeclaration($"{(cache ? "static " : "")}auto* ___generic__method = " +
