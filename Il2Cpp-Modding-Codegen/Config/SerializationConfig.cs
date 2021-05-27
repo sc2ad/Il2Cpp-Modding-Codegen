@@ -112,6 +112,11 @@ namespace Il2CppModdingCodegen.Config
         public HashSet<string> BlacklistMethods { get; set; } = new HashSet<string>();
 
         /// <summary>
+        /// Methods here are explicitly blacklisted based off of full qualification
+        /// </summary>
+        public HashSet<(string @namespace, string typeName, string methodName)> QualifiedBlacklistMethods { get; set; } = new HashSet<(string @namespace, string typeName, string methodName)>();
+
+        /// <summary>
         /// Types whitelisted are explicitly converted, even if some have unresolved type exceptions
         /// </summary>
         public List<string>? WhitelistTypes { get; set; }

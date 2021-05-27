@@ -745,6 +745,15 @@ namespace Il2CppModdingCodegen.Serialization
             return "{}";
         }
 
+        /// <summary>
+        /// Returns true if the provded method name is an operator that needs a += or -= version of itself.
+        /// </summary>
+        /// <param name="methodName"></param>
+        /// <returns></returns>
+        //private static bool NeedAssignmentVersion(string methodName)
+        //{
+        //}
+
         // Write the method here
         public override void Serialize(CppStreamWriter writer, IMethod method, bool asHeader)
         {
@@ -752,6 +761,8 @@ namespace Il2CppModdingCodegen.Serialization
             if (method is null) throw new ArgumentNullException(nameof(method));
             if (!_resolvedReturns.ContainsKey(method))
                 // In the event we have decided to not parse this method (in PreSerialize) don't even bother.
+                return;
+            if (_config.BlacklistMethods.Contains(method.Il2CppName))
                 return;
             if (_resolvedReturns[method] == null)
                 throw new UnresolvedTypeException(method.DeclaringType, method.ReturnType);
@@ -887,6 +898,7 @@ namespace Il2CppModdingCodegen.Serialization
                         // Parameters that are types are: ExtractIndependentType<TParam>()
                         if (pm.Item2 == ParameterModifier.Out)
                         {
+                            // We need to keep the & here, which will then ensure we find the method with the matching reftype.
                             return $"::il2cpp_utils::ExtractIndependentType<{pm.PrintParameter(asHeader)}>()";
                         }
                         else
@@ -996,6 +1008,17 @@ namespace Il2CppModdingCodegen.Serialization
                     container.ExpandParams = false;
                 }
             }
+
+            // If we have any parameters that are strings, we should make UTF16 and UTF8 string overload methods
+            if (method.Parameters.Any(p => p.Type.Namespace == "System" && p.Type.Name == "String"))
+            {
+                // Replace each string parameter with both a utf16 and utf8 variant
+                // If this method in question also returns a C# string, we need to also perform this with our utf16 and utf8 return types
+                // This will result in a single method that would normally take a string and return a string turning into 7 methods
+                // 2 for both parameter overloads * (2 + 1) for return type overloads + 1 for original return type, + 1 for original, unmodified method
+                // Is this ever worth it?
+            }
+            // If we have any parameters that return strings, we should make a specially named method that returns a std::stringu16, std::string
 
             // If we have 2 or more base methods, we need to see if either of our base methods have been renamed.
             // If any of them have been renamed, we need to create a new method for that and map it to the method we are currently serializing.

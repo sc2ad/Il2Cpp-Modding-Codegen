@@ -20,7 +20,7 @@ namespace Codegen_CLI
         {
             Console.WriteLine(DateTime.UtcNow.ToString("yyyy'-'MM'-'dd'T'HH':'mm':'ss'.'fff'Z'"));
             Console.WriteLine("Drag and drop your dump.cs file (or a partial of it of the correct format) then press enter...");
-            string path = @"C:\Users\Sc2ad\Desktop\Code\Android Modding\BeatSaber\1.14.0\DummyDll";
+            string path = @"C:\Users\Sc2ad\Desktop\Code\Android Modding\BeatSaber\1.16.0\DummyDll";
             //string path = @"C:\Users\Sc2ad\Desktop\Code\Android Modding\GorillaTag\DummyDll";
             if (!Directory.Exists(path))
                 path = Console.ReadLine().Replace("\"", string.Empty);
@@ -88,6 +88,10 @@ namespace Codegen_CLI
                 },
                 IllegalMethodNames = new HashSet<string> {
                     "bzero", "Assert"
+                },
+                QualifiedBlacklistMethods = new HashSet<(string @namespace, string typeName, string methodName)>
+                {
+                    ("UnityEngine.ResourceManagement.AsyncOperations", "AsyncOperationHandle", "Convert")
                 },
                 OutputDirectory = Path.Combine(Environment.CurrentDirectory, "output"),
                 OutputHeaderDirectory = "include",

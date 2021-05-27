@@ -110,7 +110,12 @@ namespace Il2CppModdingCodegen.Serialization
 
             // then the methods
             foreach (var m in type.Methods)
-                MethodSerializer.PreSerialize(context, m);
+            {
+                if (!_config.QualifiedBlacklistMethods.Contains((type.This.Namespace, type.This.Name, m.Il2CppName)))
+                {
+                    MethodSerializer.PreSerialize(context, m);
+                }
+            }
         }
 
         internal void DuplicateDefinition(CppTypeContext self, TypeRef offendingType)
@@ -289,23 +294,28 @@ namespace Il2CppModdingCodegen.Serialization
         internal void WriteMethods(CppStreamWriter writer, ITypeData type, bool asHeader, bool namespaced = false)
         {
             foreach (var m in type.Methods)
-                try
+            {
+                if (!_config.QualifiedBlacklistMethods.Contains((type.This.Namespace, type.This.Name, m.Il2CppName)))
                 {
-                    if (namespaced == (MethodSerializer.Scope[m] == CppMethodSerializer.MethodScope.Namespace))
-                        MethodSerializer.Serialize(writer, m, asHeader);
-                }
-                catch (UnresolvedTypeException e)
-                {
-                    if (_config.UnresolvedTypeExceptionHandling?.MethodHandling == UnresolvedTypeExceptionHandling.DisplayInFile)
+                    try
                     {
-                        writer.WriteLine("/*");
-                        writer.WriteLine(e);
-                        writer.WriteLine("*/");
-                        writer.Flush();
+                        if (namespaced == (MethodSerializer.Scope[m] == CppMethodSerializer.MethodScope.Namespace))
+                            MethodSerializer.Serialize(writer, m, asHeader);
                     }
-                    else if (_config.UnresolvedTypeExceptionHandling?.MethodHandling == UnresolvedTypeExceptionHandling.Elevate)
-                        throw;
+                    catch (UnresolvedTypeException e)
+                    {
+                        if (_config.UnresolvedTypeExceptionHandling?.MethodHandling == UnresolvedTypeExceptionHandling.DisplayInFile)
+                        {
+                            writer.WriteLine("/*");
+                            writer.WriteLine(e);
+                            writer.WriteLine("*/");
+                            writer.Flush();
+                        }
+                        else if (_config.UnresolvedTypeExceptionHandling?.MethodHandling == UnresolvedTypeExceptionHandling.Elevate)
+                            throw;
+                    }
                 }
+            }
         }
 
         internal static void CloseDefinition(CppStreamWriter writer, ITypeData type) => writer.CloseDefinition($"; // {type.This}");

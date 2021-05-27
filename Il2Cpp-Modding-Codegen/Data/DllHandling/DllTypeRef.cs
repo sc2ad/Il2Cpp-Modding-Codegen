@@ -115,9 +115,11 @@ namespace Il2CppModdingCodegen.Data.DllHandling
                 (This.Name == "NodePose" && This.DeclaringType?.Name == "NodePoseSyncState"))  // NPSState implements IStateTable_2<NPSState::NodePose, PoseSerializable>
                 UnNested = true;
 
-            if ((This.Name == "CombineTexturesIntoAtlasesCoroutineResult" && This.DeclaringType?.Name == "MB3_TextureCombiner") ||
+            else if ((This.Name == "CombineTexturesIntoAtlasesCoroutineResult" && This.DeclaringType?.Name == "MB3_TextureCombiner") ||
                 (This.Name == "BrainEvent" && This.DeclaringType?.Name == "CinemachineBrain") ||
                 (This.Name == "CallbackContext" && This.DeclaringType?.Name == "InputAction"))
+                UnNested = true;
+            else if (This.DeclaringType?.Name == "OVRManager")
                 UnNested = true;
 
             //if (This.DeclaringType is not null)
