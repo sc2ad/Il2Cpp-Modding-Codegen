@@ -1,4 +1,4 @@
-﻿using Il2CppModdingCodegen.Config;
+using Il2CppModdingCodegen.Config;
 using Il2CppModdingCodegen.Data;
 using System;
 using System.Collections.Generic;
@@ -762,7 +762,7 @@ namespace Il2CppModdingCodegen.Serialization
             if (!_resolvedReturns.ContainsKey(method))
                 // In the event we have decided to not parse this method (in PreSerialize) don't even bother.
                 return;
-            if (_config.BlacklistMethods.Contains(method.Il2CppName))
+            if (IgnoredMethods.Contains(method.Il2CppName) || _config.BlacklistMethods.Contains(method.Il2CppName))
                 return;
             if (_resolvedReturns[method] == null)
                 throw new UnresolvedTypeException(method.DeclaringType, method.ReturnType);
@@ -774,8 +774,6 @@ namespace Il2CppModdingCodegen.Serialization
                 if (container.TypeName(asHeader) is null && !method.Parameters[i].Type.IsGenericParameter)
                     throw new UnresolvedTypeException(method.DeclaringType, method.Parameters[i].Type);
             }
-            if (IgnoredMethods.Contains(method.Il2CppName) || _config.BlacklistMethods.Contains(method.Il2CppName))
-                return;
             if (!asHeader && NeedDefinitionInHeader(method))
                 // Need to create the method ENTIRELY in the header, instead of split between the C++ and the header
                 return;
