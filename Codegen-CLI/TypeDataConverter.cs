@@ -38,6 +38,12 @@ namespace Codegen_CLI
             writer.WriteString("QualifiedCppName", value.GetQualifiedCppName());
             writer.WriteBoolean(nameof(value.IsGenericTemplate), value.IsGenericTemplate);
             writer.WriteBoolean("IsNested", value.DeclaringType != null);
+            if (value.DeclaringType != null)
+            {
+                // Declaring types can't have a cycle, but could be weird with generics
+                writer.WritePropertyName(nameof(value.DeclaringType));
+                simpleConv.Write(writer, value.DeclaringType, options);
+            }
             if (value.ElementType != null)
             {
                 // Element types can have a cycle

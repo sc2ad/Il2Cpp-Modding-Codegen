@@ -33,7 +33,7 @@ namespace Il2CppModdingCodegen.Data.DllHandling
         {
             get
             {
-                if (!(This is TypeSpecification typeSpec)) return null;
+                if (This is not TypeSpecification typeSpec) return null;
                 if (typeSpec.MetadataType == MetadataType.GenericInstance) return null;
                 return From(typeSpec.ElementType);
             }
@@ -114,7 +114,6 @@ namespace Il2CppModdingCodegen.Data.DllHandling
                 (This.Name == "Score" && This.DeclaringType?.Name == "StandardScoreSyncState") ||  // SSSState implements IStateTable_2<SSSState::Score, int>
                 (This.Name == "NodePose" && This.DeclaringType?.Name == "NodePoseSyncState"))  // NPSState implements IStateTable_2<NPSState::NodePose, PoseSerializable>
                 UnNested = true;
-
             else if ((This.Name == "CombineTexturesIntoAtlasesCoroutineResult" && This.DeclaringType?.Name == "MB3_TextureCombiner") ||
                 (This.Name == "BrainEvent" && This.DeclaringType?.Name == "CinemachineBrain") ||
                 (This.Name == "CallbackContext" && This.DeclaringType?.Name == "InputAction"))

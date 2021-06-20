@@ -144,6 +144,7 @@ namespace Codegen_CLI
             var conf = new JsonSerializerOptions
             {
                 WriteIndented = true,
+                Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping
             };
             var strc = new SimpleTypeRefConverter(parsed.Types);
             conf.Converters.Add(strc);
