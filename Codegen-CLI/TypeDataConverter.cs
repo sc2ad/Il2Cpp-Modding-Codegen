@@ -42,7 +42,7 @@ namespace Codegen_CLI
             {
                 // Declaring types can't have a cycle, but could be weird with generics
                 writer.WritePropertyName(nameof(value.DeclaringType));
-                simpleConv.Write(writer, value.DeclaringType, options);
+                simpleConv.Write(writer, value.OriginalDeclaringType, options);
             }
             if (value.ElementType != null)
             {

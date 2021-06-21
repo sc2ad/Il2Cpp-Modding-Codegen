@@ -16,7 +16,7 @@ namespace Il2CppModdingCodegen.Data.DumpHandling
         public override bool IsGenericTemplate { get; }
         public override IReadOnlyList<TypeRef> Generics { get; }
 
-        protected override TypeRef? OriginalDeclaringType { get; }
+        public override TypeRef? OriginalDeclaringType { get; }
         public override TypeRef? ElementType { get; }
 
         public override bool IsPointer()

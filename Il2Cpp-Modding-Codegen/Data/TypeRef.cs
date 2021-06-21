@@ -27,7 +27,7 @@ namespace Il2CppModdingCodegen.Data
 
         protected bool UnNested { get; set; } = false;
         public TypeRef? DeclaringType { get => UnNested ? null : OriginalDeclaringType; }
-        protected abstract TypeRef? OriginalDeclaringType { get; }
+        public abstract TypeRef? OriginalDeclaringType { get; }
         public abstract TypeRef? ElementType { get; }
 
         private ITypeData? _resolvedType;

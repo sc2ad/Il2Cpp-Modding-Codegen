@@ -79,7 +79,7 @@ namespace Codegen_CLI
                 Write(writer, gp, options);
             }
             writer.WriteEndArray();
-            var ind = types.FindIndex(d => comparer.Equals(value, d));
+            var ind = types.FindIndex(d => comparer.Equals(genericsTypedef, d));
             bool genericParam = value.IsGenericParameter;
             while (ind < 0 && !genericParam)
             {
