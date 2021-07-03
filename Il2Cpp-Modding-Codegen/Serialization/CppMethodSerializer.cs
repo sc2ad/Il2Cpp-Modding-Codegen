@@ -1116,15 +1116,15 @@ namespace Il2CppModdingCodegen.Serialization
                 // If the type in question is generic, we need to combine generic arguments
                 // If the method in question is generic, we need to combine generic arguments
                 // If the method in question is only generic because we made it generic, don't call MakeGenericMethod
-                writer.WriteComment($"Writing MetadataGetter for method: {_thisTypeName}::{cppName}!");
+                writer.WriteComment($"Writing MetadataGetter for method: {_thisTypeName.TrimEnd('*')}::{cppName}");
                 writer.WriteComment($"Il2CppName: {method.Il2CppName}");
                 if (method.Generic)
                 {
                     writer.WriteComment("Cannot write MetadataGetter for generic methods!");
                     continue;
                 }
-                var memberPtr = $"&{_thisTypeName}::{cppName}";
-                var instancePtr = method.Specifiers.IsStatic() ? "*" : _thisTypeName + "::*";
+                var memberPtr = $"&{_thisTypeName.TrimEnd('*')}::{cppName}";
+                var instancePtr = method.Specifiers.IsStatic() ? "*" : _thisTypeName.TrimEnd('*') + "::*";
                 var cast = $"static_cast<{_resolvedReturns[method].TypeName(true)} ({instancePtr})({method.Parameters.FormatParameters(_config.IllegalNames, _parameterMaps[method], ParameterFormatFlags.Types, true)})>";
                 if (IsCtor(method))
                 {
