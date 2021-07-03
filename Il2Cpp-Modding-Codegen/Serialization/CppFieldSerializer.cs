@@ -125,6 +125,8 @@ namespace Il2CppModdingCodegen.Serialization
             writer.WriteComment(fieldString + field.Type + " " + field.Name);
             writer.WriteComment($"Size: 0x{ResolvedFieldSizes[field]:X}");
             writer.WriteComment($"Offset: 0x{field.Offset:X}");
+            if (field.Constant != null)
+                writer.WriteComment($"Constant: {field.Constant}");
             if (field.LayoutOffset >= 0)
                 writer.WriteComment($"Layout Offset: 0x{field.LayoutOffset:X}");
             if (!field.Specifiers.IsStatic() && !field.Specifiers.IsConst())

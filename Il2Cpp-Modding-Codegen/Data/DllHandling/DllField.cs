@@ -15,6 +15,7 @@ namespace Il2CppModdingCodegen.Data.DllHandling
         public string Name { get; }
         public int Offset { get; }
         public int LayoutOffset { get; } = -1;
+        public object Constant { get; }
 
         internal DllField(FieldDefinition f)
         {
@@ -41,6 +42,7 @@ namespace Il2CppModdingCodegen.Data.DllHandling
             Specifiers.AddRange(DllSpecifierHelpers.From(f));
 
             This = f;
+            Constant = f.Constant;
         }
 
         public override string ToString() => $"{Type} {DeclaringType}.{Name}; // Offset: 0x{Offset:X}";

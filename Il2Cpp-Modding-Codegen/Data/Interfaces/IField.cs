@@ -11,5 +11,6 @@ namespace Il2CppModdingCodegen.Data
         string Name { get; }
         int Offset { get; }
         int LayoutOffset { get; }
+        object Constant { get; }
     }
 }

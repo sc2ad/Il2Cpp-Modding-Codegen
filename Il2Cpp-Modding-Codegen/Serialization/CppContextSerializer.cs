@@ -535,6 +535,10 @@ namespace Il2CppModdingCodegen.Serialization
             }
             if (!context.InPlace)
                 WriteNamespacedMethods(writer, context, asHeader);
+            if (!context.LocalType.This.IsGeneric)
+            {
+                typeSerializer.WritePostSerializeMethods(writer);
+            }
         }
     }
 }

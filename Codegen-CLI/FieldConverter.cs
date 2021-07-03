@@ -26,6 +26,7 @@ namespace Codegen_CLI
             JsonSerializer.Serialize(writer, value.Specifiers, options);
             writer.WritePropertyName(nameof(value.Type));
             JsonSerializer.Serialize(writer, value.Type, options);
+            writer.WriteString(nameof(value.Constant), value.Constant?.ToString());
             writer.WriteEndObject();
         }
     }

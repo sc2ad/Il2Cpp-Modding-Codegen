@@ -1,4 +1,4 @@
-﻿using Il2CppModdingCodegen.Config;
+using Il2CppModdingCodegen.Config;
 using Il2CppModdingCodegen.Data;
 using System;
 using System.Collections.Generic;
@@ -316,6 +316,11 @@ namespace Il2CppModdingCodegen.Serialization
                     }
                 }
             }
+        }
+
+        internal void WritePostSerializeMethods(CppStreamWriter writer)
+        {
+            MethodSerializer.PostSerialize(writer);
         }
 
         internal static void CloseDefinition(CppStreamWriter writer, ITypeData type) => writer.CloseDefinition($"; // {type.This}");

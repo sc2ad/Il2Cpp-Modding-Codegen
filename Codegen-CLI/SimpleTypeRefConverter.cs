@@ -61,8 +61,6 @@ namespace Codegen_CLI
             writer.WriteBoolean(nameof(value.IsGenericParameter), value.IsGenericParameter);
             writer.WriteBoolean(nameof(value.IsArray), value.IsArray());
             writer.WriteBoolean(nameof(value.IsPointer), value.IsPointer());
-            writer.WritePropertyName(nameof(value.Generics));
-            writer.WriteStartArray();
             var genericsTypedef = value;
             if (value.ElementType != null)
             {
@@ -74,11 +72,21 @@ namespace Codegen_CLI
                 // Continue checking our element types until we have extinguished all of our element types, then write those generics.
                 genericsTypedef = genericsTypedef.ElementType;
             }
+            writer.WritePropertyName(nameof(value.Generics));
+            writer.WriteStartArray();
             foreach (var gp in genericsTypedef.Generics)
             {
                 Write(writer, gp, options);
             }
             writer.WriteEndArray();
+            //// Write constraints of our bottom type
+            //writer.WritePropertyName(nameof(value.GenericParameterConstraints));
+            //writer.WriteStartArray();
+            //foreach (var constraint in genericsTypedef.GenericParameterConstraints)
+            //{
+            //    Write(writer, constraint, options);
+            //}
+            //writer.WriteEndArray();
             var ind = types.FindIndex(d => comparer.Equals(genericsTypedef, d));
             bool genericParam = value.IsGenericParameter;
             while (ind < 0 && !genericParam)
