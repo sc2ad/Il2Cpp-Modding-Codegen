@@ -50,7 +50,7 @@ namespace Il2CppModdingCodegen.Serialization
             FieldConversionOperator? parentFieldConversionOperator = null;
             if (type.Parent != null)
             {
-                var resolved = type.Parent.Resolve(self._types);
+                var resolved = type.Parent.Resolve(self.Types);
                 if (resolved is null) throw new UnresolvedTypeException(type.This, type.Parent);
                 var parentContext = CppDataSerializer.TypeToContext[resolved];
                 CreateConversionOperator(ser, resolved, parentContext);
@@ -107,7 +107,7 @@ namespace Il2CppModdingCodegen.Serialization
         private readonly HashSet<TypeRef> _genericTypes = new HashSet<TypeRef>();
 
         private readonly List<CppTypeContext> _nestedContexts = new List<CppTypeContext>();
-        private readonly ITypeCollection _types;
+        internal ITypeCollection Types { get; }
 
         private void AddGenericTypes(TypeRef? type)
         {
@@ -128,7 +128,7 @@ namespace Il2CppModdingCodegen.Serialization
             {
                 if (set.Add(face))
                 {
-                    var td = face.Resolve(_types);
+                    var td = face.Resolve(Types);
                     if (td is null)
                         throw new ArgumentException($"Could not resolve TypeRef: {face}!");
                     foreach (var item in GetUniqueInterfaces(td.ImplementingInterfaces))
@@ -146,10 +146,10 @@ namespace Il2CppModdingCodegen.Serialization
             var nestedUnique = new List<TypeRef>();
             ITypeData CollectImplementingInterfaces(TypeRef face)
             {
-                var nested = face.Resolve(_types);
+                var nested = face.Resolve(Types);
                 if (nested is null)
                     throw new ArgumentException($"Could not resolve TypeRef: {face}!");
-                var map = face.IsGenericInstance ? face.ExtractGenericMap(_types) : null;
+                var map = face.IsGenericInstance ? face.ExtractGenericMap(Types) : null;
                 nestedUnique.AddRange(nested.ImplementingInterfaces.Select(i => (!i.IsGeneric || map is null) ? i : i.MakeGenericInstance(map)));
                 return nested;
             }
@@ -178,13 +178,13 @@ namespace Il2CppModdingCodegen.Serialization
             if (data.This.Namespace == "System" && data.This.Name == "Object")
                 return true;
             // Reference types at least have Il2CppObject as a base type
-            return data.InstanceFields.Any() || IsNonEmpty(data.Parent?.Resolve(_types)!);
+            return data.InstanceFields.Any() || IsNonEmpty(data.Parent?.Resolve(Types)!);
         }
 
         internal CppTypeContext(ITypeCollection types, ITypeData data, CppTypeContext? declaring)
         {
             _rootContext = this;
-            _types = types;
+            Types = types;
             LocalType = data;
 
             // Add ourselves to our Definitions
@@ -198,7 +198,7 @@ namespace Il2CppModdingCodegen.Serialization
 
             // Declaring types need to declare (or define) ALL of their nested types
             foreach (var nested in data.NestedTypes)
-                AddNestedDeclaration(nested.This, nested.This.Resolve(_types));
+                AddNestedDeclaration(nested.This, nested.This.Resolve(Types));
 
             // Nested types need to define their declaring type
             if (data.This.DeclaringType != null)
@@ -208,7 +208,7 @@ namespace Il2CppModdingCodegen.Serialization
             AddGenericTypes(data.This);
 
             // Determine whether this type has a base type that has size or not.
-            BaseHasFields = IsNonEmpty(data.Parent?.Resolve(_types));
+            BaseHasFields = IsNonEmpty(data.Parent?.Resolve(Types));
 
             // Create a hashset of all the unique interfaces implemented explicitly by this type.
             // Necessary for avoiding base ambiguity.
@@ -292,7 +292,7 @@ namespace Il2CppModdingCodegen.Serialization
 
         internal bool HasInNestedHierarchy(TypeRef type)
         {
-            var resolved = type.Resolve(_types);
+            var resolved = type.Resolve(Types);
             if (resolved == null) throw new UnresolvedTypeException(LocalType.This, type);
             return HasInNestedHierarchy(resolved);
         }
@@ -346,7 +346,7 @@ namespace Il2CppModdingCodegen.Serialization
         {
             // Adding a definition is simple, ensure the type is resolved and add it
             if (resolved is null)
-                resolved = def.Resolve(_types);
+                resolved = def.Resolve(Types);
             if (resolved is null)
                 throw new UnresolvedTypeException(LocalType.This, def);
 
@@ -382,7 +382,7 @@ namespace Il2CppModdingCodegen.Serialization
         {
             Contract.Requires(!def.IsVoid());
             if (resolved is null)
-                resolved = def.Resolve(_types);
+                resolved = def.Resolve(Types);
             if (resolved is null)
                 throw new UnresolvedTypeException(LocalType.This, def);
 
@@ -413,17 +413,17 @@ namespace Il2CppModdingCodegen.Serialization
         /// <returns>The returned size.</returns>
         public int GetSize(TypeRef data)
         {
-            return SizeTracker.GetSize(_types, data);
+            return SizeTracker.GetSize(Types, data);
         }
 
         public int GetLocalSize()
         {
-            return SizeTracker.GetSize(_types, LocalType);
+            return SizeTracker.GetSize(Types, LocalType);
         }
 
         public int GetBaseSize()
         {
-            return LocalType.Parent is not null ? SizeTracker.GetSize(_types, LocalType.Parent.Resolve(_types)!) : -1;
+            return LocalType.Parent is not null ? SizeTracker.GetSize(Types, LocalType.Parent.Resolve(Types)!) : -1;
         }
 
         /// <summary>
@@ -588,7 +588,7 @@ namespace Il2CppModdingCodegen.Serialization
             if (IsGenericParameter(typeRef))
                 // Generic parameters are resolved to nothing and shouldn't even attempted to be resolved.
                 return null;
-            var resolved = typeRef.Resolve(_types);
+            var resolved = typeRef.Resolve(Types);
             if (resolved is null)
                 return null;
 

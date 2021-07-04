@@ -14,6 +14,7 @@ namespace Il2CppModdingCodegen.Serialization
 
         internal struct State
         {
+            internal string il2cppName;
             internal string type;
             internal string? declaring;
             internal List<string?> parentNames;
@@ -46,6 +47,7 @@ namespace Il2CppModdingCodegen.Serialization
 
             State s = new State
             {
+                il2cppName = type.This.Name,
                 type = resolved,
                 declaring = null,
                 parentNames = new List<string?>(),
@@ -224,7 +226,7 @@ namespace Il2CppModdingCodegen.Serialization
             if (state.declaring != null)
             {
                 writer.WriteDeclaration($"using declaring_type = {state.declaring}");
-                writer.WriteDeclaration($"static constexpr std::string_view NESTED_NAME = \"{typeName}\"");
+                writer.WriteDeclaration($"static constexpr std::string_view NESTED_NAME = \"{state.il2cppName}\"");
             }
 
             writer.Flush();

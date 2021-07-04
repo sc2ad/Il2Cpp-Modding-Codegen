@@ -363,6 +363,16 @@ namespace Il2CppModdingCodegen.Serialization
                 WriteNamespacedMethods(writer, inPlace, asHeader);
         }
 
+        internal void WritePostSerializeMethods(CppStreamWriter writer, CppTypeContext context, bool asHeader)
+        {
+            if (!_typeSerializers.TryGetValue(context, out var typeSerializer))
+                throw new InvalidOperationException($"Must have a valid {nameof(CppTypeDataSerializer)} for context type: {context.LocalType.This}!");
+            if (!context.LocalType.This.IsGeneric && asHeader)
+            {
+                typeSerializer.WritePostSerializeMethods(writer);
+            }
+        }
+
         internal void Serialize(CppStreamWriter writer, CppTypeContext context, bool asHeader)
         {
             var contextMap = asHeader ? _headerContextMap : _sourceContextMap;
@@ -535,10 +545,6 @@ namespace Il2CppModdingCodegen.Serialization
             }
             if (!context.InPlace)
                 WriteNamespacedMethods(writer, context, asHeader);
-            if (!context.LocalType.This.IsGeneric)
-            {
-                typeSerializer.WritePostSerializeMethods(writer);
-            }
         }
     }
 }

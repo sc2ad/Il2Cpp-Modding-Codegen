@@ -135,6 +135,9 @@ namespace Il2CppModdingCodegen.Serialization
 
         private readonly List<(IMethod, string, string)> postSerializeCollection = new();
 
+        // Context used for double checking
+        private CppTypeContext? context;
+
         internal CppMethodSerializer(SerializationConfig config, Dictionary<TypeRef, CppTypeDataSerializer.State> map)
         {
             _config = config;
@@ -378,6 +381,7 @@ namespace Il2CppModdingCodegen.Serialization
         {
             if (context is null) throw new ArgumentNullException(nameof(context));
             if (method is null) throw new ArgumentNullException(nameof(method));
+            this.context = context;
             // Get the fully qualified name of the context
             bool success = true;
             // TODO: wrap all .cpp methods in a `namespace [X] {` ?
@@ -426,7 +430,7 @@ namespace Il2CppModdingCodegen.Serialization
                 // If we fail to resolve the return type, we will simply add a null item to our dictionary.
                 // However, we should not call Resolved(method)
                 success = false;
-            _resolvedReturns.Add(method, new MethodTypeContainer(resolvedReturn));
+            _resolvedReturns.Add(method, new MethodTypeContainer(resolvedReturn, method.ReturnType));
             var parameterMap = new List<(MethodTypeContainer, ParameterModifier)>();
             foreach (var p in method.Parameters)
             {
@@ -435,7 +439,7 @@ namespace Il2CppModdingCodegen.Serialization
                     // If we fail to resolve a parameter, we will simply add a (null, p.Flags) item to our mapping.
                     // However, we should not call Resolved(method)
                     success = false;
-                parameterMap.Add((new MethodTypeContainer(s), p.Modifier));
+                parameterMap.Add((new MethodTypeContainer(s, p.Type), p.Modifier));
             }
             _parameterMaps.Add(method, parameterMap);
 
@@ -1000,7 +1004,7 @@ namespace Il2CppModdingCodegen.Serialization
                             var typeArg = "";
                             if (_genericArgs.TryGetValue(method, out var generics) && generics.Any())
                             {
-                                typeArg = "<" + string.Join(", ", generics.Select(s => "class " + s));
+                                typeArg = "<" + string.Join(", ", generics);
                             }
                             if (initializerListProxyInfo.cppName.EndsWith("New_ctor"))
                                 typeArg = typeArg.Length == 0 ? "<creationType>" : typeArg + "creationType>";
@@ -1088,15 +1092,108 @@ namespace Il2CppModdingCodegen.Serialization
             Serialized(method);
         }
 
-        private void WriteMetadataGetter(CppStreamWriter writer, IMethod method, string castMethodPtr)
+        private static List<string> ClassFromType(TypeRef type, string qualifiedName)
+        {
+            // Options:
+            // il2cpp_functions::Class_GetPtrClass - for adding * after pure value types
+            // il2cpp_utils::GetClassFromName - for the obvious
+            // il2cpp_utils::MakeGeneric - for making a generic instance from other classes
+            // Nested types???
+            // il2cpp_functions::MetadataCache_GetTypeInfoFromTypeDefinitionIndex(declaring->generic_class->typeDefinitionIndex) - declaring type is generic
+            // il2cpp_functions::class_get_nested_types - search for nested match
+            // const Il2CppGenericInst* genInst = declaring->generic_class->context.class_inst - If declaring is generic, get instantiation
+            // Use it to MakeGeneric, use result.
+            // If we have an element type and we are an array, call classof(Array<T>*)
+            if (type.IsArray())
+            {
+                return new List<string> { $"classof(::Array<{qualifiedName}>*)" };
+            }
+            // If we have an element type and we are not an array, call il2cpp_functions::Class_GetPtrClass(result of element type)
+            else if (type.ElementType is not null)
+            {
+                return new List<string> { $"il2cpp_functions::Class_GetPtrClass({ClassFromType(type.ElementType, qualifiedName)})" };
+            }
+
+            var (namespaze, name) = type.GetIl2CppName();
+
+            var decl = type.DeclaringType;
+            bool genericDeclaring = false;
+            while (decl is not null)
+            {
+                if (decl.IsGeneric)
+                {
+                    genericDeclaring = true;
+                    break;
+                }
+                decl = decl.DeclaringType;
+            }
+
+            if (type.DeclaringType is null || !genericDeclaring)
+            {
+                // No generic declaring type works the same way, except GetIl2CppName will return the properly formatted name.
+                // No declaring type is simple, works for both value types and reference types.
+                var classGetter = $"::il2cpp_utils::GetClassFromName(\"{namespaze}\", \"{name}\")";
+                // First check to see if the type is generic, if it is, make the generic instantiation.
+                if (type.IsGeneric)
+                {
+                    classGetter = $"::il2cpp_utils::MakeGeneric({classGetter}, ::std::vector<const Il2CppClass*>{{{string.Join(", ", type.Generics.Select(g => ClassFromType(g, g.CppName()).Single()))}}}";
+                }
+                return new List<string> { classGetter };
+            }
+            else
+            {
+                // Now, this is the problematic one.
+                // This means we have at least one declaring type that is generic.
+                // Logically, what we need to do is find our declaring type using the generic instantiation of it
+
+                //var classOfDeclaring = ClassFromType(type.DeclaringType, type.DeclaringType.GetQualifiedCppName());
+
+                // Then search it for ourselves
+                // When we find a match, instantiate ourselves with the generic parameters from our declaring generics
+                // return the instantiated result
+                // For now we shall not even attempt to do this properly
+                // YEEEEEEEEET
+                return new List<string>();
+                //var ret = new List<string>();
+                //ret.Add($"static auto* declaring = {classOfDeclaring};");
+                //ret.Add("void* myIter = nullptr;");
+                //ret.Add("Il2CppClass* found = nullptr;");
+                //ret.Add("while (auto* nested = il2cpp_functions::class_get_nested_types(declaring, &myIter)) {");
+                //ret.Add("if (typeName == nested->name) {found = nested; break;}");
+                //ret.Add("}");
+                //ret.Add("CRASH_UNLESS(found);");
+                //ret.Add("if (declaring->generic_class) {auto* genInst = declaring->generic_class->context.class_inst")
+            }
+        }
+
+        private void WriteMetadataGetter(CppStreamWriter writer, string type, IMethod method, string castMethodPtr)
         {
             // In order to properly handle overloads, we need to emit a static_cast with the correct signature type
             writer.WriteLine("template<>");
             writer.WriteDefinition($"struct ::il2cpp_utils::il2cpp_type_check::MetadataGetter<{castMethodPtr}>");
             writer.WriteDefinition("const MethodInfo* get()");
-            var extractionString = method.Parameters.FormatParameters(_config.IllegalNames, _parameterMaps[method], ParameterFormatFlags.Names, true, (pm, s)
-                => $"::il2cpp_utils::ExtractIndependentType<{pm.PrintParameter(true)}>()");
-            writer.WriteDeclaration($"return ::il2cpp_utils::FindMethod(classof({_thisTypeName}), \"{method.Il2CppName}\", std::vector<Il2CppClass*>(), ::std::vector<const Il2CppType*>{{{extractionString}}})");
+            // Instead of writing ExtractIndependentType, which requires the definitions of the parameter types to be present, lets use the literal calls
+            for (int i = 0; i < _parameterMaps[method].Count; ++i)
+            {
+                var (container, modifier) = _parameterMaps[method][i];
+                // klass->this_arg - for byref types
+                // klass->byval_arg - for standard types
+
+                var classGetters = ClassFromType(container.Type, container.TypeName(false));
+                string typeAccessor = modifier != ParameterModifier.None && modifier != ParameterModifier.Params ? "this_arg" : "byval_arg";
+
+                // Then we simply use paramName for each of the items in the const Il2CppType* vector and it should find the match.
+                var paramName = method.Parameters[i].Name;
+                if (string.IsNullOrWhiteSpace(paramName))
+                    paramName = $"param_{i}";
+                while (_config.IllegalNames?.Contains(paramName) ?? false)
+                    paramName = "_" + paramName;
+                paramName = paramName.Replace('<', '$').Replace('>', '$');
+                writer.WriteDeclaration($"static auto* {paramName} = {classGetters.Single()}->{typeAccessor}");
+            }
+            var extractionString = method.Parameters.FormatParameters(_config.IllegalNames, _parameterMaps[method], ParameterFormatFlags.Names);
+
+            writer.WriteDeclaration($"return ::il2cpp_utils::FindMethod(classof({type}), \"{method.Il2CppName}\", std::vector<Il2CppClass*>(), ::std::vector<const Il2CppType*>{{{extractionString}}})");
             writer.CloseDefinition();
             writer.CloseDefinition(";");
         }
@@ -1116,29 +1213,45 @@ namespace Il2CppModdingCodegen.Serialization
                 // If the type in question is generic, we need to combine generic arguments
                 // If the method in question is generic, we need to combine generic arguments
                 // If the method in question is only generic because we made it generic, don't call MakeGenericMethod
-                writer.WriteComment($"Writing MetadataGetter for method: {_thisTypeName.TrimEnd('*')}::{cppName}");
+                var typeName = _thisTypeName == "Il2CppObject*" ? "System::Object" : _declaringFullyQualified;
+
+                writer.WriteComment($"Writing MetadataGetter for method: {typeName}::{cppName}");
                 writer.WriteComment($"Il2CppName: {method.Il2CppName}");
                 if (method.Generic)
                 {
                     writer.WriteComment("Cannot write MetadataGetter for generic methods!");
                     continue;
                 }
-                var memberPtr = $"&{_thisTypeName.TrimEnd('*')}::{cppName}";
-                var instancePtr = method.Specifiers.IsStatic() ? "*" : _thisTypeName.TrimEnd('*') + "::*";
+                if (_parameterMaps[method].Any(p => ClassFromType(p.container.Type, p.container.TypeName(false)).Count == 0))
+                {
+                    // If we have a parameter we can't write, skip this
+                    writer.WriteComment("Cannot write MetadataGetter for a method that has a nested type with a declaring generic type anywhere within it!");
+                    writer.WriteComment("Talk to sc2ad if this is something you want");
+                    continue;
+                }
+                var memberPtr = $"&{typeName}::{cppName}";
+                var instancePtr = method.Specifiers.IsStatic() ? "*" : typeName + "::*";
                 var cast = $"static_cast<{_resolvedReturns[method].TypeName(true)} ({instancePtr})({method.Parameters.FormatParameters(_config.IllegalNames, _parameterMaps[method], ParameterFormatFlags.Types, true)})>";
                 if (IsCtor(method))
                 {
                     // Constructors we need to write TWO specializations for:
                     // One where it expects ::il2cpp_utils::CreationType::Temporary
                     // And the other as manual ::il2cpp_utils::CreationType::Manual
-                    foreach (var tempParam in ctorOptions)
-                    {
-                        WriteMetadataGetter(writer, method, cast + $"({memberPtr}<{tempParam}>)");
-                    }
+
+                    writer.WriteComment("Cannot get method pointer of value based method overload from template for constructor!");
+                    writer.WriteComment("Try using FindMethod instead!");
+                    //foreach (var tempParam in ctorOptions)
+                    //{
+                    //    WriteMetadataGetter(writer, typeName + (!_declaringIsValueType ? "*" : ""), method, cast + $"({memberPtr}<{tempParam}>)");
+                    //}
+                }
+                else if (Operators.ContainsKey(method.Il2CppName))
+                {
+                    writer.WriteComment("Cannot perform method pointer template specialization from operators!");
                 }
                 else
                 {
-                    WriteMetadataGetter(writer, method, cast + $"({memberPtr})");
+                    WriteMetadataGetter(writer, typeName + (!_declaringIsValueType ? "*" : ""), method, cast + $"({memberPtr})");
                 }
             }
         }

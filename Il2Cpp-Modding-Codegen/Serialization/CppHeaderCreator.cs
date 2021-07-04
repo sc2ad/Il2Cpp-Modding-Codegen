@@ -102,6 +102,7 @@ namespace Il2CppModdingCodegen.Serialization
             }
 
             DefineIl2CppArgTypes(writer, context);
+            _serializer.WritePostSerializeMethods(writer, context, true);
             writer.Flush();
 
             writer.WriteIfDifferent(headerLocation, context);

@@ -12,18 +12,26 @@ namespace Il2CppModdingCodegen.Data
 
         // getter-only properties
         internal bool IsPointer => _typeName?.EndsWith("*") ?? throw new InvalidOperationException("typeName is null!");
+
         // Contains a class or struct
         internal bool IsClassType => _typeName.Any(char.IsUpper);
+
         internal bool HasTemplate => !string.IsNullOrEmpty(_templatedName);
         internal string ElementType => Regex.Match(_typeName, @"Array<(.*)>[^>]*").Groups[1].ToString();
 
         // other properties
         internal bool Skip { get; set; } = false;
+
         internal bool UnPointered { get; private set; } = false;
         internal bool ExpandParams { get; set; } = false;
+        internal TypeRef Type { get; }
 
         // methods
-        internal MethodTypeContainer(string? t) => _typeName = t;
+        internal MethodTypeContainer(string? t, TypeRef typ)
+        {
+            _typeName = t;
+            Type = typ;
+        }
 
         internal void Prefix(string prefix) => _typeName = prefix + _typeName;
 
@@ -55,6 +63,7 @@ namespace Il2CppModdingCodegen.Data
         [Obsolete("TypeName should be used instead!", true)]
 #pragma warning disable CS0809 // Obsolete member 'MethodTypeContainer.ToString()' overrides non-obsolete member 'object.ToString()'
         public override string ToString() => "";
+
 #pragma warning restore CS0809 // Obsolete member 'MethodTypeContainer.ToString()' overrides non-obsolete member 'object.ToString()'
     }
 }
