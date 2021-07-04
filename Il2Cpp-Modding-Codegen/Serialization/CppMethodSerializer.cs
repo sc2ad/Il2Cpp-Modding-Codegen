@@ -1111,7 +1111,7 @@ namespace Il2CppModdingCodegen.Serialization
             // If we have an element type and we are not an array, call il2cpp_functions::Class_GetPtrClass(result of element type)
             else if (type.ElementType is not null)
             {
-                return new List<string> { $"il2cpp_functions::Class_GetPtrClass({ClassFromType(type.ElementType, qualifiedName)})" };
+                return new List<string> { $"il2cpp_functions::Class_GetPtrClass({ClassFromType(type.ElementType, qualifiedName).Single()})" };
             }
 
             var (namespaze, name) = type.GetIl2CppName();
@@ -1136,7 +1136,7 @@ namespace Il2CppModdingCodegen.Serialization
                 // First check to see if the type is generic, if it is, make the generic instantiation.
                 if (type.IsGeneric)
                 {
-                    classGetter = $"::il2cpp_utils::MakeGeneric({classGetter}, ::std::vector<const Il2CppClass*>{{{string.Join(", ", type.Generics.Select(g => ClassFromType(g, g.CppName()).Single()))}}}";
+                    classGetter = $"::il2cpp_utils::MakeGeneric({classGetter}, ::std::vector<const Il2CppClass*>{{{string.Join(", ", type.Generics.Select(g => ClassFromType(g, g.CppName()).Single()))}}})";
                 }
                 return new List<string> { classGetter };
             }
@@ -1189,7 +1189,7 @@ namespace Il2CppModdingCodegen.Serialization
                 while (_config.IllegalNames?.Contains(paramName) ?? false)
                     paramName = "_" + paramName;
                 paramName = paramName.Replace('<', '$').Replace('>', '$');
-                writer.WriteDeclaration($"static auto* {paramName} = {classGetters.Single()}->{typeAccessor}");
+                writer.WriteDeclaration($"static auto* {paramName} = &{classGetters.Single()}->{typeAccessor}");
             }
             var extractionString = method.Parameters.FormatParameters(_config.IllegalNames, _parameterMaps[method], ParameterFormatFlags.Names);
 
