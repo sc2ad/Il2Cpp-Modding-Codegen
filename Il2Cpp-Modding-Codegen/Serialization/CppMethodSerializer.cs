@@ -1092,7 +1092,7 @@ namespace Il2CppModdingCodegen.Serialization
             Serialized(method);
         }
 
-        private static List<string> ClassFromType(TypeRef type, string qualifiedName)
+        private static List<string> ClassFromType(TypeRef type)
         {
             // Options:
             // il2cpp_functions::Class_GetPtrClass - for adding * after pure value types
@@ -1104,14 +1104,14 @@ namespace Il2CppModdingCodegen.Serialization
             // const Il2CppGenericInst* genInst = declaring->generic_class->context.class_inst - If declaring is generic, get instantiation
             // Use it to MakeGeneric, use result.
             // If we have an element type and we are an array, call classof(Array<T>*)
-            if (type.IsArray())
+            if (type.IsArray() && type.ElementType is not null)
             {
-                return new List<string> { $"classof(::Array<{qualifiedName}>*)" };
+                return new List<string> { $"il2cpp_functions::array_class_get({ClassFromType(type.ElementType).Single()}, 1)" };
             }
             // If we have an element type and we are not an array, call il2cpp_functions::Class_GetPtrClass(result of element type)
             else if (type.ElementType is not null)
             {
-                return new List<string> { $"il2cpp_functions::Class_GetPtrClass({ClassFromType(type.ElementType, qualifiedName).Single()})" };
+                return new List<string> { $"il2cpp_functions::Class_GetPtrClass({ClassFromType(type.ElementType).Single()})" };
             }
 
             var (namespaze, name) = type.GetIl2CppName();
@@ -1136,7 +1136,7 @@ namespace Il2CppModdingCodegen.Serialization
                 // First check to see if the type is generic, if it is, make the generic instantiation.
                 if (type.IsGeneric)
                 {
-                    classGetter = $"::il2cpp_utils::MakeGeneric({classGetter}, ::std::vector<const Il2CppClass*>{{{string.Join(", ", type.Generics.Select(g => ClassFromType(g, g.CppName()).Single()))}}})";
+                    classGetter = $"::il2cpp_utils::MakeGeneric({classGetter}, ::std::vector<const Il2CppClass*>{{{string.Join(", ", type.Generics.Select(g => ClassFromType(g).Single()))}}})";
                 }
                 return new List<string> { classGetter };
             }
@@ -1179,7 +1179,7 @@ namespace Il2CppModdingCodegen.Serialization
                 // klass->this_arg - for byref types
                 // klass->byval_arg - for standard types
 
-                var classGetters = ClassFromType(container.Type, container.TypeName(false));
+                var classGetters = ClassFromType(container.Type);
                 string typeAccessor = modifier != ParameterModifier.None && modifier != ParameterModifier.Params ? "this_arg" : "byval_arg";
 
                 // Then we simply use paramName for each of the items in the const Il2CppType* vector and it should find the match.
@@ -1222,7 +1222,7 @@ namespace Il2CppModdingCodegen.Serialization
                     writer.WriteComment("Cannot write MetadataGetter for generic methods!");
                     continue;
                 }
-                if (_parameterMaps[method].Any(p => ClassFromType(p.container.Type, p.container.TypeName(false)).Count == 0))
+                if (_parameterMaps[method].Any(p => ClassFromType(p.container.Type).Count == 0))
                 {
                     // If we have a parameter we can't write, skip this
                     writer.WriteComment("Cannot write MetadataGetter for a method that has a nested type with a declaring generic type anywhere within it!");
