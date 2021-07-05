@@ -41,20 +41,20 @@ namespace Il2CppModdingCodegen.Serialization
             _collection = collection;
         }
 
-        private void ForwardToTypeDataSerializer(CppTypeContext context, TypeRef offendingType)
-        {
-            Console.Error.WriteLine("Forwarding to CppTypeDataSerializer!");
-            // TODO: try the other way around? (doesn't work well with primitives as written)
-            // TODO: if either is a primitive, try replacing it with the C++ primitive? how did they get included in the first place?
-            //try {
-            _typeSerializers[context].DuplicateDefinition(context, offendingType);
-            //} catch {
-            //    var resolved = offendingType.Resolve(_collection);
-            //    if (resolved == null) throw new UnresolvedTypeException(context.LocalType.This, offendingType);
-            //    var offendingContext = CppDataSerializer.TypeToContext[resolved];
-            //    _typeSerializers[offendingContext].DuplicateDefinition(offendingContext, context.LocalType.This);
-            //}
-        }
+        //private void ForwardToTypeDataSerializer(CppTypeContext context, TypeRef offendingType)
+        //{
+        //    Console.Error.WriteLine("Forwarding to CppTypeDataSerializer!");
+        //    // TODO: try the other way around? (doesn't work well with primitives as written)
+        //    // TODO: if either is a primitive, try replacing it with the C++ primitive? how did they get included in the first place?
+        //    //try {
+        //    _typeSerializers[context].DuplicateDefinition(context, offendingType);
+        //    //} catch {
+        //    //    var resolved = offendingType.Resolve(_collection);
+        //    //    if (resolved == null) throw new UnresolvedTypeException(context.LocalType.This, offendingType);
+        //    //    var offendingContext = CppDataSerializer.TypeToContext[resolved];
+        //    //    _typeSerializers[offendingContext].DuplicateDefinition(offendingContext, context.LocalType.This);
+        //    //}
+        //}
 
         /// <summary>
         /// Resolves the context using the provided map.
@@ -122,7 +122,7 @@ namespace Il2CppModdingCodegen.Serialization
                 var value = map[resolved!];  // any error should have fired in previous loop
                 if (!AddIncludeDefinitions(context, defs, value, asHeader, includes))
                 {
-                    ForwardToTypeDataSerializer(context, td);
+                    //ForwardToTypeDataSerializer(context, td);
                     DuplicateDefinition?.Invoke(this, context, td);
                 }
                 // No need to inherit declarations, since our own declarations should be all the types we need?

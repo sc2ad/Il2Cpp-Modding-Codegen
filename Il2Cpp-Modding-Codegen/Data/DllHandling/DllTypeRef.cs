@@ -120,6 +120,8 @@ namespace Il2CppModdingCodegen.Data.DllHandling
                 UnNested = true;
             else if (This.DeclaringType?.Name == "OVRManager")
                 UnNested = true;
+            else if (This.DeclaringType?.Name == "BeatmapObjectExecutionRatingsRecorder")
+                UnNested = true;
 
             //if (This.DeclaringType is not null)
             //{

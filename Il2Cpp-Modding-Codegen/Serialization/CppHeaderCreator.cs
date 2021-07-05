@@ -102,6 +102,7 @@ namespace Il2CppModdingCodegen.Serialization
             }
 
             DefineIl2CppArgTypes(writer, context);
+            writer.WriteLine("#include \"extern/beatsaber-hook/shared/utils/il2cpp-utils-methods.hpp\"");
             _serializer.WritePostSerializeMethods(writer, context, true);
             writer.Flush();
 

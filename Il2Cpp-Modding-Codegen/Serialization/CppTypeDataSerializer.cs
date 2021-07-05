@@ -120,27 +120,27 @@ namespace Il2CppModdingCodegen.Serialization
             }
         }
 
-        internal void DuplicateDefinition(CppTypeContext self, TypeRef offendingType)
-        {
-            int total = 0;
-            // If we ever have a duplicate definition, this should be called.
-            // Here, we need to check to see if we failed because of a field, method, or both
-            foreach (var f in self.LocalType.InstanceFields)
-                if (f.Type.ContainsOrEquals(offendingType))
-                    // If it was ever used as an instance field, we throw (this is unsolvable)
-                    throw new InvalidOperationException($"Cannot fix duplicate definition for offending type: {offendingType}, it is used as field: {f} in: {self.LocalType.This}");
-            foreach (var m in self.LocalType.Methods)
-                // If it was simply a method, we iterate over all methods and attempt to template them
-                // However, if we cannot fix it, this function will return false, informing us that we have failed.
-                if (!MethodSerializer.FixBadDefinition(offendingType, m, out var found))
-                    throw new InvalidOperationException($"Cannot fix duplicate definition for offending type: {offendingType}, it is used in an unfixable method: {m}");
-                else
-                    total += found;
+        //internal void DuplicateDefinition(CppTypeContext self, TypeRef offendingType)
+        //{
+        //    int total = 0;
+        //    // If we ever have a duplicate definition, this should be called.
+        //    // Here, we need to check to see if we failed because of a field, method, or both
+        //    foreach (var f in self.LocalType.InstanceFields)
+        //        if (f.Type.ContainsOrEquals(offendingType))
+        //            // If it was ever used as an instance field, we throw (this is unsolvable)
+        //            throw new InvalidOperationException($"Cannot fix duplicate definition for offending type: {offendingType}, it is used as field: {f} in: {self.LocalType.This}");
+        //    //foreach (var m in self.LocalType.Methods)
+        //    //    // If it was simply a method, we iterate over all methods and attempt to template them
+        //    //    // However, if we cannot fix it, this function will return false, informing us that we have failed.
+        //    //    if (!MethodSerializer.FixBadDefinition(offendingType, m, out var found))
+        //    //        throw new InvalidOperationException($"Cannot fix duplicate definition for offending type: {offendingType}, it is used in an unfixable method: {m}");
+        //    //    else
+        //    //        total += found;
 
-            if (total <= 0)
-                throw new InvalidOperationException($"Failed to find any occurrences of offendingType {offendingType} in {self.LocalType.This}!");
-            Console.WriteLine($"CppTypeDataSerializer has successfully replaced {total} occurrences of {offendingType} in {self.LocalType.This}!");
-        }
+        //    if (total <= 0)
+        //        throw new InvalidOperationException($"Failed to find any occurrences of offendingType {offendingType} in {self.LocalType.This}!");
+        //    Console.WriteLine($"CppTypeDataSerializer has successfully replaced {total} occurrences of {offendingType} in {self.LocalType.This}!");
+        //}
 
         /// <summary>
         /// Writes the declaration for the <see cref="ITypeData"/> type.
