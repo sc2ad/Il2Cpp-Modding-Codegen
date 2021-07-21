@@ -28,7 +28,7 @@ namespace Il2CppModdingCodegen.Data.DllHandling
                         else if (f.Name == "VA") VA = val;
                     }
                 }
-            else if (attribute.AttributeType.FullName != "Il2CppDummyDll.TokenAttribute")
+            else if (attribute.AttributeType.FullName != "Il2CppInspector.Dll.TokenAttribute")
                 // Ignore TokenAttribute
                 Name = attribute.AttributeType.Name;
         }

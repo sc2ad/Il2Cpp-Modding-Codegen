@@ -121,25 +121,46 @@ namespace Il2CppModdingCodegen.Data
             var genericsDefined = new List<TypeRef>();
             // Populate genericsDefined with all TypeRefs that are used in a declaring type
             var dt = includeSelf ? this : DeclaringType;
-            var lastGenerics = !includeSelf ? Generics : null;
+            var genericsColl = new List<IReadOnlyList<TypeRef>>();
+            if (!includeSelf)
+                genericsColl.Add(Generics);
             while (dt != null)
             {
                 if (dt.IsGeneric)
                 {
                     foreach (var g in dt.Generics.Reverse())
                     {
-                        if (IsGenericInstance && g.Name.StartsWith("!") && lastGenerics != null)
+                        if (IsGenericInstance && g.Name.StartsWith('!') && genericsColl.Count > 0)
                         {
                             // If we are a generic instance, and we see that the name of our generic parameter starts with a !
-                            var idx = int.Parse(g.Name.Substring(1));
-                            genericsDefined.Insert(0, lastGenerics[idx]);
-                            // Replace g with our lastGenerics[i]
+                            var idx = int.Parse(g.Name[1..]);
+                            bool assigned = false;
+                            foreach (var genericsOptions in genericsColl)
+                            {
+                                // Find the match
+                                var match = genericsOptions[idx];
+                                if (match.Name.StartsWith('!'))
+                                {
+                                    // If we are a reference, continue through the generics collections
+                                    idx = int.Parse(match.Name[1..]);
+                                } else
+                                {
+                                    // Add the match if it isn't another reference
+                                    genericsDefined.Insert(0, match);
+                                    assigned = true;
+                                    break;
+                                }
+                            }
+                            if (!assigned)
+                            {
+                                throw new InvalidOperationException($"Could not find match for generic reference: {g.Name}!");
+                            }
                         }
                         else
                             // We want the highest level declaring type's first generic parameter (template or argument) to be first in our genericsDefined list
                             genericsDefined.Insert(0, g);
                     }
-                    lastGenerics = dt.Generics;
+                    genericsColl.Add(dt.Generics);
                 }
                 dt = dt.DeclaringType;
             }

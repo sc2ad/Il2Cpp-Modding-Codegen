@@ -1171,7 +1171,7 @@ namespace Il2CppModdingCodegen.Serialization
             // In order to properly handle overloads, we need to emit a static_cast with the correct signature type
             writer.WriteLine("template<>");
             writer.WriteDefinition($"struct ::il2cpp_utils::il2cpp_type_check::MetadataGetter<{castMethodPtr}>");
-            writer.WriteDefinition("const MethodInfo* get()");
+            writer.WriteDefinition("static const MethodInfo* get()");
             // Instead of writing ExtractIndependentType, which requires the definitions of the parameter types to be present, lets use the literal calls
             for (int i = 0; i < _parameterMaps[method].Count; ++i)
             {

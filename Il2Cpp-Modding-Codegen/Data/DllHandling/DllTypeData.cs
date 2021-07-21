@@ -51,8 +51,8 @@ namespace Il2CppModdingCodegen.Data.DllHandling
             Layout = (ITypeData.LayoutKind)(def.Attributes & TypeAttributes.LayoutMask);
             if (_config.ParseTypeFields)
             {
-                InstanceFields.AddRange(def.Fields.Where(f => !f.IsStatic).Select(f => new DllField(f)));
-                StaticFields.AddRange(def.Fields.Where(f => f.IsStatic).Select(f => new DllField(f)));
+                InstanceFields.AddRange(def.Fields.Where(f => !f.IsStatic).Select(f => new DllField(f, Info)));
+                StaticFields.AddRange(def.Fields.Where(f => f.IsStatic).Select(f => new DllField(f, Info)));
             }
             if (_config.ParseTypeProperties)
                 Properties.AddRange(def.Properties.Select(p => new DllProperty(p)));

@@ -17,7 +17,7 @@ namespace Il2CppModdingCodegen.Data.DllHandling
         public int LayoutOffset { get; } = -1;
         public object Constant { get; }
 
-        internal DllField(FieldDefinition f)
+        internal DllField(FieldDefinition f, TypeInfo info)
         {
             LayoutOffset = f.Offset;
             DeclaringType = DllTypeRef.From(f.DeclaringType);
@@ -26,10 +26,13 @@ namespace Il2CppModdingCodegen.Data.DllHandling
             Offset = -1;
             if (f.HasCustomAttributes)
                 foreach (var ca in f.CustomAttributes)
-                    if (ca.AttributeType.Name == "FieldOffsetAttribute")
+                    if (ca.AttributeType.Name == "FieldOffsetAttribute" || ca.AttributeType.Name == "StaticFieldOffsetAttribute")
                     {
                         if (ca.Fields.Count > 0)
                             Offset = Convert.ToInt32(ca.Fields.FirstOrDefault().Argument.Value as string, 16);
+                        if (info.Refness == Refness.ValueType)
+                            // Because Il2CppInspector is bad and emits 0x10 for fields on value types.
+                            Offset -= 0x10;
                     }
                     else
                     {
