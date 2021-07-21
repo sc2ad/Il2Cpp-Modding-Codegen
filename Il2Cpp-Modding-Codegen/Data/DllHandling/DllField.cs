@@ -17,7 +17,7 @@ namespace Il2CppModdingCodegen.Data.DllHandling
         public int LayoutOffset { get; } = -1;
         public object Constant { get; }
 
-        internal DllField(FieldDefinition f, TypeInfo info)
+        internal DllField(FieldDefinition f, TypeDefinition info)
         {
             LayoutOffset = f.Offset;
             DeclaringType = DllTypeRef.From(f.DeclaringType);
@@ -30,8 +30,8 @@ namespace Il2CppModdingCodegen.Data.DllHandling
                     {
                         if (ca.Fields.Count > 0)
                             Offset = Convert.ToInt32(ca.Fields.FirstOrDefault().Argument.Value as string, 16);
-                        if (info.Refness == Refness.ValueType)
-                            // Because Il2CppInspector is bad and emits 0x10 for fields on value types.
+                        if (info.IsEnum)
+                            // Because Il2CppInspector is bad and emits 0x10 for fields on enums. I seriously don't know why.
                             Offset -= 0x10;
                     }
                     else
