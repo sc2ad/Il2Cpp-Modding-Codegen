@@ -29,6 +29,7 @@ namespace Il2CppModdingCodegen.Serialization
         internal CppFieldSerializer FieldSerializer { get => _fieldSerializer ??= new CppFieldSerializer(_config); }
         private CppStaticFieldSerializer? _staticFieldSerializer;
         private CppStaticFieldSerializer StaticFieldSerializer { get => _staticFieldSerializer ??= new CppStaticFieldSerializer(_config); }
+        private readonly CppFieldSerializerInvokes _invokeFieldSerializer;
         private CppMethodSerializer? _methodSerializer;
         private CppMethodSerializer MethodSerializer { get => _methodSerializer ??= new CppMethodSerializer(_config, map); }
         private readonly SerializationConfig _config;
@@ -36,6 +37,7 @@ namespace Il2CppModdingCodegen.Serialization
         internal CppTypeDataSerializer(SerializationConfig config)
         {
             _config = config;
+            _invokeFieldSerializer = new CppFieldSerializerInvokes(_config);
         }
 
         internal void Resolve(CppTypeContext context, ITypeData type)
@@ -109,6 +111,10 @@ namespace Il2CppModdingCodegen.Serialization
                 // If the field is a static field, we want to create two methods, (get and set for the static field)
                 // and make a call to GetFieldValue and SetFieldValue for those methods
                 StaticFieldSerializer.PreSerialize(context, f);
+
+            foreach (var f in type.InstanceFields)
+                // Preserialize instance fields.
+                _invokeFieldSerializer.PreSerialize(context, f);
 
             // then the methods
             foreach (var m in type.Methods)
@@ -262,6 +268,29 @@ namespace Il2CppModdingCodegen.Serialization
         internal void WriteStaticFields(CppStreamWriter writer, ITypeData type, bool asHeader)
         {
             WriteFields(writer, type, asHeader, false);
+        }
+
+        internal void WriteInvokeFields(CppStreamWriter writer, ITypeData type, bool asHeader)
+        {
+            foreach (var f in type.InstanceFields)
+            {
+                try
+                {
+                    _invokeFieldSerializer.Serialize(writer, f, asHeader);
+                }
+                catch (UnresolvedTypeException e)
+                {
+                    if (_config.UnresolvedTypeExceptionHandling?.FieldHandling == UnresolvedTypeExceptionHandling.DisplayInFile)
+                    {
+                        writer.WriteLine("/*");
+                        writer.WriteLine(e);
+                        writer.WriteLine("*/");
+                        writer.Flush();
+                    }
+                    else if (_config.UnresolvedTypeExceptionHandling?.FieldHandling == UnresolvedTypeExceptionHandling.Elevate)
+                        throw;
+                }
+            }
         }
 
         internal void WriteSpecialCtors(CppStreamWriter writer, ITypeData type, bool isNested)

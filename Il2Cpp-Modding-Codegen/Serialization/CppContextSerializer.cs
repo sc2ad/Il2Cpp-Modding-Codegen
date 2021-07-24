@@ -477,6 +477,7 @@ namespace Il2CppModdingCodegen.Serialization
 
             // Static fields are converted to methods, so declarations are written in the header, definitions written when the body is needed.
             typeSerializer.WriteStaticFields(writer, context.LocalType, asHeader);
+            typeSerializer.WriteInvokeFields(writer, context.LocalType, asHeader);
 
             // Method declarations are written in the header, definitions written when the body is needed.
             typeSerializer.WriteMethods(writer, context.LocalType, asHeader);

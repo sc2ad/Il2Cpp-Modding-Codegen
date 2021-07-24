@@ -608,7 +608,7 @@ namespace Il2CppModdingCodegen.Serialization
                 if (banMethodIfFails && _aborted.Add(method))
                     Utils.Noop();
             }
-            else if (_declaringIsValueType && IsCtor(method) && method.Parameters.Count > 0 && method.DeclaringType == method.Parameters[0].Type)
+            else if (_declaringIsValueType && IsCtor(method) && method.Parameters.Count > 0 && method.DeclaringType.Equals(method.Parameters[0].Type))
             {
                 preRetStr = "// ABORTED: is copy constructor. " + preRetStr;
                 if (banMethodIfFails && _aborted.Add(method))
