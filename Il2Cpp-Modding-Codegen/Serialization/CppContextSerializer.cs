@@ -238,6 +238,9 @@ namespace Il2CppModdingCodegen.Serialization
                     // Special case for System.ValueType
                     if (includesWritten.Add("System/Object.hpp"))
                         writer.WriteInclude("System/Object.hpp");
+                // Always include byref because it is so small
+                if (includesWritten.Add("extern/beatsaber-hook/shared/utils/byref.hpp"))
+                    writer.WriteInclude("extern/beatsaber-hook/shared/utils/byref.hpp");
             }
 
             // I don't know why, but this seems to be what we need for type completion in templates

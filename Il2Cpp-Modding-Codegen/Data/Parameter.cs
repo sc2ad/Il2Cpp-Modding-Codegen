@@ -66,17 +66,20 @@ namespace Il2CppModdingCodegen.Data
 
     public static class ParameterExtensions
     {
-        internal static string PrintParameter(this (MethodTypeContainer container, ParameterModifier modifier) param, bool header)
+        internal static string PrintParameter(this (MethodTypeContainer container, ParameterModifier modifier) param, bool header, bool wantWrappers = false)
         {
             var s = param.container.TypeName(header);
             if (param.modifier != ParameterModifier.None && param.modifier != ParameterModifier.Params)
-                s += "&";
+                if (!wantWrappers)
+                    s += "&";
+                else
+                    s = "ByRef<" + s + ">";
             return s;
         }
 
         internal static string FormatParameters(this List<Parameter> parameters, HashSet<string>? illegalNames = null,
             List<(MethodTypeContainer, ParameterModifier)>? resolvedNames = null, ParameterFormatFlags mode = ParameterFormatFlags.Normal, bool header = false,
-            Func<(MethodTypeContainer, ParameterModifier), string, string>? nameOverride = null)
+            Func<(MethodTypeContainer, ParameterModifier), string, string>? nameOverride = null, bool wantWrappers = false)
         {
             var s = "";
             for (int i = 0; i < parameters.Count; i++)
@@ -123,7 +126,7 @@ namespace Il2CppModdingCodegen.Data
                 {
                     // Only types
                     if (resolvedNames != null)
-                        s += $"{resolvedNames[i].PrintParameter(header)}";
+                        s += $"{resolvedNames[i].PrintParameter(header, wantWrappers)}";
                     else
                         // Includes modifiers
                         s += $"{parameters[i].ToString(false)}";
@@ -132,7 +135,7 @@ namespace Il2CppModdingCodegen.Data
                 {
                     // Types and names
                     if (resolvedNames != null)
-                        s += $"{resolvedNames[i].PrintParameter(header)} {nameStr}";
+                        s += $"{resolvedNames[i].PrintParameter(header, wantWrappers)} {nameStr}";
                     else
                         // Includes modifiers
                         s += $"{parameters[i]}";

@@ -229,7 +229,8 @@ namespace Il2CppModdingCodegen.Serialization
 
             if (Operators.TryGetValue(name, out var info))
             {
-                var numParams = _parameterMaps[method].Count;
+                var map = _parameterMaps[method];
+                var numParams = map.Count;
                 name = info.Item1;
                 var flags = info.Item2;
                 if (flags == OpFlags.NeedMoreInfo)
@@ -242,17 +243,18 @@ namespace Il2CppModdingCodegen.Serialization
                 {
                     if (!container.IsPointer) container.Prefix("const ");
                 }
+
                 if (flags.HasFlag(OpFlags.ConstSelf))
-                    PrefixConstUnlessPointer(_parameterMaps[method][0].container);
+                    PrefixConstUnlessPointer(map[0].container);
                 if (!flags.HasFlag(OpFlags.NonConstOthers))
                     for (int i = 1; i < numParams; i++)
-                        PrefixConstUnlessPointer(_parameterMaps[method][i].container);
+                        PrefixConstUnlessPointer(map[i].container);
 
                 if (!flags.HasFlag(OpFlags.Constructor))
                     // fix for "overloaded '[operator]' must have at least one parameter of class or enumeration type" (pointers don't count)
                     for (int i = numParams - 1; i >= 0; i--)
                     {
-                        var container = _parameterMaps[method][i].container;
+                        var container = map[i].container;
                         if (container.IsClassType && container.UnPointer())
                             break;
                     }
@@ -261,7 +263,7 @@ namespace Il2CppModdingCodegen.Serialization
                 {
                     if (!container.IsPointer) container.Suffix("&");
                 }
-                _parameterMaps[method].ForEach(param => SuffixRefUnlessPointer(param.container));
+                map.ForEach(param => SuffixRefUnlessPointer(param.container));
                 if (flags.HasFlag(OpFlags.RefReturn))
                     SuffixRefUnlessPointer(_resolvedReturns[method]);
 
@@ -269,7 +271,7 @@ namespace Il2CppModdingCodegen.Serialization
                     Scope[method] = MethodScope.Namespace;  // namespace define operators as much as possible
                 else if (!flags.HasFlag(OpFlags.Constructor))
                 {
-                    _parameterMaps[method][0].container.Skip = true;
+                    map[0].container.Skip = true;
                     Scope[method] = MethodScope.Class;
                 }
             }
@@ -542,8 +544,9 @@ namespace Il2CppModdingCodegen.Serialization
             else
                 nameStr = overrideName;
 
+            // Don't write wrappers for operator calls
             string paramString = method.Parameters.FormatParameters(_config.IllegalNames, _parameterMaps[method],
-                ParameterFormatFlags.Names | ParameterFormatFlags.Types, header: asHeader);
+                ParameterFormatFlags.Names | ParameterFormatFlags.Types, header: asHeader, wantWrappers: !nameStr.Contains("operator"));
 
             var returnMode = GetReturnMode(retStr, nameStr);
 
@@ -589,8 +592,9 @@ namespace Il2CppModdingCodegen.Serialization
             if (returnMode == ReturnMode.CppOnlyConstructor)
                 nameStr = ConstructorName(method);
 
+            // Don't write wrappers if name contains operator
             var typeOnlyParamString = method.Parameters.FormatParameters(_config.IllegalNames, _parameterMaps[method],
-                ParameterFormatFlags.Types, header: asHeader);
+                ParameterFormatFlags.Types, header: asHeader, wantWrappers: !nameStr.Contains("operator"));
             var signature = $"{modifiers}{nameStr}({typeOnlyParamString})";
 
             if (_aborted.Contains(method) || !CanWriteMethod(method.GenericParameters.Count, method.DeclaringType, asHeader, signature))
@@ -892,7 +896,14 @@ namespace Il2CppModdingCodegen.Serialization
                 // If we are calling RunGenericMethodThrow or RunMethodThrow, we should cache the found method first.
                 // ONLY IF we are not an abstract/virtual method!
                 // If we are, we need to perform a standard RunMethodThrow call, with FindMethod from the instance.
-                var paramString = method.Parameters.FormatParameters(_config.IllegalNames, _parameterMaps[method], ParameterFormatFlags.Names, asHeader);
+                var paramString = method.Parameters.FormatParameters(_config.IllegalNames, _parameterMaps[method], ParameterFormatFlags.Names, asHeader, (pair, st) =>
+                {
+                    if (pair.Item2 != ParameterModifier.None && pair.Item2 != ParameterModifier.Params)
+                    {
+                        return "byref(" + st + ")";
+                    }
+                    return st;
+                });
                 string thisArg = (_declaringIsValueType ? "*" : "") + "this";
                 var call = $"::il2cpp_utils::{utilFunc}{innard}(";
 
@@ -1231,7 +1242,7 @@ namespace Il2CppModdingCodegen.Serialization
                 }
                 var memberPtr = $"&{typeName}::{cppName}";
                 var instancePtr = method.Specifiers.IsStatic() ? "*" : typeName + "::*";
-                var cast = $"static_cast<{_resolvedReturns[method].TypeName(true)} ({instancePtr})({method.Parameters.FormatParameters(_config.IllegalNames, _parameterMaps[method], ParameterFormatFlags.Types, true)})>";
+                var cast = $"static_cast<{_resolvedReturns[method].TypeName(true)} ({instancePtr})({method.Parameters.FormatParameters(_config.IllegalNames, _parameterMaps[method], ParameterFormatFlags.Types, true, wantWrappers: true)})>";
                 if (IsCtor(method))
                 {
                     // Constructors we need to write TWO specializations for:
