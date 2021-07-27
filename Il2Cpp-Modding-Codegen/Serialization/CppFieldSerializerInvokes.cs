@@ -91,16 +91,14 @@ namespace Il2CppModdingCodegen.Serialization
                 // TODO: Check invalid name
                 var loggerId = "___internal__logger";
                 var classId = "___internal__instance";
+                var offsetId = "___internal__field__offset";
 
                 writer.WriteDeclaration($"static auto {loggerId} = ::Logger::get()" +
                     $".WithContext(\"{field.DeclaringType.GetQualifiedCppName()}::{SafeConfigName($"_get_{field.Name}")}\")");
 
-                writer.WriteDeclaration($"static auto {classId} = {classArgs}");
-
-                var innard = $"<{resolvedType}>";
-                var call = $"il2cpp_utils::GetFieldValue{innard}(";
-                call += $"{classId}, \"{field.Name}\")";
-                writer.WriteDeclaration("return " + _config.MacroWrap(loggerId, call, true));
+                writer.WriteDeclaration($"auto {classId} = {classArgs}");
+                writer.WriteDeclaration($"static auto {offsetId} = {_config.MacroWrap(loggerId, $"il2cpp_utils::FindField({classId}, \"{field.Name}\")", false)}->offset");
+                writer.WriteDeclaration($"return *reinterpret_cast<{resolvedType}*>(reinterpret_cast<char*>(this) + {offsetId})");
                 writer.CloseDefinition();
 
                 // Write setter
@@ -111,11 +109,10 @@ namespace Il2CppModdingCodegen.Serialization
                 writer.WriteDeclaration($"static auto {loggerId} = ::Logger::get()" +
                     $".WithContext(\"{field.DeclaringType.GetQualifiedCppName()}::{SafeConfigName($"_set_{field.Name}")}\")");
 
-                writer.WriteDeclaration($"static auto {classId} = {classArgs}");
+                writer.WriteDeclaration($"auto {classId} = {classArgs}");
+                writer.WriteDeclaration($"static auto {offsetId} = {_config.MacroWrap(loggerId, $"il2cpp_utils::FindField({classId}, \"{field.Name}\")", false)}->offset");
+                writer.WriteDeclaration($"*reinterpret_cast<{resolvedType}*>(reinterpret_cast<char*>(this) + {offsetId}) = value");
 
-                call = $"il2cpp_utils::SetFieldValue(";
-                call += $"{classId}, \"{field.Name}\", value)";
-                writer.WriteDeclaration(_config.MacroWrap(loggerId, call, false));
                 writer.CloseDefinition();
             }
             writer.Flush();

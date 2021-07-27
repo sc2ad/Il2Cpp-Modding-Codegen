@@ -421,7 +421,7 @@ namespace Il2CppModdingCodegen.Serialization
                 if (context.LocalType.Layout > ITypeData.LayoutKind.Auto)
                     writer.WriteComment($"WARNING Layout: {context.LocalType.Layout} may not be correctly taken into account!");
 
-                typeSerializer.WriteInitialTypeDefinition(writer, context.LocalType, context.InPlace, context.BaseHasFields);
+                typeSerializer.WriteInitialTypeDefinition(writer, context.LocalType, context.InPlace, context.BaseHasFields && context.LocalType.Type != TypeEnum.Interface);
 
                 if (context.GetBaseSize() != -1)
                 {

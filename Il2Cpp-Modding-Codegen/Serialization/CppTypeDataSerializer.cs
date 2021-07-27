@@ -68,7 +68,8 @@ namespace Il2CppModdingCodegen.Serialization
                 // Technically, any field that has size 0 should be ignored...
                 if (type.This.Namespace == "System" && type.This.Name == "ValueType")
                     s.unsafeParents.Add("System::Object");
-                else
+                else if (type.Type != TypeEnum.Interface)
+                    // Don't inherit System.Object first if we are an interface.
                     // TODO: just use type.Parent's QualifiedTypeName instead?
                     s.unsafeParents.Add(context.GetCppName(type.Parent, true, true, CppTypeContext.NeedAs.Definition, CppTypeContext.ForceAsType.Literal));
 
