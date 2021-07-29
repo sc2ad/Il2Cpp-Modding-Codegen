@@ -122,6 +122,10 @@ namespace Il2CppModdingCodegen.Data.DllHandling
                 UnNested = true;
             else if (This.DeclaringType?.Name == "BeatmapObjectExecutionRatingsRecorder")
                 UnNested = true;
+            // gorilla tag specific unnesteds
+            else if ((This.Name == "EventData" && This.DeclaringType?.Name == "EventProvider") ||
+                     (This.Name == "ManifestEtw" && This.DeclaringType?.Name == "UnsafeNativeMethods"))
+                UnNested = true;
 
             //if (This.DeclaringType is not null)
             //{
