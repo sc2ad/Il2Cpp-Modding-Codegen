@@ -936,7 +936,20 @@ namespace Il2CppModdingCodegen.Serialization
                         mName = genMName;
                         invokeMethodName = "___generic__method";
                     }
-                    call += $"{(method.Specifiers.IsStatic() ? "static_cast<Il2CppClass*>(nullptr)" : thisArg)}, {invokeMethodName}" + (paramString.Length > 0 ? (", " + paramString) : "") + ")";
+                    string firstParam;
+                    if (method.Specifiers.IsStatic())
+                        firstParam = "static_cast<Il2CppClass*>(nullptr)";
+                    else if (_declaringIsValueType)
+                    {
+                        firstParam = thisArg;
+                    }
+                    else
+                    {
+                        // Need to write a local of this so that we can pass it in by reference to RunMethodThrow as instance.
+                        writer.WriteDeclaration($"auto ___instance_arg = {thisArg}");
+                        firstParam = "___instance_arg";
+                    }
+                    call += $"{firstParam}, {invokeMethodName}" + (paramString.Length > 0 ? (", " + paramString) : "") + ")";
                 }
                 else
                 {

@@ -234,6 +234,7 @@ namespace Il2CppModdingCodegen.Serialization
             {
                 writer.WriteDeclaration($"using declaring_type = {state.declaring}");
                 writer.WriteDeclaration($"static constexpr std::string_view NESTED_NAME = \"{state.il2cppName}\"");
+                writer.WriteDeclaration($"static constexpr bool IS_VALUE_TYPE = {(type.Info.Refness == Refness.ValueType).ToString().ToLower()}");
             }
 
             writer.Flush();
