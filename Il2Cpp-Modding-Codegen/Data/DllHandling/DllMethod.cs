@@ -50,7 +50,8 @@ namespace Il2CppModdingCodegen.Data.DllHandling
             This = m;
             // Il2CppName is the MethodDefinition Name (hopefully we don't need to convert it for il2cpp, but we might)
             Il2CppName = m.Name;
-            Name = m.Name;
+            // Fuck you parens
+            Name = m.Name.Replace('(', '_').Replace(')', '_');
             Parameters.AddRange(m.Parameters.Select(p => new Parameter(p)));
             Specifiers.AddRange(DllSpecifierHelpers.From(m));
             // This is not necessary: m.GenericParameters.Any(param => !m.DeclaringType.GenericParameters.Contains(param));

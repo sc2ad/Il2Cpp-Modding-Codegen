@@ -30,9 +30,9 @@ namespace Il2CppModdingCodegen.Data.DllHandling
                     {
                         if (ca.Fields.Count > 0)
                             Offset = Convert.ToInt32(ca.Fields.FirstOrDefault().Argument.Value as string, 16);
-                        if (info.IsEnum)
-                            // Because Il2CppInspector is bad and emits 0x10 for fields on enums. I seriously don't know why.
-                            Offset -= 0x10;
+                        //if (info.IsEnum)
+                        //    // Because Il2CppInspector is bad and emits 0x10 for fields on enums. I seriously don't know why.
+                        //    Offset -= 0x10;
                     }
                     else
                     {
