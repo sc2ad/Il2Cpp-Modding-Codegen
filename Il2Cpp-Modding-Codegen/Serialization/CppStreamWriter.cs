@@ -7,7 +7,19 @@ using System.Linq;
 namespace Il2CppModdingCodegen.Serialization
 {
     /// <summary>
-    /// A C++ valid syntax writer
+    /// A C++ valid syntax writer.
+    /// Overall todo:
+    /// - This type should have a subtype that it returns for definition opens and closes
+    /// - This type should also be harder to write invalid semantic information in (template writes would be ideal)
+    /// - Should be easier to write members on opened C++ types
+    /// - Should be easier to keep track of all known C++ members/extract references to them
+    /// - Should be easier to apply large scale changes without entire type rewrites
+    /// - Method Serializer should not exist in its current form at all
+    /// - Parsing can be rewritten to accept dlls specifically
+    /// - Handling singular members should be far easier-- we should be able to handle each method in isolation
+    /// - if we see a method that we want to skip, it should not be challenging, likewise, field ops should be easy too
+    /// Ideally setup for header only approach? includes after the fact, assuming non-generic.
+    /// Also consider using Cecil to determine type sizes since they should match.
     /// </summary>
     public class CppStreamWriter : IndentedTextWriter
     {
