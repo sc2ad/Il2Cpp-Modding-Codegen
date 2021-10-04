@@ -94,6 +94,8 @@ namespace Il2CppModdingCodegen.Serialization
         // whether the header will need il2cpp_utils functions
         internal bool NeedIl2CppUtilsFunctionsInHeader { get; private set; } = false;
 
+        internal bool NeedArrayInclude { get; private set; } = false;
+
         internal void EnableNeedIl2CppUtilsFunctionsInHeader() => NeedIl2CppUtilsFunctionsInHeader = true;
 
         // whether the header will need the include for std::initializer_list
@@ -628,9 +630,12 @@ namespace Il2CppModdingCodegen.Serialization
         {
             string? s = null;
             if (def.IsArray())
+            {
                 // We should ensure we aren't attemping to force it to something it shouldn't be, so it should still be ForceAsType.None
                 // However, for arrays, we DO need to ensure we get the definition of the element type, assuming the element type is not a value type itself.
-                s = $"Array<{GetCppName(def.ElementType, true, true, NeedAs.BestMatch)}>";
+                NeedArrayInclude = true;
+                s = $"::ArrayW<{GetCppName(def.ElementType, true, true, NeedAs.BestMatch)}>";
+            }
             else if (def.IsPointer())
                 return GetCppName(def.ElementType, true, true, NeedAsForPrimitiveEtype(needAs)) + "*";
             else if (string.IsNullOrEmpty(def.Namespace) || def.Namespace == "System")
@@ -669,7 +674,7 @@ namespace Il2CppModdingCodegen.Serialization
             }
             if (s is null)
                 return null;
-            if (s.StartsWith("Il2Cpp") || s.StartsWith("Cs") || s.StartsWith("Array<"))
+            if (s.StartsWith("Il2Cpp") || s.StartsWith("Cs"))
             {
                 bool defaultPtr = (s != "Il2CppChar");
 

@@ -17,7 +17,7 @@ namespace Il2CppModdingCodegen.Data
         internal bool IsClassType => _typeName.Any(char.IsUpper);
 
         internal bool HasTemplate => !string.IsNullOrEmpty(_templatedName);
-        internal string ElementType => Regex.Match(_typeName, @"Array<(.*)>[^>]*").Groups[1].ToString();
+        internal string ElementType => Regex.Match(_typeName, @"ArrayW<(.*)>[^>]*").Groups[1].ToString();
 
         // other properties
         internal bool Skip { get; set; } = false;
