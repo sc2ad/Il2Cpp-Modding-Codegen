@@ -29,6 +29,11 @@ namespace System::Net::NetworkInformation {
       // Field size check
       static_assert(sizeof(int) == 0x4);
     };
+    #ifdef USE_CODEGEN_FIELDS
+    public:
+    #else
+    protected:
+    #endif
     // Creating union for fields at offset: 0x0
     union {
       // public System.UInt64 Alignment
@@ -41,12 +46,19 @@ namespace System::Net::NetworkInformation {
       __InternalUnionData data;
       static_assert(sizeof(__InternalUnionData) == 0x8);
     };
+    public:
     // Creating value type constructor for type: AlignmentUnion
     constexpr AlignmentUnion(uint64_t Alignment_ = {}) noexcept : Alignment{Alignment_} {}
     // Creating interface conversion operator: operator System::ValueType
     operator System::ValueType() noexcept {
       return *reinterpret_cast<System::ValueType*>(this);
     }
+    // Get instance field reference: public System.UInt64 Alignment
+    uint64_t& dyn_Alignment();
+    // Get instance field reference: public System.Int32 Length
+    int& dyn_Length();
+    // Get instance field reference: public System.Int32 IfIndex
+    int& dyn_IfIndex();
   }; // System.Net.NetworkInformation.AlignmentUnion
   #pragma pack(pop)
   static check_size<sizeof(AlignmentUnion), 4 + sizeof(int)> __System_Net_NetworkInformation_AlignmentUnionSizeCheck;
@@ -54,3 +66,4 @@ namespace System::Net::NetworkInformation {
 }
 #include "extern/beatsaber-hook/shared/utils/il2cpp-type-check.hpp"
 DEFINE_IL2CPP_ARG_TYPE(System::Net::NetworkInformation::AlignmentUnion, "System.Net.NetworkInformation", "AlignmentUnion");
+#include "extern/beatsaber-hook/shared/utils/il2cpp-utils-methods.hpp"
