@@ -26,34 +26,6 @@ namespace Il2CppModdingCodegen.Serialization
             hasIl2CppTypeCheckInclude = true;
         }
 
-        // Outputs a DEFINE_IL2CPP_ARG_TYPE call for all root or non-generic types defined by this file
-        private void DefineIl2CppArgTypes(CppStreamWriter writer, CppTypeContext context)
-        {
-            var type = context.LocalType;
-            // DEFINE_IL2CPP_ARG_TYPE
-            var (ns, il2cppName) = type.This.GetIl2CppName();
-            // For Name and Namespace here, we DO want all the `, /, etc
-            if (!type.This.IsGeneric)
-            {
-                IncludeIl2CppTypeCheckIfNotAlready(writer);
-                string fullName = context.GetCppName(context.LocalType.This, true, true, CppTypeContext.NeedAs.Definition, CppTypeContext.ForceAsType.Literal)
-                    ?? throw new UnresolvedTypeException(context.LocalType.This, context.LocalType.This);
-                if (context.LocalType.Info.Refness == Refness.ReferenceType) fullName += "*";
-                writer.WriteLine($"DEFINE_IL2CPP_ARG_TYPE({fullName}, \"{ns}\", \"{il2cppName}\");");
-            }
-            else if (type.This.DeclaringType is null || !type.This.DeclaringType.IsGeneric)
-            {
-                IncludeIl2CppTypeCheckIfNotAlready(writer);
-                string templateName = context.GetCppName(context.LocalType.This, true, false, CppTypeContext.NeedAs.Declaration, CppTypeContext.ForceAsType.Literal)
-                    ?? throw new UnresolvedTypeException(context.LocalType.This, context.LocalType.This);
-                var structStr = context.LocalType.Info.Refness == Refness.ReferenceType ? "CLASS" : "STRUCT";
-                writer.WriteLine($"DEFINE_IL2CPP_ARG_TYPE_GENERIC_{structStr}({templateName}, \"{ns}\", \"{il2cppName}\");");
-            }
-
-            foreach (var nested in context.NestedContexts.Where(n => n.InPlace))
-                DefineIl2CppArgTypes(writer, nested);
-        }
-
         internal void Serialize(CppTypeContext context)
         {
             var data = context.LocalType;
@@ -101,7 +73,9 @@ namespace Il2CppModdingCodegen.Serialization
                 writer.WriteLine("struct is_value_type<T, typename std::enable_if_t<std::is_base_of_v<System::ValueType, T>>> : std::true_type{};");
             }
 
-            DefineIl2CppArgTypes(writer, context);
+            foreach (var nested in context.NestedContexts.Where(n => n.InPlace))
+                CppContextSerializer.DefineIl2CppArgTypes(writer, nested);
+
             writer.WriteLine("#include \"extern/beatsaber-hook/shared/utils/il2cpp-utils-methods.hpp\"");
             _serializer.WritePostSerializeMethods(writer, context, true);
             writer.Flush();
