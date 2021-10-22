@@ -1,4 +1,5 @@
 ﻿using Il2CppModdingCodegen.Config;
+using Il2CppModdingCodegen.CppSerialization;
 using Il2CppModdingCodegen.Data;
 using System;
 using System.Collections.Generic;
@@ -9,6 +10,15 @@ namespace Il2CppModdingCodegen.Serialization
 {
     public class CppDataSerializer : Serializer<IParsedData>
     {
+        private class MethodOffsetCompare : IComparer<IMethod>
+        {
+            public int Compare(IMethod x, IMethod y)
+            {
+                // We want to go in order of INCREASING offsets
+                return x.Offset - y.Offset;
+            }
+        }
+
         // This class is responsible for creating the contexts and passing them to each of the types
         // It then needs to create a header and a non-header for each class, with reasonable file structuring
         // Images, fortunately, don't have to be created at all
@@ -19,6 +29,7 @@ namespace Il2CppModdingCodegen.Serialization
         private CppContextSerializer? _contextSerializer;
         private static readonly Dictionary<ITypeData, CppTypeContext> _map = new Dictionary<ITypeData, CppTypeContext>();
         internal static IReadOnlyDictionary<ITypeData, CppTypeContext> TypeToContext { get => _map; }
+        internal static SortedList<int, IMethod> SortedMethods { get; } = new SortedList<int, IMethod>();
 
         /// <summary>
         /// This event is called after all types are PreSerialized, but BEFORE any definitions or declarations are resolved to includes.
@@ -93,6 +104,11 @@ namespace Il2CppModdingCodegen.Serialization
                 // If you need a definition of a truly nested type, you have to include the declaring type.
                 // Therefore, when we resolve include locations, we must ensure we are not a nested type before returning our include path
                 // (otherwise returning our declaring type's include path)
+                foreach (var m in t.Methods)
+                {
+                    if (m.Offset != -1)
+                        SortedMethods.Add(m.Offset, m);
+                }
             }
             // Perform any post context creation for all pairs in _map
             foreach (var pair in _map)

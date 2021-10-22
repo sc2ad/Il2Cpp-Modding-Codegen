@@ -1,4 +1,5 @@
 using Il2CppModdingCodegen.Config;
+using Il2CppModdingCodegen.CppSerialization;
 using Il2CppModdingCodegen.Data;
 using System;
 using System.Collections.Generic;
@@ -810,6 +811,17 @@ namespace Il2CppModdingCodegen.Serialization
                 writer.WriteComment(methodComment);
 
                 writer.WriteComment($"Offset: 0x{method.Offset:X}");
+                var foundIdx = CppDataSerializer.SortedMethods.Keys.IndexOf(method.Offset);
+                if (foundIdx == -1 || foundIdx >= CppDataSerializer.SortedMethods.Keys.Count - 1)
+                {
+                    writer.WriteComment("COULD NOT GUESS SIZE! END OF COLLECTION OR OFFSET NOT FOUND!");
+                }
+                else
+                {
+                    var nextOffset = CppDataSerializer.SortedMethods.Keys[foundIdx + 1];
+                    writer.WriteComment($"Guessed Size in bytes: {nextOffset - CppDataSerializer.SortedMethods.Keys[foundIdx]}");
+                }
+
                 if (method.ImplementedFrom != null)
                     writer.WriteComment("Implemented from: " + method.ImplementedFrom);
                 foreach (var bm in method.BaseMethods)

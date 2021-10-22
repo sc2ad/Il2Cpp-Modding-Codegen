@@ -1,4 +1,5 @@
 using Il2CppModdingCodegen.Config;
+using Il2CppModdingCodegen.CppSerialization;
 using Il2CppModdingCodegen.Data;
 using System;
 using System.Collections.Generic;

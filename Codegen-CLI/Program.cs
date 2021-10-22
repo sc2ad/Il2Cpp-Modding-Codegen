@@ -20,35 +20,24 @@ namespace Codegen_CLI
         {
             Console.WriteLine(DateTime.UtcNow.ToString("yyyy'-'MM'-'dd'T'HH':'mm':'ss'.'fff'Z'"));
             Console.WriteLine("Drag and drop your dump.cs file (or a partial of it of the correct format) then press enter...");
-            string path = @"C:\Users\Sc2ad\Desktop\Code\Android Modding\BeatSaber\1.16.3\DummyDll-Inspector";
+            string path = @"D:\AndroidModding\BeatSaber\1.18.1\DummyDll";
             //string path = @"C:\Users\Sc2ad\Desktop\Code\Android Modding\GorillaTag\DummyDll";
             if (!Directory.Exists(path))
                 path = Console.ReadLine().Replace("\"", string.Empty);
-            bool parseDlls = false;
             IParser parser;
-            if (Directory.Exists(path))
+            while (!Directory.Exists(path))
             {
-                var parseConfig = new DllConfig() { };
-                parser = new DllParser(parseConfig);
-                parseDlls = true;
+                Console.WriteLine("Enter a valid directory!");
+                path = Console.ReadLine().Replace("\"", string.Empty);
             }
-            else
-            {
-                var parseConfig = new DumpConfig() { };
-                parser = new DumpParser(parseConfig);
-            }
+            var parseConfig = new DllConfig() { };
+            parser = new DllParser(parseConfig);
 
             Console.WriteLine("Parsing...");
             Stopwatch watch = new();
             watch.Start();
             IParsedData parsed;
-            if (parseDlls)
-                parsed = parser.Parse(path);
-            else
-            {
-                using var stream = File.OpenRead(path);
-                parsed = parser.Parse(stream);
-            }
+            parsed = parser.Parse(path);
             watch.Stop();
             //Console.WriteLine(parsed);
             Console.WriteLine($"Parsing took: {watch.Elapsed}!");
@@ -60,7 +49,7 @@ namespace Codegen_CLI
             if (Enum.TryParse(input, true, out OutputStyle style))
                 Console.WriteLine($"Parsed style '{style}'");
 
-            var libIl2cpp = @"C:\Program Files\Unity\Hub\Editor\2019.3.15f1\Editor\Data\il2cpp\libil2cpp";
+            var libIl2cpp = @"D:\AndroidModding\il2cpp_2019_4_18f1\libil2cpp";
             if (!Directory.Exists(libIl2cpp))
             {
                 Console.WriteLine("Drag and drop your libil2cpp folder into this window then press enter:");
@@ -134,33 +123,33 @@ namespace Codegen_CLI
                 Console.WriteLine(e);
             }
 
-            Console.WriteLine("Performing JSON dump...");
-            watch.Restart();
-            var jsonOutput = Path.Combine(Environment.CurrentDirectory, "json_output");
-            Directory.CreateDirectory(jsonOutput);
-            var outp = Path.Combine(jsonOutput, "parsed.json");
-            if (File.Exists(outp))
-                File.Delete(outp);
-            var conf = new JsonSerializerOptions
-            {
-                WriteIndented = true,
-                Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping
-            };
-            var strc = new SimpleTypeRefConverter(parsed.Types);
-            conf.Converters.Add(strc);
-            conf.Converters.Add(new TypeDataConverter(parsed, strc));
-            conf.Converters.Add(new MethodConverter());
-            conf.Converters.Add(new JsonStringEnumConverter());
-            conf.Converters.Add(new FieldConverter());
-            conf.Converters.Add(new SpecifierConverter());
-            conf.Converters.Add(new PropertyConverter());
-            using (var fs = File.OpenWrite(outp))
-            {
-                JsonSerializer.SerializeAsync(fs, parsed as DllData, conf).Wait();
-            }
-            watch.Stop();
-            Console.WriteLine($"Json Dump took: {watch.Elapsed}!");
-            Console.WriteLine("============================================");
+            //Console.WriteLine("Performing JSON dump...");
+            //watch.Restart();
+            //var jsonOutput = Path.Combine(Environment.CurrentDirectory, "json_output");
+            //Directory.CreateDirectory(jsonOutput);
+            //var outp = Path.Combine(jsonOutput, "parsed.json");
+            //if (File.Exists(outp))
+            //    File.Delete(outp);
+            //var conf = new JsonSerializerOptions
+            //{
+            //    WriteIndented = true,
+            //    Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping
+            //};
+            //var strc = new SimpleTypeRefConverter(parsed.Types);
+            //conf.Converters.Add(strc);
+            //conf.Converters.Add(new TypeDataConverter(parsed, strc));
+            //conf.Converters.Add(new MethodConverter());
+            //conf.Converters.Add(new JsonStringEnumConverter());
+            //conf.Converters.Add(new FieldConverter());
+            //conf.Converters.Add(new SpecifierConverter());
+            //conf.Converters.Add(new PropertyConverter());
+            //using (var fs = File.OpenWrite(outp))
+            //{
+            //    JsonSerializer.SerializeAsync(fs, parsed as DllData, conf).Wait();
+            //}
+            //watch.Stop();
+            //Console.WriteLine($"Json Dump took: {watch.Elapsed}!");
+            //Console.WriteLine("============================================");
 
             Console.WriteLine("Serializing...");
             try

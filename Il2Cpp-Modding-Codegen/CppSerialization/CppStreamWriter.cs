@@ -29,6 +29,9 @@ namespace Il2CppModdingCodegen.CppSerialization
         {
         }
 
+        public HashSet<string> Types { get; } = new HashSet<string>();
+        public HashSet<string> Namespaces { get; }
+
         /// <summary>
         /// Write a single line comment
         /// </summary>
@@ -69,7 +72,7 @@ namespace Il2CppModdingCodegen.CppSerialization
         /// Write a definition and open a body with {
         /// </summary>
         /// <param name="defString"></param>
-        internal void WriteDefinition(string defString)
+        private void WriteDefinition(string defString)
         {
             WriteLine(defString + " {");
             Indent++;
@@ -78,15 +81,28 @@ namespace Il2CppModdingCodegen.CppSerialization
         /// <summary>
         /// Close a body with }
         /// </summary>
-        internal void CloseDefinition(string suffix = "")
+        private void CloseDefinition(string suffix = "")
         {
             Indent--;
             WriteLine("}" + suffix);
         }
 
-        public CppDefinitionWriter OpenDefinition(string def)
+        public CppNamespaceWriter OpenNamespace(string ns)
         {
-            return new CppDefinitionWriter(this, def);
+            Namespaces.Add(ns);
+            return new CppNamespaceWriter(this, ns);
+        }
+
+        public CppTypeWriter OpenType(string prefix, string type)
+        {
+            Types.Add(type);
+            return new CppTypeWriter(this, prefix, type);
+        }
+
+        public CppMethodWriter OpenMethod(string prefix, string def)
+        {
+            Methods.Add(def);
+            return new CppMethodWriter(this, prefix, def);
         }
     }
 }

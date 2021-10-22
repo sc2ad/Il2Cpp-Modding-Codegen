@@ -5,7 +5,12 @@ VisualStudioVersion = 16.0.30002.166
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Il2Cpp-Modding-Codegen", "Il2Cpp-Modding-Codegen\Il2Cpp-Modding-Codegen.csproj", "{D27DC0B1-2A9B-4C33-9CF2-A85CB855810B}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Codegen-CLI", "Codegen-CLI\Codegen-CLI.csproj", "{7F0FCB4B-C82D-4841-B3FC-095E1AAF20E1}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Codegen-CLI", "Codegen-CLI\Codegen-CLI.csproj", "{7F0FCB4B-C82D-4841-B3FC-095E1AAF20E1}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{3BA26725-CEA8-4220-B416-FF0FC8E031C9}"
+	ProjectSection(SolutionItems) = preProject
+		.editorconfig = .editorconfig
+	EndProjectSection
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
