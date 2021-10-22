@@ -9,36 +9,15 @@ namespace Il2CppModdingCodegen.CppSerialization
         /// <summary>
         /// Represents a type that wraps a method definition in C++
         /// </summary>
-        public class CppMethodWriter : IDisposable
+        public class CppMethodWriter : CppNestedDefinitionWriter
         {
-            private readonly CppStreamWriter writer;
-
-            internal CppMethodWriter(CppStreamWriter writer, string prefix, string def)
+            internal CppMethodWriter(CppStreamWriter writer, string prefix, string def) : base(writer, prefix + def)
             {
-                this.writer = writer;
-                writer.WriteDefinition(prefix + def);
             }
-
-            public void WriteComment(string comment) => writer.WriteComment(comment);
-
-            public void WriteLine(string line) => writer.WriteLine(line);
-
-            public void WriteDeclaration(string declString, string commentString = "") => writer.WriteDeclaration(declString, commentString);
 
             public void StartBody(string prefix) => writer.WriteDefinition(prefix);
 
             public void EndBody(string suffix = "") => writer.CloseDefinition(suffix);
-
-            public void Dispose()
-            {
-                Dispose(true);
-                GC.SuppressFinalize(this);
-            }
-
-            protected virtual void Dispose(bool managed)
-            {
-                writer.CloseDefinition();
-            }
         }
     }
 }

@@ -10,6 +10,7 @@ namespace Il2CppModdingCodegen.Data.DllHandling
     public class DllData : DefaultAssemblyResolver
     {
         public HashSet<TypeDefinition> Types { get; } = new HashSet<TypeDefinition>(new TypeDefinitionComparer());
+        public HashSet<MethodDefinition> Methods { get; } = new HashSet<MethodDefinition>();
         private readonly DllConfig _config;
 
         internal DllData(string dir, DllConfig config)
@@ -51,12 +52,16 @@ namespace Il2CppModdingCodegen.Data.DllHandling
                         Console.Error.WriteLine($"Skipping TypeDefinition {t}");
                     continue;
                 }
-                Types.Add(t);
                 foreach (var nested in t.NestedTypes)
                     frontier.Enqueue(nested);
                 if (!Types.Add(t))
                 {
                     Console.Error.WriteLine($"{t} already in {nameof(Types)}!");
+                }
+                foreach (var m in t.Methods)
+                {
+                    if (!Methods.Add(m))
+                        Console.Error.WriteLine($"{m} already in {nameof(Methods)}!");
                 }
             }
             // Ignore images for now.

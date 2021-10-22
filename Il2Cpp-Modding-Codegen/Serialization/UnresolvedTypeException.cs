@@ -1,11 +1,12 @@
 ﻿using Il2CppModdingCodegen.Data;
+using Mono.Cecil;
 using System;
 
 namespace Il2CppModdingCodegen.Serialization
 {
     public class UnresolvedTypeException : Exception
     {
-        internal UnresolvedTypeException(TypeRef declaringType, TypeRef typeFailed) : this($"{declaringType} could not find reference to type: {typeFailed}")
+        internal UnresolvedTypeException(TypeReference declaringType, TypeReference typeFailed) : this($"{declaringType} could not find reference to type: {typeFailed}")
         {
         }
 

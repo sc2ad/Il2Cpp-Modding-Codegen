@@ -30,7 +30,8 @@ namespace Il2CppModdingCodegen.CppSerialization
         }
 
         public HashSet<string> Types { get; } = new HashSet<string>();
-        public HashSet<string> Namespaces { get; }
+        public HashSet<string> Namespaces { get; } = new HashSet<string>();
+        public HashSet<string> Methods { get; } = new HashSet<string>();
 
         /// <summary>
         /// Write a single line comment
@@ -93,10 +94,10 @@ namespace Il2CppModdingCodegen.CppSerialization
             return new CppNamespaceWriter(this, ns);
         }
 
-        public CppTypeWriter OpenType(string prefix, string type)
+        public CppTypeWriter OpenType(string prefix, string type, string suffix = "")
         {
             Types.Add(type);
-            return new CppTypeWriter(this, prefix, type);
+            return new CppTypeWriter(this, prefix, type, suffix);
         }
 
         public CppMethodWriter OpenMethod(string prefix, string def)
