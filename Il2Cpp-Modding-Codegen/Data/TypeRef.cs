@@ -7,7 +7,7 @@ using System.Linq;
 
 namespace Il2CppModdingCodegen.Data
 {
-    public abstract class TypeRef : IEquatable<TypeRef>
+    public abstract class TypeRefakjshdfkjahsdfjk : IEquatable<TypeRefakjshdfkjahsdfjk>
     {
         private const string NoNamespace = "GlobalNamespace";
 
@@ -16,25 +16,25 @@ namespace Il2CppModdingCodegen.Data
 
         public virtual bool IsGenericParameter { get; } = false;
         public virtual bool IsCovariant { get; } = false;
-        public virtual IReadOnlyList<TypeRef> GenericParameterConstraints { get; } = new List<TypeRef>();
+        public virtual IReadOnlyList<TypeRefakjshdfkjahsdfjk> GenericParameterConstraints { get; } = new List<TypeRefakjshdfkjahsdfjk>();
 
         // True iff the type has any Generics (generic arguments/parameters). Generic parameters themselves don't count!
         internal bool IsGeneric { get => IsGenericInstance || IsGenericTemplate; }
 
         public abstract bool IsGenericInstance { get; }
         public abstract bool IsGenericTemplate { get; }
-        public abstract IReadOnlyList<TypeRef> Generics { get; }
+        public abstract IReadOnlyList<TypeRefakjshdfkjahsdfjk> Generics { get; }
 
         protected bool UnNested { get; set; } = false;
-        public TypeRef? DeclaringType { get => UnNested ? null : OriginalDeclaringType; }
-        public abstract TypeRef? OriginalDeclaringType { get; }
-        public abstract TypeRef? ElementType { get; }
+        public TypeRefakjshdfkjahsdfjk? DeclaringType { get => UnNested ? null : OriginalDeclaringType; }
+        public abstract TypeRefakjshdfkjahsdfjk? OriginalDeclaringType { get; }
+        public abstract TypeRefakjshdfkjahsdfjk? ElementType { get; }
 
         private ITypeData? _resolvedType;
 
         internal DllTypeRef AsDllTypeRef { get => this as DllTypeRef ?? throw new Exception("DumpTypeRefs in my DllTypeRefs?!"); }
 
-        public abstract TypeRef MakePointer();
+        public abstract TypeRefakjshdfkjahsdfjk MakePointer();
 
         /// <summary>
         /// Resolves the type from the given type collection
@@ -48,9 +48,9 @@ namespace Il2CppModdingCodegen.Data
             return _resolvedType;
         }
 
-        internal class GenericTypeMap : Dictionary<TypeRef, TypeRef> { };
+        internal class GenericTypeMap : Dictionary<TypeRefakjshdfkjahsdfjk, TypeRefakjshdfkjahsdfjk> { };
 
-        internal abstract TypeRef MakeGenericInstance(GenericTypeMap genericTypes);
+        internal abstract TypeRefakjshdfkjahsdfjk MakeGenericInstance(GenericTypeMap genericTypes);
 
         internal GenericTypeMap ExtractGenericMap(ITypeCollection types)
         {
@@ -115,13 +115,13 @@ namespace Il2CppModdingCodegen.Data
             return (dt.Namespace.Replace("::", "."), name);
         }
 
-        // TODO: new method/param to easily allow for getting only the new generic templates that this TypeRef brings to the table?
-        public IEnumerable<TypeRef> GetDeclaredGenerics(bool includeSelf)
+        // TODO: new method/param to easily allow for getting only the new generic templates that this TypeRefakjshdfkjahsdfjk brings to the table?
+        public IEnumerable<TypeRefakjshdfkjahsdfjk> GetDeclaredGenerics(bool includeSelf)
         {
-            var genericsDefined = new List<TypeRef>();
+            var genericsDefined = new List<TypeRefakjshdfkjahsdfjk>();
             // Populate genericsDefined with all TypeRefs that are used in a declaring type
             var dt = includeSelf ? this : DeclaringType;
-            var genericsColl = new List<IReadOnlyList<TypeRef>>();
+            var genericsColl = new List<IReadOnlyList<TypeRefakjshdfkjahsdfjk>>();
             if (!includeSelf)
                 genericsColl.Add(Generics);
             while (dt != null)
@@ -143,7 +143,8 @@ namespace Il2CppModdingCodegen.Data
                                 {
                                     // If we are a reference, continue through the generics collections
                                     idx = int.Parse(match.Name[1..]);
-                                } else
+                                }
+                                else
                                 {
                                     // Add the match if it isn't another reference
                                     genericsDefined.Insert(0, match);
@@ -170,7 +171,7 @@ namespace Il2CppModdingCodegen.Data
         }
 
         // Returns true iff pred returns true for this type or any ElementType (or DeclaringType, except on generic parameters) recursively.
-        internal bool IsOrContainsMatch(Predicate<TypeRef> pred)
+        internal bool IsOrContainsMatch(Predicate<TypeRefakjshdfkjahsdfjk> pred)
         {
             if (pred(this)) return true;
             if (ElementType != null && ElementType.IsOrContainsMatch(pred)) return true;
@@ -178,18 +179,18 @@ namespace Il2CppModdingCodegen.Data
             return false;
         }
 
-        internal bool ContainsOrEquals(TypeRef targetType) => IsOrContainsMatch(t => t.Equals(targetType));
+        internal bool ContainsOrEquals(TypeRefakjshdfkjahsdfjk targetType) => IsOrContainsMatch(t => t.Equals(targetType));
 
         /// <summary>
-        /// Returns a mapping of <see cref="TypeRef"/> to generics explicitly defined by that <see cref="TypeRef"/>
+        /// Returns a mapping of <see cref="TypeRefakjshdfkjahsdfjk"/> to generics explicitly defined by that <see cref="TypeRefakjshdfkjahsdfjk"/>
         /// </summary>
         /// <param name="includeSelf"></param>
         /// <returns></returns>
-        public Dictionary<TypeRef, List<TypeRef>> GetGenericMap(bool includeSelf)
+        public Dictionary<TypeRefakjshdfkjahsdfjk, List<TypeRefakjshdfkjahsdfjk>> GetGenericMap(bool includeSelf)
         {
             // Use fastComparers here to avoid checking DeclaringType (and to be fast)
-            var genericMap = new Dictionary<TypeRef, List<TypeRef>>(fastComparer);
-            var genericParamToDeclaring = new Dictionary<TypeRef, TypeRef>(fastComparer);
+            var genericMap = new Dictionary<TypeRefakjshdfkjahsdfjk, List<TypeRefakjshdfkjahsdfjk>>(fastComparer);
+            var genericParamToDeclaring = new Dictionary<TypeRefakjshdfkjahsdfjk, TypeRefakjshdfkjahsdfjk>(fastComparer);
             var dt = includeSelf ? this : DeclaringType;
             while (dt != null)
             {
@@ -223,15 +224,15 @@ namespace Il2CppModdingCodegen.Data
             return ret;
         }
 
-        [Obsolete("The argument should be a TypeRef!")]
+        [Obsolete("The argument should be a TypeRefakjshdfkjahsdfjk!")]
 #pragma warning disable 809  // "obsolete method extends non-obsolete mehtod object.Equals(object)
-        public override bool Equals(object? obj) => Equals(obj as TypeRef);
+        public override bool Equals(object? obj) => Equals(obj as TypeRefakjshdfkjahsdfjk);
 
 #pragma warning restore 809
 
         internal static FastTypeRefComparer fastComparer = new FastTypeRefComparer();
 
-        public bool Equals(TypeRef? other)
+        public bool Equals(TypeRefakjshdfkjahsdfjk? other)
         {
             if (other is null) return false;
             return fastComparer.Equals(this, other) &&
@@ -251,7 +252,7 @@ namespace Il2CppModdingCodegen.Data
             return hashCode;
         }
 
-        internal static bool SetsEqualOrPrint(IEnumerable<TypeRef> a, IEnumerable<TypeRef> b, bool fast = false)
+        internal static bool SetsEqualOrPrint(IEnumerable<TypeRefakjshdfkjahsdfjk> a, IEnumerable<TypeRefakjshdfkjahsdfjk> b, bool fast = false)
         {
             bool equal = (fast ? a.Intersect(b, fastComparer) : a.Intersect(b)).Count() == a.Count();
             if (!equal)
@@ -259,15 +260,15 @@ namespace Il2CppModdingCodegen.Data
                 Console.WriteLine($"Sets: {{{string.Join(", ", a)}}} == {{{string.Join(", ", b)}}}? {equal}");
                 if (fast)
                 {
-                    var aSet = new HashSet<TypeRef>(a, fastComparer);
-                    var bSet = new HashSet<TypeRef>(b, fastComparer);
+                    var aSet = new HashSet<TypeRefakjshdfkjahsdfjk>(a, fastComparer);
+                    var bSet = new HashSet<TypeRefakjshdfkjahsdfjk>(b, fastComparer);
                     Console.Error.WriteLine($"in a but not in b: {{{string.Join(", ", aSet.Except(bSet, fastComparer))}}}");
                     Console.Error.WriteLine($"in b but not in a: {{{string.Join(", ", bSet.Except(aSet, fastComparer))}}}");
                 }
                 else
                 {
-                    var aSet = new HashSet<TypeRef>(a);
-                    var bSet = new HashSet<TypeRef>(b);
+                    var aSet = new HashSet<TypeRefakjshdfkjahsdfjk>(a);
+                    var bSet = new HashSet<TypeRefakjshdfkjahsdfjk>(b);
                     Console.Error.WriteLine($"in a but not in b: {{{string.Join(", ", aSet.Except(bSet))}}}");
                     Console.Error.WriteLine($"in b but not in a: {{{string.Join(", ", bSet.Except(aSet))}}}");
                 }
@@ -275,7 +276,7 @@ namespace Il2CppModdingCodegen.Data
             return equal;
         }
 
-        internal static bool SequenceEqualOrPrint(IEnumerable<TypeRef> a, IEnumerable<TypeRef> b, bool fast = false)
+        internal static bool SequenceEqualOrPrint(IEnumerable<TypeRefakjshdfkjahsdfjk> a, IEnumerable<TypeRefakjshdfkjahsdfjk> b, bool fast = false)
         {
             bool equal = fast ? a.SequenceEqual(b, fastComparer) : (a?.SequenceEqual(b) ?? b is null);
             if (!equal)
@@ -295,7 +296,7 @@ namespace Il2CppModdingCodegen.Data
             return equal;
         }
 
-        internal static bool PrintEqual(TypeRef? a, TypeRef? b, bool fast = false)
+        internal static bool PrintEqual(TypeRefakjshdfkjahsdfjk? a, TypeRefakjshdfkjahsdfjk? b, bool fast = false)
         {
             bool equal = fast ? fastComparer.Equals(a, b) : (a?.Equals(b) ?? b is null);
             if (!equal)

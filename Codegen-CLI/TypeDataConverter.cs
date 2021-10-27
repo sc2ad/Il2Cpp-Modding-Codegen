@@ -103,7 +103,7 @@ namespace Codegen_CLI
             JsonSerializer.Serialize(writer, value.Type, options);
             writer.WritePropertyName(nameof(value.TypeDefIndex));
             JsonSerializer.Serialize(writer, value.TypeDefIndex, options);
-            writer.WriteNumber("Size", SizeTracker.GetSize(types, value));
+            writer.WriteNumber("Size", SizeTracker.GetSize(value));
             writer.WriteEndObject();
         }
     }

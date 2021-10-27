@@ -1,6 +1,4 @@
-﻿using Il2CppModdingCodegen.Data.DllHandling;
-using Il2CppModdingCodegen.Data.DumpHandling;
-using Mono.Cecil;
+﻿using Mono.Cecil;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -9,27 +7,13 @@ namespace Il2CppModdingCodegen.Data
 {
     public class Parameter
     {
-        public TypeRef Type { get; }
+        public TypeReference Type { get; }
         public string Name { get; } = "";
         public ParameterModifier Modifier { get; } = ParameterModifier.None;
 
-        internal Parameter(string innard)
-        {
-            var spl = innard.Split(' ');
-            int typeIndex = 1;
-            if (Enum.TryParse<ParameterModifier>(spl[0], true, out var modifier))
-                Modifier = modifier;
-            else
-                typeIndex = 0;
-
-            Type = new DumpTypeRef(DumpTypeRef.FromMultiple(spl, typeIndex, out int res, 1, " "));
-            if (res + 1 < spl.Length)
-                Name = spl[res + 1];
-        }
-
         internal Parameter(ParameterDefinition def)
         {
-            Type = DllTypeRef.From(def.ParameterType);
+            Type = def.ParameterType;
             Name = def.Name;
             if (def.IsIn)
                 Modifier = ParameterModifier.In;

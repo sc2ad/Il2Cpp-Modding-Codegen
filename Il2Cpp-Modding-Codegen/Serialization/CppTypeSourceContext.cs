@@ -1,4 +1,5 @@
-﻿using Il2CppModdingCodegen.Serialization.Interfaces;
+﻿using Il2CppModdingCodegen.CppSerialization;
+using Il2CppModdingCodegen.Serialization.Interfaces;
 using Mono.Cecil;
 using System;
 using System.Collections.Generic;
@@ -8,9 +9,9 @@ namespace Il2CppModdingCodegen.Serialization
 {
     public class CppTypeSourceContext : CppContext
     {
-        private readonly IEnumerable<ISerializer<TypeDefinition>> serializers;
+        private readonly IEnumerable<ISerializer<TypeDefinition, CppStreamWriter>> serializers;
 
-        public CppTypeSourceContext(TypeDefinition def, CppTypeHeaderContext header, IEnumerable<ISerializer<TypeDefinition>> serializers) : base(def)
+        public CppTypeSourceContext(TypeDefinition def, CppTypeHeaderContext header, IEnumerable<ISerializer<TypeDefinition, CppStreamWriter>> serializers) : base(def)
         {
             this.serializers = serializers;
             Header = header;

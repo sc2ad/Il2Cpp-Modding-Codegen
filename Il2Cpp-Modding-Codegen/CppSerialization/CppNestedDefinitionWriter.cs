@@ -30,6 +30,10 @@ namespace Il2CppModdingCodegen.CppSerialization
                 GC.SuppressFinalize(this);
             }
 
+            protected void WriteDefinition(string line) => writer.WriteDefinition(line);
+
+            protected void CloseDefinition(string suffix = "") => writer.CloseDefinition(suffix);
+
             protected virtual void Dispose(bool managed)
             {
                 writer.CloseDefinition(suffix);

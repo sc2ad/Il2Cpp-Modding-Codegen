@@ -8,7 +8,7 @@ using System.Linq;
 
 namespace Il2CppModdingCodegen.Serialization
 {
-    public class CppContext
+    public abstract class CppContext
     {
         [SuppressMessage("Naming", "CA1717:Only FlagsAttribute enums should have plural names", Justification = "As")]
         public enum NeedAs
@@ -24,17 +24,22 @@ namespace Il2CppModdingCodegen.Serialization
             Literal
         }
 
-        private static Dictionary<TypeDefinition, CppContext> TypesToContexts { get; } = new();
+        protected const string typedefsInclude = "#include \"beatsaber-hook/shared/utils/typedefs.h\"";
+
+        protected static Dictionary<TypeDefinition, CppContext> TypesToContexts { get; } = new();
 
         public TypeDefinition Type { get; }
 
-        public CppContext(TypeDefinition t, CppContext? declaring = null)
+        public CppContext(TypeDefinition t, CppContext? declaring = null, bool add = true)
         {
             if (t is null)
                 throw new ArgumentNullException(nameof(t));
             Type = t;
-            lock (TypesToContexts)
-                TypesToContexts.TryAdd(t, this);
+            if (add)
+            {
+                lock (TypesToContexts)
+                    TypesToContexts.TryAdd(t, this);
+            }
 
             // Add ourselves to our Definitions
             Definitions.AddOrThrow(t);
@@ -49,6 +54,24 @@ namespace Il2CppModdingCodegen.Serialization
             DeclaringContext = declaring;
             if (declaring != null)
                 declaring.AddNestedContext(t, this);
+
+            if ((Type.Name == "GameNoteType" && Type.DeclaringType?.Name == "GameNoteController") ||  // referenced by IGameNoteTypeProvider
+                (Type.Name == "MessageType" && Type.DeclaringType?.Name == "MultiplayerSessionManager") ||  // referenced by IMultiplayerSessionManager
+                (Type.Name == "Score" && Type.DeclaringType?.Name == "StandardScoreSyncState") ||  // SSSState implements IStateTable_2<SSSState::Score, int>
+                (Type.Name == "NodePose" && Type.DeclaringType?.Name == "NodePoseSyncState"))  // NPSState implements IStateTable_2<NPSState::NodePose, PoseSerializable>
+                UnNested = true;
+            else if ((Type.Name == "CombineTexturesIntoAtlasesCoroutineResult" && Type.DeclaringType?.Name == "MB3_TextureCombiner") ||
+                    (Type.Name == "BrainEvent" && Type.DeclaringType?.Name == "CinemachineBrain") ||
+                    (Type.Name == "CallbackContext" && Type.DeclaringType?.Name == "InputAction"))
+                UnNested = true;
+            else if (Type.DeclaringType?.Name == "OVRManager")
+                UnNested = true;
+            else if (Type.DeclaringType?.Name == "BeatmapObjectExecutionRatingsRecorder")
+                UnNested = true;
+            // gorilla tag specific unnesteds
+            else if ((Type.Name == "EventData" && Type.DeclaringType?.Name == "EventProvider") ||
+                     (Type.Name == "ManifestEtw" && Type.DeclaringType?.Name == "UnsafeNativeMethods"))
+                UnNested = true;
         }
 
         private void AddNestedContext(TypeDefinition t, CppContext context)
@@ -72,9 +95,7 @@ namespace Il2CppModdingCodegen.Serialization
         internal bool InPlace { get; private set; } = false;
         private bool UnNested { get; set; } = false;
 
-        internal bool NeedStdint { get; private set; } = false;
-        internal bool NeedArrayInclude { get; private set; } = false;
-        internal bool NeedPrimitivesBeforeLateHeader { get; private set; } = false;
+        public HashSet<string> ExplicitIncludes { get; } = new();
 
         protected virtual CppContext? RootContext
         {
@@ -86,20 +107,20 @@ namespace Il2CppModdingCodegen.Serialization
             }
         }
 
-        private bool HasInNestedHierarchy(TypeDefinition resolved, out CppContext context)
+        protected bool HasInNestedHierarchy(TypeDefinition resolved, out CppContext context)
         {
             if (TypesToContexts.TryGetValue(resolved, out context))
                 return HasInNestedHierarchy(context);
             return false;
         }
 
-        private bool HasInNestedHierarchy(CppContext? context)
+        protected bool HasInNestedHierarchy(CppContext? context)
         {
             while (context is not null)
             {
                 if (context == this)
                     return true;
-                context = context.DeclaringContext;
+                context = context?.DeclaringContext;
             }
             return false;
         }
@@ -133,7 +154,7 @@ namespace Il2CppModdingCodegen.Serialization
             }
         }
 
-        private void AddDefinition(TypeDefinition def)
+        protected void AddDefinition(TypeDefinition def)
         {
             // Adding a definition is simple, ensure the type is resolved and add it
             if (def is null)
@@ -165,8 +186,10 @@ namespace Il2CppModdingCodegen.Serialization
             DeclarationsToMake.AddOrThrow(def);
         }
 
-        private void AddDeclaration(TypeReference def)
+        protected void AddDeclaration(TypeReference def)
         {
+            if (def is null)
+                throw new ArgumentNullException(nameof(def));
             var resolved = def.Resolve();
             if (resolved is null)
                 throw new UnresolvedTypeException(Type, def);
@@ -230,28 +253,52 @@ namespace Il2CppModdingCodegen.Serialization
             return typeRef.Resolve();
         }
 
-        protected string CppName(TypeReference type)
+        protected static string CppName(TypeReference type)
         {
             if (type is null)
                 throw new ArgumentNullException(nameof(type));
             if (type.Name.StartsWith("!"))
                 throw new InvalidOperationException("Tried to get the name of a copied generic parameter!");
-            var name = type.Name.Replace('`', '_').Replace('<', '$').Replace('>', '$');
+            var name = type.Name.Replace('`', '_').Replace('<', '_').Replace('>', '_');
             name = Utils.SafeName(name);
-            if (UnNested)
+            // TODO: Type should actually check if the type is supposed to be nested
+            var resolved = type.Resolve();
+            if (resolved is not null)
             {
-                if (type.DeclaringType is null)
-                    throw new NullReferenceException("DeclaringType was null despite UnNested being true!");
-                var dc = type.DeclaringType;
-                var dcName = "";
-                while (dc is not null)
+                bool res;
+                CppContext ctx;
+                lock (TypesToContexts)
                 {
-                    dcName = string.IsNullOrEmpty(dcName) ? CppName(dc) : CppName(dc) + "_" + dcName;
-                    dc = dc.DeclaringType;
+                    res = TypesToContexts.TryGetValue(resolved, out ctx);
                 }
-                name = dcName + "_" + name;
+                if (ctx.UnNested)
+                {
+                    if (type.DeclaringType is null)
+                        throw new NullReferenceException("DeclaringType was null despite UnNested being true!");
+                    var dc = type.DeclaringType;
+                    var dcName = "";
+                    while (dc is not null)
+                    {
+                        dcName = string.IsNullOrEmpty(dcName) ? CppName(dc) : CppName(dc) + "_" + dcName;
+                        dc = dc.DeclaringType;
+                    }
+                    name = dcName + "_" + name;
+                }
             }
             return name;
+        }
+
+        public (string, string) GetIl2CppName()
+        {
+            var name = Type.Name;
+            var dt = Type.DeclaringType;
+            while (dt.DeclaringType != null)
+            {
+                name = dt.DeclaringType.Name + "/" + name;
+                dt = dt.DeclaringType;
+            }
+            // Namespace obtained from final declaring type
+            return (dt.Namespace.Replace("::", "."), name);
         }
 
         private const string NoNamespace = "GlobalNamespace";
@@ -299,22 +346,22 @@ namespace Il2CppModdingCodegen.Serialization
                 string? GenName(GenericParameter g) => data.IsGenericParameter ?
                             GetCppName(paramMapping![g], true, true, NeedAs.BestMatch) :
                             GetCppName(g, true, true, NeedAs.BestMatch);
-                bool isThisType = true;
+                bool isTypeType = true;
                 string declString = "";
                 while (declType is not null)
                 {
                     // Generic parameters for THIS type
                     var gens = declType.GenericParameters;
                     string declaringGenericParams = "";
-                    if (generics || !isThisType)
+                    if (generics || !isTypeType)
                     {
                         declaringGenericParams = $"<{gens.Select(g => GenName(g))}>";
                     }
 
                     var temp = CppName(declType) + declaringGenericParams;
-                    if (!isThisType)
+                    if (!isTypeType)
                         temp += "::" + declString;
-                    isThisType = false;
+                    isTypeType = false;
 
                     declString = temp;
                     if (declType.DeclaringType is null && qualified)
@@ -388,7 +435,7 @@ namespace Il2CppModdingCodegen.Serialization
             string? s = null;
             if (r.IsArray)
             {
-                NeedArrayInclude = true;
+                ExplicitIncludes.Add("#include \"beatsaber-hook/shared/utils/typedefs-array.hpp\"");
                 s = $"::ArrayW<{GetCppName(r.GetElementType(), true, true, NeedAs.BestMatch)}>";
             }
             else if (r.IsPointer || r.IsFunctionPointer)
@@ -434,7 +481,7 @@ namespace Il2CppModdingCodegen.Serialization
                 bool defaultPtr = (s != "Il2CppChar");
 
                 if (!defaultPtr || forceAs == ForceAsType.Literal)
-                    NeedPrimitivesBeforeLateHeader = true;
+                    ExplicitIncludes.Add(typedefsInclude);
                 else
                 {
                     PrimitiveDeclarations.Add("struct " + s);
@@ -445,7 +492,7 @@ namespace Il2CppModdingCodegen.Serialization
                 s = "::" + s;
             }
             else if (s.EndsWith("_t"))
-                NeedStdint = true;
+                ExplicitIncludes.Add("#include <stdint.h>");
             return s;
         }
 

@@ -1,9 +1,11 @@
 using Il2CppModdingCodegen;
 using Il2CppModdingCodegen.Config;
+using Il2CppModdingCodegen.CppSerialization;
 using Il2CppModdingCodegen.Data;
 using Il2CppModdingCodegen.Data.DllHandling;
-using Il2CppModdingCodegen.Parsers;
 using Il2CppModdingCodegen.Serialization;
+using Il2CppModdingCodegen.Serialization.Interfaces;
+using Mono.Cecil;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -24,20 +26,18 @@ namespace Codegen_CLI
             //string path = @"C:\Users\Sc2ad\Desktop\Code\Android Modding\GorillaTag\DummyDll";
             if (!Directory.Exists(path))
                 path = Console.ReadLine().Replace("\"", string.Empty);
-            IParser parser;
             while (!Directory.Exists(path))
             {
                 Console.WriteLine("Enter a valid directory!");
                 path = Console.ReadLine().Replace("\"", string.Empty);
             }
             var parseConfig = new DllConfig() { };
-            parser = new DllParser(parseConfig);
+            var parser = new DllParser(parseConfig);
 
             Console.WriteLine("Parsing...");
             Stopwatch watch = new();
             watch.Start();
-            IParsedData parsed;
-            parsed = parser.Parse(path);
+            var parsed = parser.Parse(path);
             watch.Stop();
             //Console.WriteLine(parsed);
             Console.WriteLine($"Parsing took: {watch.Elapsed}!");
@@ -46,15 +46,13 @@ namespace Codegen_CLI
             var input = "ThrowUnless";
             //var input = Console.ReadLine();
             // TODO: strip non-alphabetic characters out of input before parsing it
-            if (Enum.TryParse(input, true, out OutputStyle style))
-                Console.WriteLine($"Parsed style '{style}'");
-
-            var libIl2cpp = @"D:\AndroidModding\il2cpp_2019_4_18f1\libil2cpp";
-            if (!Directory.Exists(libIl2cpp))
+            OutputStyle style;
+            while (!Enum.TryParse(input, true, out style))
             {
-                Console.WriteLine("Drag and drop your libil2cpp folder into this window then press enter:");
-                libIl2cpp = Console.ReadLine();
+                Console.WriteLine($"Failed to parse valid {nameof(OutputStyle)} from: {input}");
+                input = Console.ReadLine();
             }
+            Console.WriteLine($"Parsed style '{style}'");
 
             Console.WriteLine("Creating serializer...");
             var config = new SerializationConfig
@@ -97,7 +95,6 @@ namespace Codegen_CLI
                 PrintSerializationProgressFrequency = 1000,
                 Id = "codegen",
                 Version = "0.2.5",
-                Libil2cpp = libIl2cpp,
             };
 
             if (config.OneSourceFile)
@@ -107,14 +104,17 @@ namespace Codegen_CLI
                     Directory.Delete(Path.Combine(config.OutputDirectory, config.OutputSourceDirectory), true);
             }
             Utils.Init(config);
+            var serializers = new List<ISerializer<TypeDefinition, CppStreamWriter>>
+            {
+            };
 
-            var serializer = new CppDataSerializer(config, parsed);
+            var serializer = new CppOverallSerializer(config, serializers);
             Console.WriteLine("Resolving types...");
             try
             {
                 watch.Restart();
                 // context unused
-                serializer.PreSerialize(null, parsed);
+                serializer.Begin(parsed);
                 watch.Stop();
                 Console.WriteLine($"Resolution Complete, took: {watch.Elapsed}!");
             }
@@ -155,7 +155,7 @@ namespace Codegen_CLI
             try
             {
                 watch.Restart();
-                serializer.Serialize(null, parsed, true);
+                serializer.Write(parsed);
                 watch.Stop();
                 Console.WriteLine($"Serialization Complete, took: {watch.Elapsed}!");
             }
