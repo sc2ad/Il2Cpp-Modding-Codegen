@@ -73,6 +73,11 @@ namespace Il2CppModdingCodegen.Config
         /// </summary>
         public OutputStyle OutputStyle { get; set; }
 
+        /// <summary>
+        /// Pointer size for ensuring valid size checks.
+        /// </summary>
+        public int PointerSize { get; set; } = 8;
+
         public string MacroWrap(string loggerId, string toWrap, bool isReturn)
         {
             if (toWrap is null) throw new ArgumentNullException(nameof(toWrap));

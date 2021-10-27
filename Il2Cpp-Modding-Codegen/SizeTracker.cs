@@ -21,7 +21,7 @@ namespace Il2CppModdingCodegen
             this.pointerSize = pointerSize;
         }
 
-        public int GetGenericInstanceSize(HashSet<TypeDefinition> types, TypeReference type, TypeDefinition td)
+        public int GetGenericInstanceSize(TypeReference type, TypeDefinition td)
         {
             // If we are a generic instance, we will compute our size right here.
             // In order to do so, we need to iterate over every field in the template type (with the correct alignment, presumably 8)
@@ -43,7 +43,7 @@ namespace Il2CppModdingCodegen
             return -1;
         }
 
-        public int GetSize(HashSet<TypeDefinition> types, TypeReference type)
+        public int GetSize(TypeReference type)
         {
             if (type is null)
                 throw new ArgumentNullException(nameof(type));
@@ -59,8 +59,8 @@ namespace Il2CppModdingCodegen
             if (td.MetadataType == MetadataType.Object || td.MetadataType == MetadataType.Class || td.MetadataType == MetadataType.String)
                 return pointerSize;
             if (type.IsGenericInstance)
-                return GetGenericInstanceSize(types, type, td);
-            return GetSize(types, td);
+                return GetGenericInstanceSize(type, td);
+            return GetSize(td);
         }
 
         private int GetPrimitiveSize(TypeDefinition type)
@@ -100,7 +100,7 @@ namespace Il2CppModdingCodegen
             return -1;
         }
 
-        public int GetSize(HashSet<TypeDefinition> types, TypeDefinition type)
+        public int GetSize(TypeDefinition type)
         {
             if (type is null)
                 throw new ArgumentNullException(nameof(type));
@@ -141,12 +141,12 @@ namespace Il2CppModdingCodegen
                     // We probably inherit a generic type, or something similar
                     return -1;
                 }
-                int parentSize = GetSize(types, pt);
+                int parentSize = GetSize(pt);
                 // Add our size to the map
                 sizeMap.Add(type, parentSize);
                 return parentSize;
             }
-            if (instanceFields.Any(f => GetSize(types, f.FieldType) == -1))
+            if (instanceFields.Any(f => GetSize(f.FieldType) == -1))
             {
                 // If we have any invalid fields, we take on a size of -1, even if we are potentially still capable of knowing our size.
                 sizeMap.Add(type, -1);
@@ -162,19 +162,19 @@ namespace Il2CppModdingCodegen
                     sizeMap.Add(type, -1);
                     return -1;
                 }
-                var pSize = GetSize(types, pt);
+                var pSize = GetSize(pt);
                 if (pSize == -1)
                 {
                     sizeMap.Add(type, -1);
                     return -1;
                 }
-                acceptZeroOffset = GetSize(types, pt) == 0;
+                acceptZeroOffset = GetSize(pt) == 0;
                 // If our parent's size is -1, we are also -1.
             }
             // If the offset is greater than 0, we trust it.
             if (last.Offset > 0)
             {
-                int fSize = GetSize(types, last.FieldType);
+                int fSize = GetSize(last.FieldType);
                 if (fSize <= 0)
                 {
                     sizeMap.Add(type, -1);
@@ -186,7 +186,7 @@ namespace Il2CppModdingCodegen
             // If we have no parent, or we have a parent of size 0, and we only have one field, then we trust offset 0
             if (acceptZeroOffset && instanceFields.Count() == 1 && last.Offset == 0)
             {
-                int fSize = GetSize(types, last.FieldType);
+                int fSize = GetSize(last.FieldType);
                 sizeMap.Add(type, fSize);
                 return fSize;
             }

@@ -1,4 +1,5 @@
-﻿using Mono.Cecil;
+﻿using Il2CppModdingCodegen.Serialization.Interfaces;
+using Mono.Cecil;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -6,62 +7,57 @@ using System.Text;
 
 namespace Il2CppModdingCodegen.Serialization
 {
-    public class CppTypeHeaderContext
+    public class CppTypeHeaderContext : CppContext
     {
-        private readonly TypeDefinition type;
-        private CppTypeHeaderContext rootContext;
-
-        private CppTypeHeaderContext RootContext
-        {
-            get
-            {
-                while (rootContext.InPlace && rootContext.DeclaringContext != null)
-                    rootContext = rootContext.DeclaringContext;
-                return rootContext;
-            }
-        }
-
-        public CppTypeHeaderContext(TypeDefinition t)
-        {
-            type = t;
-        }
-
-        internal CppTypeHeaderContext? DeclaringContext { get; private set; }
-        internal string HeaderFileName => RootContext?.HeaderFileName ?? (GetIncludeLocation() + ".hpp");
+        internal string HeaderFileName => (RootContext as CppTypeHeaderContext)?.HeaderFileName ?? (GetIncludeLocation() + ".hpp");
         internal bool UnNested { get; private set; }
-        internal bool InPlace { get; private set; }
 
         internal string TypeNamespace { get; }
         internal string TypeName { get; }
         internal string QualifiedTypeName { get; }
 
-        private const string NoNamespace = "GlobalNamespace";
+        internal int BaseSize { get; }
 
-        private string CppNamespace() => string.IsNullOrEmpty(type.Namespace) ? NoNamespace : type.Namespace.Replace(".", "::");
+        private readonly IEnumerable<ISerializer<TypeDefinition>> serializers;
 
-        private string CppName()
+        public CppTypeHeaderContext(TypeDefinition t, SizeTracker sz, IEnumerable<ISerializer<TypeDefinition>> serializers, CppTypeHeaderContext? declaring = null) : base(t, declaring)
         {
-            if (type.Name.StartsWith("!"))
-                throw new InvalidOperationException("Tried to get the name of a copied generic parameter!");
-            var name = type.Name.Replace('`', '_').Replace('<', '$').Replace('>', '$');
-            name = Utils.SafeName(name);
-            if (UnNested)
-            {
-                if (DeclaringContext == null)
-                    throw new NullReferenceException("DeclaringType was null despite UnNested being true!");
-                name = DeclaringContext.CppName() + "_" + name;
-            }
-            return name;
+            if (sz is null)
+                throw new ArgumentNullException(nameof(sz));
+            TypeNamespace = CppNamespace(t);
+            TypeName = CppName(t);
+
+            // Determine whether this type has a base type that has size or not.
+            BaseSize = sz.GetSize(t?.BaseType.Resolve()!);
+
+            // Create a hashset of all the unique interfaces implemented explicitly by this type.
+            // Necessary for avoiding base ambiguity.
+            //SetUniqueInterfaces(data);
+            // Interfaces are currently not really handled reasonably anyways.
+            // TODO: Properly handle interface operator conversions
+
+            this.serializers = serializers;
+
+            QualifiedTypeName = GetCppName(t!, true, true, NeedAs.Definition, ForceAsType.Literal)
+                ?? throw new ArgumentException($"Input type cannot be unresolvable to a valid C++ name!");
         }
 
         private string GetIncludeLocation()
         {
-            var fileName = string.Join("-", CppName().Split(Path.GetInvalidFileNameChars())).Replace('$', '-');
+            var fileName = string.Join("-", CppName(Type).Split(Path.GetInvalidFileNameChars())).Replace('$', '-');
             if (DeclaringContext != null)
-                return DeclaringContext.GetIncludeLocation() + "_" + fileName;
+                return (DeclaringContext as CppTypeHeaderContext)!.GetIncludeLocation() + "_" + fileName;
             // Splits multiple namespaces into nested directories
-            var directory = string.Join("-", string.Join("/", CppNamespace().Split(new string[] { "::" }, StringSplitOptions.RemoveEmptyEntries)).Split(Path.GetInvalidPathChars()));
+            var directory = string.Join("-", string.Join("/", CppNamespace(Type).Split(new string[] { "::" }, StringSplitOptions.RemoveEmptyEntries)).Split(Path.GetInvalidPathChars()));
             return directory + "/" + fileName;
+        }
+
+        public void Resolve()
+        {
+            foreach (var s in serializers)
+            {
+                s.Resolve(Type);
+            }
         }
     }
 }

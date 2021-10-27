@@ -1,8 +1,10 @@
-﻿using Il2CppModdingCodegen.Serialization.Interfaces;
+﻿using Il2CppModdingCodegen.CppSerialization;
+using Il2CppModdingCodegen.Serialization.Interfaces;
 using Mono.Cecil;
 using System;
 using System.Collections.Generic;
 using System.Text;
+using static Il2CppModdingCodegen.CppSerialization.CppStreamWriter;
 
 namespace Il2CppModdingCodegen.Serialization
 {
@@ -53,6 +55,14 @@ namespace Il2CppModdingCodegen.Serialization
                 {
                     s.Resolve(m);
                 }
+            }
+        }
+
+        public void Write(CppNamespaceWriter writer, TypeDefinition t, bool header = false)
+        {
+            foreach (var m in t.Methods)
+            {
+                writer.OpenMethod()
             }
         }
     }
