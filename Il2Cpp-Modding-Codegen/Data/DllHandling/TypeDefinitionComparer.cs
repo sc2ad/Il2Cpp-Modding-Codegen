@@ -9,7 +9,7 @@ namespace Il2CppModdingCodegen.Data.DllHandling
     {
         public bool Equals(TypeDefinition x, TypeDefinition y)
         {
-            return x.FullName == y.FullName;
+            return x.MetadataToken == y.MetadataToken && x.FullName == y.FullName;
         }
 
         public int GetHashCode(TypeDefinition obj)

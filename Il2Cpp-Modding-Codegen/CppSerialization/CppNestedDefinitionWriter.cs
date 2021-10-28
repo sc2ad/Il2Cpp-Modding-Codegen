@@ -4,40 +4,52 @@ using System.Text;
 
 namespace Il2CppModdingCodegen.CppSerialization
 {
-    public partial class CppStreamWriter
+    public class CppNestedDefinitionWriter : IDisposable
     {
-        public class CppNestedDefinitionWriter : IDisposable
+        protected CppStreamWriter Writer { get; }
+        private readonly string suffix;
+
+        internal CppNestedDefinitionWriter(CppStreamWriter writer, string def, string suffix = "")
         {
-            protected readonly CppStreamWriter writer;
-            private readonly string suffix;
+            Writer = writer;
+            this.suffix = suffix;
+            WriteDefinition(def);
+        }
 
-            internal CppNestedDefinitionWriter(CppStreamWriter writer, string def, string suffix = "")
-            {
-                this.writer = writer;
-                this.suffix = suffix;
-                writer.WriteDefinition(def);
-            }
+        public void WriteComment(string comment) => Writer.WriteComment(comment);
 
-            public void WriteComment(string comment) => writer.WriteComment(comment);
+        public void WriteLine(string line) => Writer.WriteLine(line);
 
-            public void WriteLine(string line) => writer.WriteLine(line);
+        public void WriteDeclaration(string declString, string commentString = "") => Writer.WriteDeclaration(declString, commentString);
 
-            public void WriteDeclaration(string declString, string commentString = "") => writer.WriteDeclaration(declString, commentString);
+        public void Dispose()
+        {
+            Dispose(true);
+            GC.SuppressFinalize(this);
+        }
 
-            public void Dispose()
-            {
-                Dispose(true);
-                GC.SuppressFinalize(this);
-            }
+        /// <summary>
+        /// Write a definition and open a body with {
+        /// </summary>
+        /// <param name="defString"></param>
+        protected void WriteDefinition(string defString)
+        {
+            Writer.WriteLine(defString + " {");
+            Writer.Indent++;
+        }
 
-            protected void WriteDefinition(string line) => writer.WriteDefinition(line);
+        /// <summary>
+        /// Close a body with }
+        /// </summary>
+        protected void CloseDefinition(string suffix = "")
+        {
+            Writer.Indent--;
+            Writer.WriteLine("}" + suffix);
+        }
 
-            protected void CloseDefinition(string suffix = "") => writer.CloseDefinition(suffix);
-
-            protected virtual void Dispose(bool managed)
-            {
-                writer.CloseDefinition(suffix);
-            }
+        protected virtual void Dispose(bool managed)
+        {
+            CloseDefinition(suffix);
         }
     }
 }

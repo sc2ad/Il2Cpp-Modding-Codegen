@@ -33,7 +33,7 @@ namespace Il2CppModdingCodegen.Serialization
 
             foreach (var ser in serializers)
             {
-                ser.Resolve(Type);
+                ser.Resolve(this, Type);
             }
         }
     }

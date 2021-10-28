@@ -19,13 +19,13 @@ namespace Il2CppModdingCodegen.CppSerialization
         public CppTypeWriter OpenType(string prefix, string def, string suffix = "")
         {
             Types.Add(def);
-            return new CppTypeWriter(writer, prefix, def, suffix);
+            return new CppTypeWriter(Writer, prefix, def, suffix);
         }
 
         public CppMethodWriter OpenMethod(string prefix, string def)
         {
             Methods.Add(def);
-            return new CppMethodWriter(writer, prefix, def);
+            return new CppMethodWriter(Writer, prefix, def);
         }
     }
 }

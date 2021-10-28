@@ -1,5 +1,7 @@
 ﻿using Il2CppModdingCodegen.Config;
 using Il2CppModdingCodegen.Data;
+using Il2CppModdingCodegen.Data.DllHandling;
+using Il2CppModdingCodegen.Serialization;
 using Mono.Cecil;
 using System;
 using System.Collections.Generic;
@@ -90,9 +92,9 @@ namespace Il2CppModdingCodegen
 
         private static readonly char[] angleBrackets = new char[] { '<', '>' };
 
-        internal static string SafeFieldName(this IField field)
+        internal static string SafeFieldName(this DllField field)
         {
-            var name = field.Name;
+            var name = field.Field.Name;
             if (name.EndsWith("k__BackingField"))
                 name = name.Split(angleBrackets, StringSplitOptions.RemoveEmptyEntries)[0];
             name = string.Join("$", name.Split(angleBrackets)).Trim('_');
@@ -104,20 +106,13 @@ namespace Il2CppModdingCodegen
             return tmp != "base" ? tmp : "_base";
         }
 
-        internal static bool HasSize(this IField field)
+        internal static bool HasSize(this DllField field)
         {
-            return field.Attributes.Find(a => a.Name.Equals("IgnoreAttribute")) is null;
+            return field.Field.CustomAttributes.FirstOrDefault(a => a.AttributeType.Name.Equals("IgnoreAttribute")) is null;
         }
 
         // Mostly for unobtrusive break lines
         internal static void Noop() { }
-
-        internal static TypeDefinition? ResolvedBaseType(this TypeDefinition self)
-        {
-            var base_type = self?.BaseType;
-            if (base_type is null) return null;
-            return base_type.Resolve();
-        }
 
         private static Dictionary<string, TypeReference> GetGenerics(this TypeReference self, TypeDefinition templateType)
         {
@@ -173,12 +168,12 @@ namespace Il2CppModdingCodegen
                 }
             }
 
-            var bType = type.ResolvedBaseType();
+            var bType = type.BaseType?.ResolveLocked();
             if (bType != null)
                 matches.UnionWith(self.FindIn(bType, type.GetGenerics(bType)));
             foreach (var @interface in type.Interfaces)
             {
-                var resolved = @interface.InterfaceType.Resolve();
+                var resolved = @interface.InterfaceType.ResolveLocked();
                 matches.UnionWith(self.FindIn(resolved, @interface.InterfaceType.GetGenerics(resolved)));
             }
             return matches;
@@ -191,7 +186,7 @@ namespace Il2CppModdingCodegen
             if (typeStr == find)
                 return type;
 
-            var def = type.Resolve();
+            var def = type.ResolveLocked();
             if (def is null) return null;
             foreach (var iface in def.Interfaces)
             {
@@ -213,7 +208,7 @@ namespace Il2CppModdingCodegen
             if (iface is null)
                 return null;
             var tName = self.Name.Substring(idxDot + 1);
-            return iface.Resolve().Methods.Where(im => im.Name == tName && self.Parameters.Count == im.Parameters.Count).Single();
+            return iface.ResolveLocked().Methods.Where(im => im.Name == tName && self.Parameters.Count == im.Parameters.Count).Single();
         }
 
         /// <summary>
@@ -230,7 +225,7 @@ namespace Il2CppModdingCodegen
             // However, this means that we need to be able to convert a special name to a base method, which means we need an extension method for it here.
             // TODO: This list should be generated once and then cached.
             var specialBaseMethods = self.DeclaringType.Methods.Select(m => m.GetSpecialNameBaseMethod(out var iface)).Where(md => md != null);
-            var matches = self.FindIn(self.DeclaringType, self.DeclaringType.GetGenerics(self.DeclaringType.Resolve()));
+            var matches = self.FindIn(self.DeclaringType, self.DeclaringType.GetGenerics(self.DeclaringType.ResolveLocked()));
             foreach (var sbm in specialBaseMethods)
                 matches.Remove(sbm!);
             return matches;

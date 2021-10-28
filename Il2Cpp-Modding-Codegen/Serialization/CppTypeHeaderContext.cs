@@ -1,4 +1,5 @@
 ﻿using Il2CppModdingCodegen.CppSerialization;
+using Il2CppModdingCodegen.Data.DllHandling;
 using Il2CppModdingCodegen.Serialization.Interfaces;
 using Mono.Cecil;
 using System;
@@ -12,13 +13,12 @@ namespace Il2CppModdingCodegen.Serialization
     public class CppTypeHeaderContext : CppContext
     {
         internal string HeaderFileName => (RootContext as CppTypeHeaderContext)?.HeaderFileName ?? (GetIncludeLocation() + ".hpp");
-        internal bool UnNested { get; private set; }
 
         internal string TypeNamespace { get; }
         internal string TypeName { get; }
         internal string QualifiedTypeName { get; }
 
-        internal int BaseSize { get; }
+        internal int BaseSize { get; private set; }
 
         // Error reporting
         /// <summary>
@@ -42,9 +42,6 @@ namespace Il2CppModdingCodegen.Serialization
                 throw new ArgumentNullException(nameof(sz));
             TypeNamespace = CppNamespace(t);
             TypeName = CppName(t);
-
-            // Determine whether this type has a base type that has size or not.
-            BaseSize = sz.GetSize(t?.BaseType.Resolve()!);
 
             // Create a hashset of all the unique interfaces implemented explicitly by this type.
             // Necessary for avoiding base ambiguity.
@@ -101,8 +98,8 @@ namespace Il2CppModdingCodegen.Serialization
             }
 
             // Combine usages here across nested contexts here
-            var defs = DefinitionsToGet.Where(t => !Definitions.Contains(t));
-            foreach (var td in defs)
+            var defsToGet = DefinitionsToGet.Where(t => !Definitions.Contains(t));
+            foreach (var td in defsToGet)
             {
                 Resolve(resolved);
             }
@@ -110,7 +107,16 @@ namespace Il2CppModdingCodegen.Serialization
             {
                 if (Definitions.Contains(td))
                     continue;
-                AddIncludeDefinitions((TypesToContexts[td] as CppTypeHeaderContext)!, Definitions, Includes);
+                CppTypeHeaderContext ctx;
+                lock (TypesToContexts)
+                {
+                    ctx = (TypesToContexts[td] as CppTypeHeaderContext)!;
+                }
+                var defs = new HashSet<TypeDefinition>(Definitions);
+                var incls = new HashSet<CppTypeHeaderContext>(Includes);
+                AddIncludeDefinitions(ctx, defs, incls);
+                Definitions.UnionWith(defs);
+                Includes.UnionWith(incls);
             }
             DeclarationsToMake.Remove(Type);
             foreach (var td in DeclarationsToMake)
@@ -134,7 +140,7 @@ namespace Il2CppModdingCodegen.Serialization
         private bool AddIncludeDefinitions(CppTypeHeaderContext context, HashSet<TypeDefinition> defs, HashSet<CppTypeHeaderContext> includes)
         {
             bool allGood = true;
-            foreach (var d in context.Definitions)
+            foreach (var d in new HashSet<TypeDefinition>(context.Definitions))
             {
                 if (d == Type)
                 {
@@ -192,10 +198,6 @@ namespace Il2CppModdingCodegen.Serialization
                 if (includesWritten.Add("System/Object.hpp"))
                     writer.WriteInclude("System/Object.hpp");
             }
-            if (includesWritten.Add("beatsaber-hook/shared/utils/byref.hpp"))
-            {
-                writer.WriteInclude("beatsaber-hook/shared/utils/byref.hpp");
-            }
             writer.WriteComment("Including types");
             foreach (var include in Includes)
             {
@@ -220,16 +222,9 @@ namespace Il2CppModdingCodegen.Serialization
             writer.WriteComment("Completed includes");
         }
 
-        private static string GetTemplateLine(TypeDefinition t)
-        {
-            if (!t.HasGenericParameters)
-                return "";
-            return $"template<{string.Join(", ", t.GenericParameters.Select(g => "typename " + g.Name))}>";
-        }
-
         private static void WriteForwardDeclaration(CppNamespaceWriter writer, TypeDefinition t)
         {
-            var genStr = GetTemplateLine(t);
+            var genStr = t.GetTemplateLine();
             var comment = $"Forward declaring type: {t.Name}";
             if (!string.IsNullOrEmpty(genStr))
             {
@@ -250,7 +245,8 @@ namespace Il2CppModdingCodegen.Serialization
             // TODO: Includes should apply to our list of definitions such that we don't FD something we have included
             // OR nested included, which would save quite a few lines.
             var res = ForwardDeclares.Where(kvp => kvp.Value.Except(Definitions).Any());
-            writer.WriteComment("Begin forward declares");
+            if (res.Any())
+                writer.WriteComment("Begin forward declares");
             foreach (var ns in res)
             {
                 writer.WriteComment($"Forward declaring namespace: {ns.Key}");

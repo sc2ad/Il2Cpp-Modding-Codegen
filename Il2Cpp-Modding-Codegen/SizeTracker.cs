@@ -1,4 +1,5 @@
 ﻿using Il2CppModdingCodegen.Data;
+using Il2CppModdingCodegen.Data.DllHandling;
 using Il2CppModdingCodegen.Serialization;
 using Mono.Cecil;
 using System;
@@ -53,7 +54,7 @@ namespace Il2CppModdingCodegen
                 // Can't compute size of a generic parameter
                 // TODO: Probably could, if it has constraints, or we just assume it's a reference type/boxed value type
                 return -1;
-            var td = type.Resolve();
+            var td = type.ResolveLocked();
             if (td is null)
                 throw new InvalidOperationException("Cannot get size of something that cannot be resolved!");
             if (td.MetadataType == MetadataType.Object || td.MetadataType == MetadataType.Class || td.MetadataType == MetadataType.String)
@@ -124,7 +125,7 @@ namespace Il2CppModdingCodegen
             var instanceFields = type.Fields.Where(f => !f.IsStatic);
             var last = instanceFields.LastOrDefault();
             bool acceptZeroOffset = type.BaseType is null;
-            var pt = type.BaseType?.Resolve();
+            var pt = type.BaseType?.ResolveLocked();
 
             if (last is null)
             {

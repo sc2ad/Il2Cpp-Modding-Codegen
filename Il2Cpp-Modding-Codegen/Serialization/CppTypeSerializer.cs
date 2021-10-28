@@ -5,17 +5,14 @@ using Mono.Cecil;
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Text;
-using static Il2CppModdingCodegen.CppSerialization.CppStreamWriter;
 
 namespace Il2CppModdingCodegen.Serialization
 {
-    internal class CppTypeSerializer : ISerializer<TypeDefinition, CppStreamWriter>
+    public class CppTypeSerializer : ISerializer<TypeDefinition, CppStreamWriter>
     {
         private readonly IEnumerable<ISerializer<DllField, CppTypeWriter>> fieldSerializers;
         private readonly IEnumerable<ISerializer<DllMethod, CppTypeWriter>> methodSerializers;
-        private readonly IEnumerable<ISerializer<InterfaceImplementation, CppStreamWriter>> earlyInterfaces;
-        private readonly IEnumerable<ISerializer<InterfaceImplementation, CppTypeWriter>> lateInterfaces;
+        private readonly IEnumerable<ISerializer<InterfaceImplementation, CppTypeWriter>> interfaceSerializers;
         private readonly IEnumerable<ISerializer<TypeDefinition, CppTypeWriter>> nestedSerializers;
 
         private readonly Dictionary<TypeDefinition, State> typeParentMap = new();
@@ -38,21 +35,23 @@ namespace Il2CppModdingCodegen.Serialization
 
         public CppTypeSerializer(IEnumerable<ISerializer<DllField, CppTypeWriter>> fs,
             IEnumerable<ISerializer<DllMethod, CppTypeWriter>> ms,
-            IEnumerable<ISerializer<InterfaceImplementation, CppStreamWriter>> @is,
-            IEnumerable<ISerializer<InterfaceImplementation, CppTypeWriter>> interfacesLate,
+            IEnumerable<ISerializer<InterfaceImplementation, CppTypeWriter>> @is,
             IEnumerable<ISerializer<TypeDefinition, CppTypeWriter>> ns)
         {
             fieldSerializers = fs;
             methodSerializers = ms;
-            earlyInterfaces = @is;
-            lateInterfaces = interfacesLate;
+            interfaceSerializers = @is;
             nestedSerializers = ns;
         }
 
         public void Resolve(CppContext context, TypeDefinition t)
         {
+            if (t is null)
+                throw new ArgumentNullException(nameof(t));
+            if (context is null)
+                throw new ArgumentNullException(nameof(context));
             var parentName = "System::Object";
-            if (t.Namespace != "System" || t.Name != "ValueType")
+            if ((t.Namespace != "System" || t.Name != "ValueType") && t.BaseType is not null)
                 parentName = context.GetCppName(t.BaseType, true, true, CppContext.NeedAs.Definition, CppContext.ForceAsType.Literal)!;
             List<string> lst;
             string declaring;
@@ -75,15 +74,14 @@ namespace Il2CppModdingCodegen.Serialization
                 declaring = "";
             }
             State state = new(lst, declaring, context.GetCppName(t, false, false, CppContext.NeedAs.Definition, CppContext.ForceAsType.Literal)!, t.Name);
-            typeParentMap.Add(t, state);
+            lock (typeParentMap)
+            {
+                typeParentMap.Add(t, state);
+            }
 
             foreach (var i in t.Interfaces)
             {
-                foreach (var s in earlyInterfaces)
-                {
-                    s.Resolve(context, i);
-                }
-                foreach (var s in lateInterfaces)
+                foreach (var s in interfaceSerializers)
                 {
                     s.Resolve(context, i);
                 }
@@ -129,7 +127,7 @@ namespace Il2CppModdingCodegen.Serialization
                     nsw.WriteComment($"[{loc.Name}] Offset: {loc.Offset}");
                 }
             }
-            nsw.WriteComment($"Token: {token}");
+            nsw.WriteComment($"Token: 0x{token:X}");
             // Get the state
             if (!typeParentMap.TryGetValue(t, out var st))
                 throw new InvalidOperationException("Cannot get parent name because it hasn't been resolved!");
@@ -138,15 +136,40 @@ namespace Il2CppModdingCodegen.Serialization
             string suffix = "";
             if (t.BaseType is not null)
             {
-                suffix = string.Join("public ", st.parentNames.Where(s => !string.IsNullOrEmpty(s)));
+                suffix = ": " + string.Join("public ", st.parentNames.Where(s => !string.IsNullOrEmpty(s)));
             }
             // TODO: Write generic template here, along with correct nested name if UnNested = true, etc, etc.
-            using var typeWriter = nsw.OpenType("struct ", st.type, suffix);
+            if (t.HasGenericParameters)
+            {
+                writer.WriteTemplate(t.GetTemplateLine());
+            }
+            // We have to check for UnNested here, since UnNested may have been changed prior
+            var tName = st.type;
+            bool inPlace;
+            lock (CppContext.TypesToContexts)
+            {
+                inPlace = CppContext.TypesToContexts[t].InPlace;
+            }
+            if (inPlace)
+            {
+                int idx = tName.LastIndexOf("::");
+                if (idx >= 0)
+                    tName = tName[(idx + 2)..];
+            }
+            using var typeWriter = nsw.OpenType("struct", st.type, suffix);
+
+            if (!string.IsNullOrEmpty(st.declaring))
+            {
+                typeWriter.WriteDeclaration($"using declaring_type = {st.declaring}");
+                typeWriter.WriteDeclaration($"static constexpr std::string_view NESTED_NAME = \"{st.il2cppName}\"");
+                typeWriter.WriteDeclaration($"static constexpr bool IS_VALUE_TYPE = {(t.IsValueType || t.IsEnum).ToString().ToLower()}");
+            }
+
             foreach (var i in t.Interfaces)
             {
-                foreach (var s in earlyInterfaces)
+                foreach (var s in interfaceSerializers)
                 {
-                    s.Write(writer, i);
+                    s.Write(typeWriter, i);
                 }
             }
             foreach (var n in t.NestedTypes)

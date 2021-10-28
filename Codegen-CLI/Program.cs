@@ -106,6 +106,14 @@ namespace Codegen_CLI
             Utils.Init(config);
             var serializers = new List<ISerializer<TypeDefinition, CppStreamWriter>>
             {
+                new CppTypeSerializer(
+                    new List<ISerializer<DllField, CppTypeWriter>> {
+                    },
+                    new List<ISerializer<DllMethod, CppTypeWriter>> {
+                    },
+                    new List<ISerializer<InterfaceImplementation, CppTypeWriter>> {
+                    },
+                    new List<ISerializer<TypeDefinition, CppTypeWriter>> { })
             };
 
             var serializer = new CppOverallSerializer(config, serializers);

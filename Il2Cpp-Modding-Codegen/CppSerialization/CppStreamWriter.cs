@@ -69,25 +69,6 @@ namespace Il2CppModdingCodegen.CppSerialization
         // Perhaps also check generics for generic definitions, map to generic args
         // Perhaps also check to make sure all identifiers are validly mapped/exist
 
-        /// <summary>
-        /// Write a definition and open a body with {
-        /// </summary>
-        /// <param name="defString"></param>
-        private void WriteDefinition(string defString)
-        {
-            WriteLine(defString + " {");
-            Indent++;
-        }
-
-        /// <summary>
-        /// Close a body with }
-        /// </summary>
-        private void CloseDefinition(string suffix = "")
-        {
-            Indent--;
-            WriteLine("}" + suffix);
-        }
-
         public CppNamespaceWriter OpenNamespace(string ns)
         {
             Namespaces.Add(ns);

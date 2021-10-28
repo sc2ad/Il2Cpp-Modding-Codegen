@@ -1,4 +1,5 @@
-﻿using Mono.Cecil;
+﻿using Il2CppModdingCodegen.Data.DllHandling;
+using Mono.Cecil;
 using Mono.Collections.Generic;
 using System;
 using System.Collections.Concurrent;
@@ -28,7 +29,7 @@ namespace Il2CppModdingCodegen.Serialization
 
         protected const string typedefsInclude = "#include \"beatsaber-hook/shared/utils/typedefs.h\"";
 
-        internal static Dictionary<TypeDefinition, CppContext> TypesToContexts { get; } = new();
+        internal static Dictionary<TypeDefinition, CppContext> TypesToContexts { get; } = new(new TypeDefinitionComparer());
 
         public TypeDefinition Type { get; }
 
@@ -42,6 +43,7 @@ namespace Il2CppModdingCodegen.Serialization
                 lock (TypesToContexts)
                     TypesToContexts.TryAdd(t, this);
             }
+            rootContext = declaring;
 
             // Add ourselves to our Definitions
             Definitions.AddOrThrow(t);
@@ -95,7 +97,7 @@ namespace Il2CppModdingCodegen.Serialization
         private CppContext? rootContext;
         internal CppContext? DeclaringContext { get; private set; }
         internal bool InPlace { get; private set; } = false;
-        private bool UnNested { get; set; } = false;
+        public bool UnNested { get; set; } = false;
 
         public HashSet<string> ExplicitIncludes { get; } = new();
 
@@ -111,7 +113,12 @@ namespace Il2CppModdingCodegen.Serialization
 
         protected bool HasInNestedHierarchy(TypeDefinition resolved, out CppContext context)
         {
-            if (TypesToContexts.TryGetValue(resolved, out context))
+            bool res;
+            lock (TypesToContexts)
+            {
+                res = TypesToContexts.TryGetValue(resolved, out context);
+            }
+            if (res)
                 return HasInNestedHierarchy(context);
             return false;
         }
@@ -135,7 +142,7 @@ namespace Il2CppModdingCodegen.Serialization
         {
             // If the type we want is a type that is nested within ourselves, our declaring context... till RootContext
             // Then we set InPlace to true.
-            var rc = RootContext;
+            var rc = RootContext ?? this;
             while (defContext != rc)
             {
                 if (!defContext.InPlace)
@@ -192,7 +199,7 @@ namespace Il2CppModdingCodegen.Serialization
         {
             if (def is null)
                 throw new ArgumentNullException(nameof(def));
-            var resolved = def.Resolve();
+            var resolved = def.ResolveLocked();
             if (resolved is null)
                 throw new UnresolvedTypeException(Type, def);
 
@@ -232,7 +239,7 @@ namespace Il2CppModdingCodegen.Serialization
                     break;
 
                 case NeedAs.BestMatch:
-                    var resolved = typeRef.Resolve();
+                    var resolved = typeRef.ResolveLocked();
                     if (forceAs != ForceAsType.Literal && (typeRef.IsPointer || !(resolved.IsValueType || resolved.IsEnum)))
                         AddDeclaration(typeRef);
                     else
@@ -242,7 +249,7 @@ namespace Il2CppModdingCodegen.Serialization
                 case NeedAs.Definition:
                 default:
                     // If I need it as a definition, add it as one
-                    AddDefinition(typeRef.Resolve());
+                    AddDefinition(typeRef.ResolveLocked());
                     break;
             }
 
@@ -252,7 +259,7 @@ namespace Il2CppModdingCodegen.Serialization
                     // Only need them as declarations, since we don't need the literal pointers.
                     ResolveAndStore(g, forceAs, NeedAs.Declaration);
 
-            return typeRef.Resolve();
+            return typeRef.ResolveLocked();
         }
 
         internal static string CppName(TypeReference type)
@@ -264,7 +271,7 @@ namespace Il2CppModdingCodegen.Serialization
             var name = type.Name.Replace('`', '_').Replace('<', '_').Replace('>', '_');
             name = Utils.SafeName(name);
             // TODO: Type should actually check if the type is supposed to be nested
-            var resolved = type.Resolve();
+            var resolved = type.ResolveLocked();
             if (resolved is not null)
             {
                 bool res;
@@ -273,7 +280,12 @@ namespace Il2CppModdingCodegen.Serialization
                 {
                     res = TypesToContexts.TryGetValue(resolved, out ctx);
                 }
-                if (ctx.UnNested)
+                if (!res)
+                {
+                    // No context exists for this type (yet?)
+                    var tst = TypesToContexts.Keys.FirstOrDefault(t => t.FullName == resolved.FullName);
+                }
+                if (res && ctx.UnNested)
                 {
                     if (type.DeclaringType is null)
                         throw new NullReferenceException("DeclaringType was null despite UnNested being true!");
@@ -399,7 +411,7 @@ namespace Il2CppModdingCodegen.Serialization
         /// Gets the C++ fully qualified name for the TypeRef.
         /// </summary>
         /// <returns>Null if the type has not been resolved (and is not a generic parameter or primitive)</returns>
-        public string? GetCppName(TypeReference data, bool qualified, bool generics = true, NeedAs needAs = NeedAs.BestMatch, ForceAsType forceAsType = ForceAsType.None)
+        public string GetCppName(TypeReference data, bool qualified, bool generics = true, NeedAs needAs = NeedAs.BestMatch, ForceAsType forceAsType = ForceAsType.None)
         {
             if (data is null)
                 throw new ArgumentNullException(nameof(data));
@@ -422,7 +434,7 @@ namespace Il2CppModdingCodegen.Serialization
             // Ensure the name has no bad characters
             // Append pointer as necessary
             if (resolved is null)
-                return null;
+                throw new InvalidOperationException("Resolved type is null!");
             if (forceAsType == ForceAsType.Literal)
                 return name;
             if ((resolved.DeclaringType?.IsGenericInstance ?? false) || (resolved.DeclaringType?.HasGenericParameters ?? false))  // note: it's important that ForceAsType.Literal is ruled out first

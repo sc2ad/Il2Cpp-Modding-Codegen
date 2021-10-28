@@ -55,6 +55,10 @@ namespace Il2CppModdingCodegen.Serialization
                     // Create a Cpp context around this type
                     var header = new CppTypeHeaderContext(t, sz, serializers, null);
                     headerContexts.TryAdd(t, header);
+                    foreach (var nt in t.NestedTypes)
+                    {
+                        _ = new CppTypeHeaderContext(nt, sz, serializers, header);
+                    }
                     // Create a writer for the header
                     // Conditionally add the context to the particular src, which might be ONE src, or MANY srcs.
                     // If we are in ONE src, have ONE writer for it, with ONE parent src context that serves as a a holder for all includes
