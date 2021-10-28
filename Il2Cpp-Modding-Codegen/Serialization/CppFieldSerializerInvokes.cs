@@ -1,96 +1,96 @@
-﻿using Il2CppModdingCodegen.Config;
-using Il2CppModdingCodegen.CppSerialization;
-using Il2CppModdingCodegen.Data;
-using System;
-using System.Collections.Generic;
+﻿//using Il2CppModdingCodegen.Config;
+//using Il2CppModdingCodegen.CppSerialization;
+//using Il2CppModdingCodegen.Data;
+//using System;
+//using System.Collections.Generic;
 
-namespace Il2CppModdingCodegen.Serialization
-{
-    public class CppFieldSerializerInvokes : Serializer<IField>
-    {
-        private string? _declaringFullyQualified;
-        private readonly Dictionary<IField, string?> _resolvedTypes = new();
-        private bool _asHeader;
-        private readonly SerializationConfig _config;
-        private Refness _refness;
+//namespace Il2CppModdingCodegen.Serialization
+//{
+//    public class CppFieldSerializerInvokes : Serializer<IField>
+//    {
+//        private string? _declaringFullyQualified;
+//        private readonly Dictionary<IField, string?> _resolvedTypes = new();
+//        private bool _asHeader;
+//        private readonly SerializationConfig _config;
+//        private Refness _refness;
 
-        internal CppFieldSerializerInvokes(SerializationConfig config)
-        {
-            _config = config;
-        }
+//        internal CppFieldSerializerInvokes(SerializationConfig config)
+//        {
+//            _config = config;
+//        }
 
-        public override void PreSerialize(CppTypeContext context, IField field)
-        {
-            if (context is null) throw new ArgumentNullException(nameof(context));
-            if (field is null) throw new ArgumentNullException(nameof(field));
-            _refness = context.LocalType.Info.Refness;
-            _declaringFullyQualified = context.QualifiedTypeName.TrimStart(':');
-            var resolvedName = context.GetCppName(field.Type, true);
-            _resolvedTypes.Add(field, resolvedName);
-            if (resolvedName != null)
-            {
-                // Add static field to forward declares, since it is used by the static _get and _set methods
-                Resolved(field);
-            }
-        }
+//        public override void PreSerialize(CppTypeContext context, IField field)
+//        {
+//            if (context is null) throw new ArgumentNullException(nameof(context));
+//            if (field is null) throw new ArgumentNullException(nameof(field));
+//            _refness = context.LocalType.Info.Refness;
+//            _declaringFullyQualified = context.QualifiedTypeName.TrimStart(':');
+//            var resolvedName = context.GetCppName(field.Type, true);
+//            _resolvedTypes.Add(field, resolvedName);
+//            if (resolvedName != null)
+//            {
+//                // Add static field to forward declares, since it is used by the static _get and _set methods
+//                Resolved(field);
+//            }
+//        }
 
-        private static string SafeConfigName(string name) => Utils.SafeName(name.Replace('<', '$').Replace('>', '$').Replace('.', '_'));
+//        private static string SafeConfigName(string name) => Utils.SafeName(name.Replace('<', '$').Replace('>', '$').Replace('.', '_'));
 
-        private string GetGetter(string fieldType, IField field, bool namespaceQualified)
-        {
-            var retStr = fieldType + "&";
-            var ns = string.Empty;
-            if (namespaceQualified)
-                ns = _declaringFullyQualified + "::";
-            // Collisions with this name are incredibly unlikely.
-            return $"{retStr} {ns}{SafeConfigName($"dyn_{field.Name}")}()";
-        }
+//        private string GetGetter(string fieldType, IField field, bool namespaceQualified)
+//        {
+//            var retStr = fieldType + "&";
+//            var ns = string.Empty;
+//            if (namespaceQualified)
+//                ns = _declaringFullyQualified + "::";
+//            // Collisions with this name are incredibly unlikely.
+//            return $"{retStr} {ns}{SafeConfigName($"dyn_{field.Name}")}()";
+//        }
 
-        public override void Serialize(CppStreamWriter writer, IField field, bool asHeader)
-        {
-            if (writer is null) throw new ArgumentNullException(nameof(writer));
-            if (field is null) throw new ArgumentNullException(nameof(field));
-            _asHeader = asHeader;
-            if (_resolvedTypes[field] is null)
-                throw new UnresolvedTypeException(field.DeclaringType, field.Type);
-            string resolvedType = _resolvedTypes[field]!;
-            var fieldCommentString = "";
-            foreach (var spec in field.Specifiers)
-                fieldCommentString += $"{spec} ";
-            fieldCommentString += $"{field.Type} {field.Name}";
-            if (_asHeader && !field.DeclaringType.IsGenericTemplate)
-            {
-                // Create two method declarations:
-                // static FIELDTYPE& _get_FIELDNAME();
-                writer.WriteComment("Get instance field reference: " + fieldCommentString);
-                writer.WriteDeclaration(GetGetter(resolvedType, field, !_asHeader));
-            }
-            else
-            {
-                var classArgs = "this";
-                if (_refness == Refness.ValueType)
-                    classArgs = "*this";
+//        public override void Serialize(CppStreamWriter writer, IField field, bool asHeader)
+//        {
+//            if (writer is null) throw new ArgumentNullException(nameof(writer));
+//            if (field is null) throw new ArgumentNullException(nameof(field));
+//            _asHeader = asHeader;
+//            if (_resolvedTypes[field] is null)
+//                throw new UnresolvedTypeException(field.DeclaringType, field.Type);
+//            string resolvedType = _resolvedTypes[field]!;
+//            var fieldCommentString = "";
+//            foreach (var spec in field.Specifiers)
+//                fieldCommentString += $"{spec} ";
+//            fieldCommentString += $"{field.Type} {field.Name}";
+//            if (_asHeader && !field.DeclaringType.IsGenericTemplate)
+//            {
+//                // Create two method declarations:
+//                // static FIELDTYPE& _get_FIELDNAME();
+//                writer.WriteComment("Get instance field reference: " + fieldCommentString);
+//                writer.WriteDeclaration(GetGetter(resolvedType, field, !_asHeader));
+//            }
+//            else
+//            {
+//                var classArgs = "this";
+//                if (_refness == Refness.ValueType)
+//                    classArgs = "*this";
 
-                // Write getter
-                writer.WriteComment("Autogenerated instance field getter");
-                writer.WriteComment("Get instance field: " + fieldCommentString);
-                writer.WriteDefinition(GetGetter(resolvedType, field, !_asHeader));
+//                // Write getter
+//                writer.WriteComment("Autogenerated instance field getter");
+//                writer.WriteComment("Get instance field: " + fieldCommentString);
+//                writer.WriteDefinition(GetGetter(resolvedType, field, !_asHeader));
 
-                // TODO: Check invalid name
-                var loggerId = "___internal__logger";
-                var classId = "___internal__instance";
-                var offsetId = "___internal__field__offset";
+//                // TODO: Check invalid name
+//                var loggerId = "___internal__logger";
+//                var classId = "___internal__instance";
+//                var offsetId = "___internal__field__offset";
 
-                writer.WriteDeclaration($"static auto {loggerId} = ::Logger::get()" +
-                    $".WithContext(\"{field.DeclaringType.GetQualifiedCppName()}::{SafeConfigName($"dyn_{field.Name}")}\")");
+//                writer.WriteDeclaration($"static auto {loggerId} = ::Logger::get()" +
+//                    $".WithContext(\"{field.DeclaringType.GetQualifiedCppName()}::{SafeConfigName($"dyn_{field.Name}")}\")");
 
-                writer.WriteDeclaration($"auto {classId} = {classArgs}");
-                writer.WriteDeclaration($"static auto {offsetId} = THROW_UNLESS(il2cpp_utils::FindField({classId}, \"{field.Name}\"))->offset");
-                writer.WriteDeclaration($"return *reinterpret_cast<{resolvedType}*>(reinterpret_cast<char*>(this) + {offsetId})");
-                writer.CloseDefinition();
-            }
-            writer.Flush();
-            Serialized(field);
-        }
-    }
-}
+//                writer.WriteDeclaration($"auto {classId} = {classArgs}");
+//                writer.WriteDeclaration($"static auto {offsetId} = THROW_UNLESS(il2cpp_utils::FindField({classId}, \"{field.Name}\"))->offset");
+//                writer.WriteDeclaration($"return *reinterpret_cast<{resolvedType}*>(reinterpret_cast<char*>(this) + {offsetId})");
+//                writer.CloseDefinition();
+//            }
+//            writer.Flush();
+//            Serialized(field);
+//        }
+//    }
+//}

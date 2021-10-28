@@ -79,7 +79,7 @@ namespace Il2CppModdingCodegen.Serialization
                 return;
             foreach (var s in serializers)
             {
-                s.Resolve(Type);
+                s.Resolve(this, Type);
             }
 
             foreach (var n in NestedContexts)
@@ -117,6 +117,13 @@ namespace Il2CppModdingCodegen.Serialization
             {
                 ForwardDeclares.GetOrAdd(CppNamespace(td)).Add(td);
             }
+        }
+
+        public override void NeedIl2CppUtils()
+        {
+            ExplicitIncludes.Add("beatsaber-hook/shared/utils/il2cpp-utils-methods.hpp");
+            ExplicitIncludes.Add("beatsaber-hook/shared/utils/il2cpp-utils-properties.hpp");
+            ExplicitIncludes.Add("beatsaber-hook/shared/utils/il2cpp-utils-fields.hpp");
         }
 
         // For serialization
@@ -302,7 +309,7 @@ namespace Il2CppModdingCodegen.Serialization
             // They will be responsible for opening/closing the type writers
             foreach (var s in serializers)
             {
-                s.Write(cpp);
+                s.Write(cpp, Type);
             }
         }
     }

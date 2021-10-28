@@ -24,9 +24,11 @@ namespace Il2CppModdingCodegen.Serialization
             Literal
         }
 
+        public abstract void NeedIl2CppUtils();
+
         protected const string typedefsInclude = "#include \"beatsaber-hook/shared/utils/typedefs.h\"";
 
-        protected static Dictionary<TypeDefinition, CppContext> TypesToContexts { get; } = new();
+        internal static Dictionary<TypeDefinition, CppContext> TypesToContexts { get; } = new();
 
         public TypeDefinition Type { get; }
 
@@ -253,7 +255,7 @@ namespace Il2CppModdingCodegen.Serialization
             return typeRef.Resolve();
         }
 
-        protected static string CppName(TypeReference type)
+        internal static string CppName(TypeReference type)
         {
             if (type is null)
                 throw new ArgumentNullException(nameof(type));
@@ -303,7 +305,7 @@ namespace Il2CppModdingCodegen.Serialization
 
         private const string NoNamespace = "GlobalNamespace";
 
-        protected static string CppNamespace(TypeReference data)
+        internal static string CppNamespace(TypeReference data)
         {
             if (data is null)
                 throw new ArgumentNullException(nameof(data));

@@ -19,6 +19,11 @@ namespace Il2CppModdingCodegen.Serialization
 
         public CppTypeHeaderContext Header { get; }
 
+        public override void NeedIl2CppUtils()
+        {
+            ExplicitIncludes.Add("beatsaber-hook/shared/utils/il2cpp-utils.hpp");
+        }
+
         public void Resolve()
         {
             // We want to have something where we resolve all of the things we need

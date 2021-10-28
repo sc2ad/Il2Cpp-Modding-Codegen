@@ -1,32 +1,34 @@
 ﻿using Il2CppModdingCodegen.Data;
+using Il2CppModdingCodegen.Data.DllHandling;
+using Mono.Cecil;
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 
 namespace Codegen_CLI
 {
-    internal class FieldConverter : JsonConverter<IField>
+    internal class FieldConverter : JsonConverter<DllField>
     {
-        public override IField Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
+        public override DllField Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
         {
             throw new NotImplementedException();
         }
 
-        public override void Write(Utf8JsonWriter writer, IField value, JsonSerializerOptions options)
+        public override void Write(Utf8JsonWriter writer, DllField value, JsonSerializerOptions options)
         {
+            var f = value.Field;
             writer.WriteStartObject();
-            writer.WritePropertyName(nameof(value.Attributes));
-            JsonSerializer.Serialize(writer, value.Attributes, options);
-            writer.WriteString(nameof(value.Name), value.Name);
+            writer.WritePropertyName(nameof(f.Attributes));
+            JsonSerializer.Serialize(writer, f.Attributes, options);
+            writer.WriteString(nameof(f.Name), f.Name);
+            writer.WriteNumber("LayoutOffset", f.Offset);
             writer.WriteNumber(nameof(value.Offset), value.Offset);
-            writer.WriteNumber(nameof(value.LayoutOffset), value.LayoutOffset);
-            writer.WritePropertyName(nameof(value.Specifiers));
-            JsonSerializer.Serialize(writer, value.Specifiers, options);
-            writer.WritePropertyName(nameof(value.Type));
-            JsonSerializer.Serialize(writer, value.Type, options);
-            writer.WriteString(nameof(value.Constant), value.Constant?.ToString());
+            writer.WritePropertyName(nameof(f.FieldType));
+            JsonSerializer.Serialize(writer, f.FieldType, options);
+            writer.WriteString(nameof(f.Constant), f.Constant?.ToString());
             writer.WriteEndObject();
         }
     }

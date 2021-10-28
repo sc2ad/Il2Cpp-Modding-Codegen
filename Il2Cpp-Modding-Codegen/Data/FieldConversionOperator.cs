@@ -13,9 +13,9 @@ namespace Il2CppModdingCodegen.Data
         public FieldConversionOperator(TypeDefinition type, FieldConversionOperator? parentsOperator)
         {
             var parKind = parentsOperator?.Kind ?? None;
+            var instanceFields = type.Fields.Where(f => !f.IsStatic);
             if (parKind == Delete)
                 Kind = Invalid;
-            var instanceFields = type.Fields.Where(f => !f.IsStatic);
             else if (parKind == Yes || parKind == Inherited)
             {
                 Kind = instanceFields.Any() ? Delete : Inherited;
@@ -24,7 +24,7 @@ namespace Il2CppModdingCodegen.Data
             else if (parKind == None && instanceFields.Count() == 1)
             {
                 var field = instanceFields.First();
-                if (field.Type.IsGenericParameter || field.Type.IsGenericTemplate)
+                if (field.FieldType.IsGenericParameter)
                     Kind = Invalid;  // todo: resolve conversion operators properly for generic types?
                 else
                 {
