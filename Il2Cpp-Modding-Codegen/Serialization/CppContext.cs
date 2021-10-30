@@ -27,6 +27,8 @@ namespace Il2CppModdingCodegen.Serialization
 
         public abstract void NeedIl2CppUtils();
 
+        internal abstract void Resolve(HashSet<CppContext> ctxs);
+
         protected const string typedefsInclude = "#include \"beatsaber-hook/shared/utils/typedefs.h\"";
 
         internal static Dictionary<TypeDefinition, CppContext> TypesToContexts { get; } = new(new TypeDefinitionComparer());
@@ -61,24 +63,6 @@ namespace Il2CppModdingCodegen.Serialization
             DeclaringContext = declaring;
             if (declaring != null)
                 declaring.AddNestedContext(t, this);
-
-            if ((Type.Name == "GameNoteType" && Type.DeclaringType?.Name == "GameNoteController") ||  // referenced by IGameNoteTypeProvider
-                (Type.Name == "MessageType" && Type.DeclaringType?.Name == "MultiplayerSessionManager") ||  // referenced by IMultiplayerSessionManager
-                (Type.Name == "Score" && Type.DeclaringType?.Name == "StandardScoreSyncState") ||  // SSSState implements IStateTable_2<SSSState::Score, int>
-                (Type.Name == "NodePose" && Type.DeclaringType?.Name == "NodePoseSyncState"))  // NPSState implements IStateTable_2<NPSState::NodePose, PoseSerializable>
-                UnNested = true;
-            else if ((Type.Name == "CombineTexturesIntoAtlasesCoroutineResult" && Type.DeclaringType?.Name == "MB3_TextureCombiner") ||
-                    (Type.Name == "BrainEvent" && Type.DeclaringType?.Name == "CinemachineBrain") ||
-                    (Type.Name == "CallbackContext" && Type.DeclaringType?.Name == "InputAction"))
-                UnNested = true;
-            else if (Type.DeclaringType?.Name == "OVRManager")
-                UnNested = true;
-            else if (Type.DeclaringType?.Name == "BeatmapObjectExecutionRatingsRecorder")
-                UnNested = true;
-            // gorilla tag specific unnesteds
-            else if ((Type.Name == "EventData" && Type.DeclaringType?.Name == "EventProvider") ||
-                     (Type.Name == "ManifestEtw" && Type.DeclaringType?.Name == "UnsafeNativeMethods"))
-                UnNested = true;
         }
 
         public int GetSize(TypeReference t) => sizeTracker?.GetSize(t) ?? -1;
@@ -101,8 +85,6 @@ namespace Il2CppModdingCodegen.Serialization
 
         private CppContext? rootContext;
         internal CppContext? DeclaringContext { get; private set; }
-        internal bool InPlace { get; private set; } = false;
-        public bool UnNested { get; set; } = false;
 
         public HashSet<string> ExplicitIncludes { get; } = new();
 

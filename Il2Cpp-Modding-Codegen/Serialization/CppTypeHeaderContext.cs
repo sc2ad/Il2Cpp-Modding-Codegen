@@ -10,9 +10,9 @@ using System.Text;
 
 namespace Il2CppModdingCodegen.Serialization
 {
-    public class CppTypeHeaderContext : CppContext
+    public class CppTypeHeaderContext : CppContext, IHeaderContext
     {
-        internal string HeaderFileName => (RootContext as CppTypeHeaderContext)?.HeaderFileName ?? (GetIncludeLocation() + ".hpp");
+        public string HeaderFileName => GetIncludeLocation() + ".hpp";
 
         internal string TypeNamespace { get; }
         internal string TypeName { get; }
@@ -26,13 +26,13 @@ namespace Il2CppModdingCodegen.Serialization
         /// This is usually due to including something that (indirectly or directly) ends up including the original type.
         /// Called with: this, offending <see cref="CppTypeHeaderContext"/>, offending <see cref="TypeDefinition"/>
         /// </summary>
-        public static event Action<CppTypeHeaderContext, CppTypeHeaderContext, TypeDefinition>? CyclicDefinition;
+        public static event Action<CppTypeHeaderContext, CppContext, TypeDefinition>? CyclicDefinition;
 
         /// <summary>
         /// This event is invoked whenever a definition is attempted to be included but is already nested.
         /// Called with: this, offending <see cref="CppTypeHeaderContext"/>, offending <see cref="TypeDefinition"/>
         /// </summary>
-        public static event Action<CppTypeHeaderContext, CppTypeHeaderContext, TypeDefinition>? NestedDefinitionTwice;
+        public static event Action<CppTypeHeaderContext, CppContext, TypeDefinition>? NestedDefinitionTwice;
 
         private readonly IEnumerable<ISerializer<TypeDefinition, CppStreamWriter>> serializers;
 
@@ -68,7 +68,7 @@ namespace Il2CppModdingCodegen.Serialization
             Resolve(new HashSet<CppContext>());
         }
 
-        private void Resolve(HashSet<CppContext> resolved)
+        internal override void Resolve(HashSet<CppContext> resolved)
         {
             if (!resolved.Add(this))
                 return;
@@ -79,7 +79,7 @@ namespace Il2CppModdingCodegen.Serialization
 
             foreach (var n in NestedContexts)
             {
-                (n as CppNestedHeaderContext)!.Resolve(resolved);
+                n.Resolve(resolved);
                 if (n.InPlace)
                 {
                     foreach (var dec in n.DeclarationsToMake.Except(n.Type.NestedTypes).Except(Definitions))
@@ -105,13 +105,13 @@ namespace Il2CppModdingCodegen.Serialization
             {
                 if (Definitions.Contains(td))
                     continue;
-                CppTypeHeaderContext ctx;
+                CppContext ctx;
                 lock (TypesToContexts)
                 {
-                    ctx = (TypesToContexts[td] as CppTypeHeaderContext)!;
+                    ctx = TypesToContexts[td];
                 }
                 var defs = new HashSet<TypeDefinition>(Definitions);
-                var incls = new HashSet<CppTypeHeaderContext>(Includes);
+                var incls = new HashSet<IHeaderContext>(Includes);
                 AddIncludeDefinitions(ctx, defs, incls);
                 Definitions.UnionWith(defs);
                 Includes.UnionWith(incls);
@@ -131,11 +131,11 @@ namespace Il2CppModdingCodegen.Serialization
         }
 
         // For serialization
-        private HashSet<CppTypeHeaderContext> Includes { get; } = new();
+        public HashSet<IHeaderContext> Includes { get; } = new();
 
         private Dictionary<string, HashSet<TypeDefinition>> ForwardDeclares { get; } = new();
 
-        private bool AddIncludeDefinitions(CppTypeHeaderContext context, HashSet<TypeDefinition> defs, HashSet<CppTypeHeaderContext> includes)
+        private bool AddIncludeDefinitions(CppContext context, HashSet<TypeDefinition> defs, HashSet<IHeaderContext> includes)
         {
             bool allGood = true;
             foreach (var d in new HashSet<TypeDefinition>(context.Definitions))
@@ -165,12 +165,16 @@ namespace Il2CppModdingCodegen.Serialization
             if (allGood)
             {
                 defs.UnionWith(context.Definitions);
-                includes.Add(context);
+                if (context is not IHeaderContext c)
+                {
+                    throw new InvalidOperationException($"{context} must be a header context!");
+                }
+                includes.Add(c);
             }
             return allGood;
         }
 
-        private void AddContextualInclude(CppStreamWriter writer, CppTypeHeaderContext include, HashSet<string> includesWritten)
+        private void AddContextualInclude(CppStreamWriter writer, IHeaderContext include, HashSet<string> includesWritten)
         {
             includesWritten.Add(include.HeaderFileName);
             // After each include, see what we may have unintentionally gotten
@@ -290,6 +294,8 @@ namespace Il2CppModdingCodegen.Serialization
             {
                 File.Delete(path);
             }
+            if (!Directory.Exists(Path.GetDirectoryName(path)))
+                Directory.CreateDirectory(Path.GetDirectoryName(path));
             using var fs = File.OpenWrite(path);
             using var sw = new StreamWriter(fs);
             using var cpp = new CppStreamWriter(sw);

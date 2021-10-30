@@ -34,12 +34,40 @@ namespace Il2CppModdingCodegen.Serialization
         private readonly ConcurrentDictionary<TypeDefinition, CppTypeHeaderContext> headerContexts = new ConcurrentDictionary<TypeDefinition, CppTypeHeaderContext>();
         private readonly ConcurrentDictionary<TypeDefinition, CppTypeSourceContext> srcContexts = new ConcurrentDictionary<TypeDefinition, CppTypeSourceContext>();
 
-        private void AddNestedTypeContext(TypeDefinition nt, SizeTracker sz, CppTypeHeaderContext declaring)
+        /// <summary>
+        /// Return true if the type is to be specifically unnested.
+        /// </summary>
+        /// <param name="t"></param>
+        /// <returns></returns>
+        private bool DetermineNestedPlacement(TypeDefinition t)
+        {
+            if ((t.Name == "GameNoteType" && t.DeclaringType?.Name == "GameNoteController") ||  // referenced by IGameNoteTypeProvider
+                    (t.Name == "MessageType" && t.DeclaringType?.Name == "MultiplayerSessionManager") ||  // referenced by IMultiplayerSessionManager
+                    (t.Name == "Score" && t.DeclaringType?.Name == "StandardScoreSyncState") ||  // SSSState implements IStateTable_2<SSSState::Score, int>
+                    (t.Name == "NodePose" && t.DeclaringType?.Name == "NodePoseSyncState"))  // NPSState implements IStateTable_2<NPSState::NodePose, PoseSerializable>
+                return true;
+            else if ((t.Name == "CombineTexturesIntoAtlasesCoroutineResult" && t.DeclaringType?.Name == "MB3_TextureCombiner") ||
+                    (t.Name == "BrainEvent" && t.DeclaringType?.Name == "CinemachineBrain") ||
+                    (t.Name == "CallbackContext" && t.DeclaringType?.Name == "InputAction"))
+                return true;
+            else if (t.DeclaringType?.Name == "OVRManager")
+                return true;
+            else if (t.DeclaringType?.Name == "BeatmapObjectExecutionRatingsRecorder")
+                return true;
+            // gorilla tag specific unnesteds
+            else if ((t.Name == "EventData" && t.DeclaringType?.Name == "EventProvider") ||
+                     (t.Name == "ManifestEtw" && t.DeclaringType?.Name == "UnsafeNativeMethods"))
+                return true;
+            return false;
+        }
+
+        private void AddNestedTypeContext(TypeDefinition nt, SizeTracker sz, CppContext declaring)
         {
             // Header context is created and added to the mapping, we MAY want to "out of place" this later!
             // TODO: We should figure out how to change DeclaringContext later/InPlace
-            var ctx = new CppTypeHeaderContext(nt, sz, serializers, declaring);
-            headerContexts.TryAdd(nt, ctx);
+            CppContext ctx = DetermineNestedPlacement(nt)
+                ? new CppTypeHeaderContext(nt, sz, serializers)
+                : new CppNestedHeaderContext(nt, sz, declaring, serializers);
             foreach (var nt2 in nt.NestedTypes)
             {
                 AddNestedTypeContext(nt2, sz, ctx);
@@ -63,7 +91,7 @@ namespace Il2CppModdingCodegen.Serialization
                     return;
                 }
                 // Create a Cpp context around this type
-                var header = new CppTypeHeaderContext(t, sz, serializers, null);
+                var header = new CppTypeHeaderContext(t, sz, serializers);
                 headerContexts.TryAdd(t, header);
                 foreach (var nt in t.NestedTypes)
                 {
@@ -98,12 +126,12 @@ namespace Il2CppModdingCodegen.Serialization
             });
         }
 
-        private void CppTypeHeaderContext_NestedDefinitionTwice(CppTypeHeaderContext ctx, CppTypeHeaderContext offending, TypeDefinition offendingType)
+        private void CppTypeHeaderContext_NestedDefinitionTwice(CppTypeHeaderContext ctx, CppContext offending, TypeDefinition offendingType)
         {
             Console.Error.WriteLine($"Nested definition is attempted to be included even though it's already defined? Initial context: {ctx.Type} to: {offending.Type} with type: {offendingType}");
         }
 
-        private static void CppTypeHeaderContext_CyclicDefinition(CppTypeHeaderContext ctx, CppTypeHeaderContext offending, TypeDefinition offendingType)
+        private static void CppTypeHeaderContext_CyclicDefinition(CppTypeHeaderContext ctx, CppContext offending, TypeDefinition offendingType)
         {
             Console.Error.WriteLine($"Cyclic definition from initial context: {ctx.Type} to: {offending.Type} which attempts to include type: {offending}");
         }
