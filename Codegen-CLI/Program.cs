@@ -104,16 +104,39 @@ namespace Codegen_CLI
                     Directory.Delete(Path.Combine(config.OutputDirectory, config.OutputSourceDirectory), true);
             }
             Utils.Init(config);
+            var fieldSers = new List<ISerializer<DllField, CppTypeWriter>>
+            {
+                new CppFieldSerializer()
+            };
+            var methodSers = new List<ISerializer<DllMethod, CppTypeWriter>>
+            {
+            };
+            var interfaceSers = new List<ISerializer<InterfaceImplementation, CppTypeWriter>>
+            {
+                new CppInterfaceConversionSerializer()
+            };
+            var nestedSers = new List<ISerializer<TypeDefinition, CppTypeWriter>>
+            {
+            };
+            var nestedSerializer = new CppNestedTypeSerializer(
+                fieldSers,
+                methodSers,
+                interfaceSers,
+                nestedSers);
+            nestedSers.Add(nestedSerializer);
+
+            var generalTypeSerializer = new CppTopTypeSerializer(
+                    fieldSers,
+                    methodSers,
+                    interfaceSers,
+                    nestedSers);
+            // Handle nested types the same way we handle non-nested types, but without FDs
+            // Nested types should NOT be fd'd (except within our declaring type as first pass)
+            //
+
             var serializers = new List<ISerializer<TypeDefinition, CppStreamWriter>>
             {
-                new CppTypeSerializer(
-                    new List<ISerializer<DllField, CppTypeWriter>> {
-                    },
-                    new List<ISerializer<DllMethod, CppTypeWriter>> {
-                    },
-                    new List<ISerializer<InterfaceImplementation, CppTypeWriter>> {
-                    },
-                    new List<ISerializer<TypeDefinition, CppTypeWriter>> { })
+                generalTypeSerializer
             };
 
             var serializer = new CppOverallSerializer(config, serializers);

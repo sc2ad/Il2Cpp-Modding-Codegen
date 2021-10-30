@@ -33,10 +33,13 @@ namespace Il2CppModdingCodegen.Serialization
 
         public TypeDefinition Type { get; }
 
-        public CppContext(TypeDefinition t, CppContext? declaring = null, bool add = true)
+        private readonly SizeTracker? sizeTracker;
+
+        public CppContext(TypeDefinition t, SizeTracker? sz, CppContext? declaring = null, bool add = true)
         {
             if (t is null)
                 throw new ArgumentNullException(nameof(t));
+            sizeTracker = sz;
             Type = t;
             if (add)
             {
@@ -78,6 +81,8 @@ namespace Il2CppModdingCodegen.Serialization
                 UnNested = true;
         }
 
+        public int GetSize(TypeReference t) => sizeTracker?.GetSize(t) ?? -1;
+
         private void AddNestedContext(TypeDefinition t, CppContext context)
         {
             NestedContexts.Add(context);
@@ -87,7 +92,7 @@ namespace Il2CppModdingCodegen.Serialization
 
         internal HashSet<TypeDefinition> Declarations { get; } = new HashSet<TypeDefinition>();
         internal HashSet<TypeDefinition> DeclarationsToMake { get; } = new HashSet<TypeDefinition>();
-        internal HashSet<TypeDefinition> Definitions { get; } = new HashSet<TypeDefinition>();
+        internal HashSet<TypeDefinition> Definitions { get; } = new HashSet<TypeDefinition>(new TypeDefinitionComparer());
         internal HashSet<TypeDefinition> DefinitionsToGet { get; } = new HashSet<TypeDefinition>();
         internal List<CppContext> NestedContexts { get; } = new();
 
@@ -369,7 +374,7 @@ namespace Il2CppModdingCodegen.Serialization
                     string declaringGenericParams = "";
                     if (generics || !isTypeType)
                     {
-                        declaringGenericParams = $"<{gens.Select(g => GenName(g))}>";
+                        declaringGenericParams = $"<{string.Join(", ", gens.Select(g => GenName(g)))}>";
                     }
 
                     var temp = CppName(declType) + declaringGenericParams;
@@ -428,13 +433,11 @@ namespace Il2CppModdingCodegen.Serialization
             if (resolved is null)
                 throw new InvalidOperationException("C++ name must be resolvable");
 
-            var name = string.Empty;
+            string name = "";
             GetCppNameWithGenerics(ref name, data, resolved, generics, qualified);
 
             // Ensure the name has no bad characters
             // Append pointer as necessary
-            if (resolved is null)
-                throw new InvalidOperationException("Resolved type is null!");
             if (forceAsType == ForceAsType.Literal)
                 return name;
             if ((resolved.DeclaringType?.IsGenericInstance ?? false) || (resolved.DeclaringType?.HasGenericParameters ?? false))  // note: it's important that ForceAsType.Literal is ruled out first
@@ -450,7 +453,7 @@ namespace Il2CppModdingCodegen.Serialization
             if (r.IsArray)
             {
                 ExplicitIncludes.Add("#include \"beatsaber-hook/shared/utils/typedefs-array.hpp\"");
-                s = $"::ArrayW<{GetCppName(r.GetElementType(), true, true, NeedAs.BestMatch)}>";
+                s = $"::ArrayW<{GetCppName((r as ArrayType)!.ElementType, true, true, NeedAs.BestMatch)}>";
             }
             else if (r.IsPointer || r.IsFunctionPointer)
                 return GetCppName(r.GetElementType(), true, true, NeedAsForPrimitiveEtype(needAs)) + "*";

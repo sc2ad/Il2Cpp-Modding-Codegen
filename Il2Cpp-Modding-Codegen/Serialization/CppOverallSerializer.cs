@@ -34,6 +34,18 @@ namespace Il2CppModdingCodegen.Serialization
         private readonly ConcurrentDictionary<TypeDefinition, CppTypeHeaderContext> headerContexts = new ConcurrentDictionary<TypeDefinition, CppTypeHeaderContext>();
         private readonly ConcurrentDictionary<TypeDefinition, CppTypeSourceContext> srcContexts = new ConcurrentDictionary<TypeDefinition, CppTypeSourceContext>();
 
+        private void AddNestedTypeContext(TypeDefinition nt, SizeTracker sz, CppTypeHeaderContext declaring)
+        {
+            // Header context is created and added to the mapping, we MAY want to "out of place" this later!
+            // TODO: We should figure out how to change DeclaringContext later/InPlace
+            var ctx = new CppTypeHeaderContext(nt, sz, serializers, declaring);
+            headerContexts.TryAdd(nt, ctx);
+            foreach (var nt2 in nt.NestedTypes)
+            {
+                AddNestedTypeContext(nt2, sz, ctx);
+            }
+        }
+
         public void Begin(DllData data)
         {
             if (data is null)
@@ -43,40 +55,37 @@ namespace Il2CppModdingCodegen.Serialization
                 //srcCtx = new CppTypeSourceContext();
             }
             var sz = new SizeTracker(config.PointerSize);
-            data.Types.AsParallel().ForAll(t =>
+            data.Types.Where(t => t.DeclaringType is null).AsParallel().ForAll(t =>
             {
                 if (t.HasGenericParameters && config.GenericHandling == GenericHandling.Skip)
                 {
                     // Skip the generic type, ensure it doesn't get serialized.
                     return;
                 }
-                if (t.DeclaringType is null)
+                // Create a Cpp context around this type
+                var header = new CppTypeHeaderContext(t, sz, serializers, null);
+                headerContexts.TryAdd(t, header);
+                foreach (var nt in t.NestedTypes)
                 {
-                    // Create a Cpp context around this type
-                    var header = new CppTypeHeaderContext(t, sz, serializers, null);
-                    headerContexts.TryAdd(t, header);
-                    foreach (var nt in t.NestedTypes)
-                    {
-                        _ = new CppTypeHeaderContext(nt, sz, serializers, header);
-                    }
-                    // Create a writer for the header
-                    // Conditionally add the context to the particular src, which might be ONE src, or MANY srcs.
-                    // If we are in ONE src, have ONE writer for it, with ONE parent src context that serves as a a holder for all includes
-                    // Deduction of includes is still most likely a two step process (?) but overall we can write out just fine.
-
-                    //var cppCtx = new CppTypeSourceContext(t, header, cppSer);
-                    //if (config.OneSourceFile)
-                    //{
-                    //    srcCtx.Add(cppCtx);
-                    //}
-                    //else
-                    //{
-                    //    srcContexts.TryAdd(t, cppCtx);
-                    //}
+                    AddNestedTypeContext(nt, sz, header);
                 }
+                // Create a writer for the header
+                // Conditionally add the context to the particular src, which might be ONE src, or MANY srcs.
+                // If we are in ONE src, have ONE writer for it, with ONE parent src context that serves as a a holder for all includes
+                // Deduction of includes is still most likely a two step process (?) but overall we can write out just fine.
+
+                //var cppCtx = new CppTypeSourceContext(t, header, cppSer);
+                //if (config.OneSourceFile)
+                //{
+                //    srcCtx.Add(cppCtx);
+                //}
+                //else
+                //{
+                //    srcContexts.TryAdd(t, cppCtx);
+                //}
             });
             // Resolve all types after top-level pass
-            data.Types.AsParallel().ForAll(t =>
+            data.Types.Where(t => t.DeclaringType is null).AsParallel().ForAll(t =>
             {
                 if (headerContexts.TryGetValue(t, out var h))
                 {

@@ -8,7 +8,7 @@ using System.Linq;
 
 namespace Il2CppModdingCodegen.Serialization
 {
-    public class CppTypeSerializer : ISerializer<TypeDefinition, CppStreamWriter>
+    public class CppTopTypeSerializer : ISerializer<TypeDefinition, CppStreamWriter>
     {
         private readonly IEnumerable<ISerializer<DllField, CppTypeWriter>> fieldSerializers;
         private readonly IEnumerable<ISerializer<DllMethod, CppTypeWriter>> methodSerializers;
@@ -33,7 +33,7 @@ namespace Il2CppModdingCodegen.Serialization
             }
         }
 
-        public CppTypeSerializer(IEnumerable<ISerializer<DllField, CppTypeWriter>> fs,
+        public CppTopTypeSerializer(IEnumerable<ISerializer<DllField, CppTypeWriter>> fs,
             IEnumerable<ISerializer<DllMethod, CppTypeWriter>> ms,
             IEnumerable<ISerializer<InterfaceImplementation, CppTypeWriter>> @is,
             IEnumerable<ISerializer<TypeDefinition, CppTypeWriter>> ns)
@@ -55,6 +55,9 @@ namespace Il2CppModdingCodegen.Serialization
                 parentName = context.GetCppName(t.BaseType, true, true, CppContext.NeedAs.Definition, CppContext.ForceAsType.Literal)!;
             List<string> lst;
             string declaring;
+            if (t.DeclaringType is not null && !context.UnNested)
+                // TODO: This is ONLY true if we do NOT handle unnesting, so this will have to change!
+                throw new InvalidOperationException("Cannot top level resolve a nested type!");
             if (t.DeclaringType is not null && t.DeclaringType.HasGenericParameters)
             {
                 lst = new List<string>
@@ -90,7 +93,15 @@ namespace Il2CppModdingCodegen.Serialization
             {
                 foreach (var s in nestedSerializers)
                 {
-                    s.Resolve(context, n);
+                    // We need to resolve with our correct nested context (just in case we out-place it later)
+                    CppContext nestedCtx;
+                    lock (CppContext.TypesToContexts)
+                    {
+                        CppContext.TypesToContexts.TryGetValue(n, out nestedCtx);
+                    }
+                    if (nestedCtx is null)
+                        throw new InvalidOperationException("Somehow we have no context for our nested type?");
+                    s.Resolve(nestedCtx, n);
                 }
             }
             foreach (var f in t.Fields)
@@ -165,18 +176,23 @@ namespace Il2CppModdingCodegen.Serialization
                 typeWriter.WriteDeclaration($"static constexpr bool IS_VALUE_TYPE = {(t.IsValueType || t.IsEnum).ToString().ToLower()}");
             }
 
+            foreach (var n in t.NestedTypes)
+            {
+                // We want to start by FD'ing all NON UnNested types.
+                // UnNested types need to be handled separately, however.
+                // UnNested types should be handled by their OWN passes!
+                // They should be COMPLETELY IGNORED HERE!
+
+                foreach (var s in nestedSerializers)
+                {
+                    s.Write(typeWriter, n);
+                }
+            }
             foreach (var i in t.Interfaces)
             {
                 foreach (var s in interfaceSerializers)
                 {
                     s.Write(typeWriter, i);
-                }
-            }
-            foreach (var n in t.NestedTypes)
-            {
-                foreach (var s in nestedSerializers)
-                {
-                    s.Write(typeWriter, n);
                 }
             }
             foreach (var f in t.Fields)

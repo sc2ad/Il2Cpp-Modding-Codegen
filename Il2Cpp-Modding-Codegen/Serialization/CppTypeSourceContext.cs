@@ -11,7 +11,7 @@ namespace Il2CppModdingCodegen.Serialization
     {
         private readonly IEnumerable<ISerializer<TypeDefinition, CppStreamWriter>> serializers;
 
-        public CppTypeSourceContext(TypeDefinition def, CppTypeHeaderContext header, IEnumerable<ISerializer<TypeDefinition, CppStreamWriter>> serializers) : base(def)
+        public CppTypeSourceContext(TypeDefinition def, CppTypeHeaderContext header, IEnumerable<ISerializer<TypeDefinition, CppStreamWriter>> serializers) : base(def, null)
         {
             this.serializers = serializers;
             Header = header;

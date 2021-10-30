@@ -36,10 +36,8 @@ namespace Il2CppModdingCodegen.Serialization
 
         private readonly IEnumerable<ISerializer<TypeDefinition, CppStreamWriter>> serializers;
 
-        public CppTypeHeaderContext(TypeDefinition t, SizeTracker sz, IEnumerable<ISerializer<TypeDefinition, CppStreamWriter>> serializers, CppTypeHeaderContext? declaring = null) : base(t, declaring)
+        public CppTypeHeaderContext(TypeDefinition t, SizeTracker sz, IEnumerable<ISerializer<TypeDefinition, CppStreamWriter>> serializers) : base(t, sz)
         {
-            if (sz is null)
-                throw new ArgumentNullException(nameof(sz));
             TypeNamespace = CppNamespace(t);
             TypeName = CppName(t);
 
@@ -67,10 +65,10 @@ namespace Il2CppModdingCodegen.Serialization
 
         public void Resolve()
         {
-            Resolve(new HashSet<CppTypeHeaderContext>());
+            Resolve(new HashSet<CppContext>());
         }
 
-        private void Resolve(HashSet<CppTypeHeaderContext> resolved)
+        private void Resolve(HashSet<CppContext> resolved)
         {
             if (!resolved.Add(this))
                 return;
@@ -81,7 +79,7 @@ namespace Il2CppModdingCodegen.Serialization
 
             foreach (var n in NestedContexts)
             {
-                (n as CppTypeHeaderContext)!.Resolve(resolved);
+                (n as CppNestedHeaderContext)!.Resolve(resolved);
                 if (n.InPlace)
                 {
                     foreach (var dec in n.DeclarationsToMake.Except(n.Type.NestedTypes).Except(Definitions))
@@ -156,6 +154,7 @@ namespace Il2CppModdingCodegen.Serialization
                     allGood = false;
                 }
                 else if (HasInNestedHierarchy(d, out var _))
+                //else if (Definitions.Contains(d) && )
                 {
                     // It is invalid to include something that claims to define one of our nested types!
                     NestedDefinitionTwice?.Invoke(this, context, d);

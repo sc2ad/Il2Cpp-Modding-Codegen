@@ -3,6 +3,7 @@ using Il2CppModdingCodegen.Data.DllHandling;
 using Il2CppModdingCodegen.Serialization;
 using Mono.Cecil;
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -15,7 +16,7 @@ namespace Il2CppModdingCodegen
     public class SizeTracker
     {
         private readonly int pointerSize;
-        private readonly Dictionary<TypeDefinition, int> sizeMap = new();
+        private readonly ConcurrentDictionary<TypeDefinition, int> sizeMap = new(new TypeDefinitionComparer());
 
         public SizeTracker(int pointerSize = 8)
         {
@@ -112,14 +113,14 @@ namespace Il2CppModdingCodegen
             {
                 // Generic templates actually DO have a size, however, it needs to be carefully computed and adjusted when calculating the size of an instance.
                 // Do we pad this type explicitly? Does #pragma pack(push, 8) do the trick? Probably.
-                sizeMap.Add(type, -1);
+                sizeMap.TryAdd(type, -1);
                 return -1;
             }
 
             var primSize = GetPrimitiveSize(type);
             if (primSize >= 0)
             {
-                sizeMap.Add(type, primSize);
+                sizeMap.TryAdd(type, primSize);
                 return primSize;
             }
             var instanceFields = type.Fields.Where(f => !f.IsStatic);
@@ -131,26 +132,26 @@ namespace Il2CppModdingCodegen
             {
                 if (type.BaseType is null)
                 {
-                    sizeMap.Add(type, 0);
+                    sizeMap.TryAdd(type, 0);
                     // We have 0 size if we have no parent and no fields.
                     return 0;
                 }
                 // Our size is just our parent's size
                 if (pt is null)
                 {
-                    sizeMap.Add(type, -1);
+                    sizeMap.TryAdd(type, -1);
                     // We probably inherit a generic type, or something similar
                     return -1;
                 }
                 int parentSize = GetSize(pt);
                 // Add our size to the map
-                sizeMap.Add(type, parentSize);
+                sizeMap.TryAdd(type, parentSize);
                 return parentSize;
             }
             if (instanceFields.Any(f => GetSize(f.FieldType) == -1))
             {
                 // If we have any invalid fields, we take on a size of -1, even if we are potentially still capable of knowing our size.
-                sizeMap.Add(type, -1);
+                sizeMap.TryAdd(type, -1);
                 return -1;
             }
 
@@ -160,13 +161,13 @@ namespace Il2CppModdingCodegen
                 if (pt is null)
                 {
                     // Couldn't find a valid parent!
-                    sizeMap.Add(type, -1);
+                    sizeMap.TryAdd(type, -1);
                     return -1;
                 }
                 var pSize = GetSize(pt);
                 if (pSize == -1)
                 {
-                    sizeMap.Add(type, -1);
+                    sizeMap.TryAdd(type, -1);
                     return -1;
                 }
                 acceptZeroOffset = GetSize(pt) == 0;
@@ -178,17 +179,17 @@ namespace Il2CppModdingCodegen
                 int fSize = GetSize(last.FieldType);
                 if (fSize <= 0)
                 {
-                    sizeMap.Add(type, -1);
+                    sizeMap.TryAdd(type, -1);
                     return -1;
                 }
-                sizeMap.Add(type, fSize + last.Offset);
+                sizeMap.TryAdd(type, fSize + last.Offset);
                 return fSize + last.Offset;
             }
             // If we have no parent, or we have a parent of size 0, and we only have one field, then we trust offset 0
             if (acceptZeroOffset && instanceFields.Count() == 1 && last.Offset == 0)
             {
                 int fSize = GetSize(last.FieldType);
-                sizeMap.Add(type, fSize);
+                sizeMap.TryAdd(type, fSize);
                 return fSize;
             }
             // We don't know how to handle negative offsets, so we return -1 for those.
