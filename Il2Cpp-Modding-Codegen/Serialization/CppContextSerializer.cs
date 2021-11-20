@@ -380,7 +380,7 @@ namespace Il2CppModdingCodegen.Serialization
         {
             var contextMap = asHeader ? _headerContextMap : _sourceContextMap;
             if (!contextMap.TryGetValue(context, out var defsAndDeclares))
-                throw new InvalidOperationException($"Must resolve context before attempting to serialize it! context for: {context.LocalType}");
+                throw new InvalidOperationException($"Must resolve context before attempting to serialize it! context for: {context.LocalType.This}");
 
             // Only write includes, declares for non-headers or if the type is InPlace = false, or has no declaring type
             if (!asHeader || !context.InPlace || context.DeclaringContext is null)
