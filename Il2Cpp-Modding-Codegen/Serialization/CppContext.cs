@@ -88,6 +88,8 @@ namespace Il2CppModdingCodegen.Serialization
 
         public HashSet<string> ExplicitIncludes { get; } = new();
 
+        internal bool InPlace { get; private set; }
+
         protected virtual CppContext? RootContext
         {
             get
@@ -267,13 +269,9 @@ namespace Il2CppModdingCodegen.Serialization
                 {
                     res = TypesToContexts.TryGetValue(resolved, out ctx);
                 }
-                if (!res)
+                if (res && ctx is CppTypeHeaderContext && resolved.DeclaringType is not null)
                 {
-                    // No context exists for this type (yet?)
-                    var tst = TypesToContexts.Keys.FirstOrDefault(t => t.FullName == resolved.FullName);
-                }
-                if (res && ctx.UnNested)
-                {
+                    // Handle unnested types here
                     if (type.DeclaringType is null)
                         throw new NullReferenceException("DeclaringType was null despite UnNested being true!");
                     var dc = type.DeclaringType;

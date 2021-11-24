@@ -29,7 +29,7 @@ namespace Il2CppModdingCodegen.Serialization
         public void Resolve(CppContext context, TypeDefinition t)
         {
             // For now, just always add the type as a definition to our declaring context
-            context.AddNestedDefinition(t);
+            //context.AddNestedDefinition(t);
         }
 
         public void Write(CppTypeWriter writer, TypeDefinition t)

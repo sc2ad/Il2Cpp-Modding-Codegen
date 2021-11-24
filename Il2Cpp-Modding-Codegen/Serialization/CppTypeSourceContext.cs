@@ -36,5 +36,10 @@ namespace Il2CppModdingCodegen.Serialization
                 ser.Resolve(this, Type);
             }
         }
+
+        internal override void Resolve(HashSet<CppContext> ctxs)
+        {
+            throw new NotImplementedException();
+        }
     }
 }

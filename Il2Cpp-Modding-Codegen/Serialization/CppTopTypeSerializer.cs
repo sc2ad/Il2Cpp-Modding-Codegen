@@ -55,9 +55,9 @@ namespace Il2CppModdingCodegen.Serialization
                 parentName = context.GetCppName(t.BaseType, true, true, CppContext.NeedAs.Definition, CppContext.ForceAsType.Literal)!;
             List<string> lst;
             string declaring;
-            if (t.DeclaringType is not null && !context.UnNested)
+            if (context is not CppTypeHeaderContext)
                 // TODO: This is ONLY true if we do NOT handle unnesting, so this will have to change!
-                throw new InvalidOperationException("Cannot top level resolve a nested type!");
+                throw new InvalidOperationException("Cannot top level resolve a non-top level context!");
             if (t.DeclaringType is not null && t.DeclaringType.HasGenericParameters)
             {
                 lst = new List<string>
