@@ -216,8 +216,8 @@ namespace Il2CppModdingCodegen.Serialization
             {
                 // Primitives include
 
-                if (includesWritten.Add("extern/beatsaber-hook/shared/utils/typedefs.h"))
-                    writer.WriteInclude("extern/beatsaber-hook/shared/utils/typedefs.h");
+                if (includesWritten.Add("beatsaber-hook/shared/utils/typedefs.h"))
+                    writer.WriteInclude("beatsaber-hook/shared/utils/typedefs.h");
             }
             else if (context.NeedStdint && asHeader && includesWritten.Add("stdint.h"))
                 writer.WriteLine("#include <stdint.h>");
@@ -239,8 +239,8 @@ namespace Il2CppModdingCodegen.Serialization
                     if (includesWritten.Add("System/Object.hpp"))
                         writer.WriteInclude("System/Object.hpp");
                 // Always include byref because it is so small
-                if (includesWritten.Add("extern/beatsaber-hook/shared/utils/byref.hpp"))
-                    writer.WriteInclude("extern/beatsaber-hook/shared/utils/byref.hpp");
+                if (includesWritten.Add("beatsaber-hook/shared/utils/byref.hpp"))
+                    writer.WriteInclude("beatsaber-hook/shared/utils/byref.hpp");
             }
 
             // I don't know why, but this seems to be what we need for type completion in templates
@@ -263,20 +263,20 @@ namespace Il2CppModdingCodegen.Serialization
             {
                 if (!asHeader)
                 {
-                    if (includesWritten.Add("extern/beatsaber-hook/shared/utils/il2cpp-utils.hpp"))
-                        writer.WriteInclude("extern/beatsaber-hook/shared/utils/il2cpp-utils.hpp");
+                    if (includesWritten.Add("beatsaber-hook/shared/utils/il2cpp-utils.hpp"))
+                        writer.WriteInclude("beatsaber-hook/shared/utils/il2cpp-utils.hpp");
                 }
                 else
                 {
-                    if (includesWritten.Add("extern/beatsaber-hook/shared/utils/il2cpp-utils-methods.hpp"))
-                        writer.WriteInclude("extern/beatsaber-hook/shared/utils/il2cpp-utils-methods.hpp");
-                    if (includesWritten.Add("extern/beatsaber-hook/shared/utils/il2cpp-utils-properties.hpp"))
-                        writer.WriteInclude("extern/beatsaber-hook/shared/utils/il2cpp-utils-properties.hpp");
-                    if (includesWritten.Add("extern/beatsaber-hook/shared/utils/il2cpp-utils-fields.hpp"))
-                        writer.WriteInclude("extern/beatsaber-hook/shared/utils/il2cpp-utils-fields.hpp");
+                    if (includesWritten.Add("beatsaber-hook/shared/utils/il2cpp-utils-methods.hpp"))
+                        writer.WriteInclude("beatsaber-hook/shared/utils/il2cpp-utils-methods.hpp");
+                    if (includesWritten.Add("beatsaber-hook/shared/utils/il2cpp-utils-properties.hpp"))
+                        writer.WriteInclude("beatsaber-hook/shared/utils/il2cpp-utils-properties.hpp");
+                    if (includesWritten.Add("beatsaber-hook/shared/utils/il2cpp-utils-fields.hpp"))
+                        writer.WriteInclude("beatsaber-hook/shared/utils/il2cpp-utils-fields.hpp");
                 }
-                if (includesWritten.Add("extern/beatsaber-hook/shared/utils/utils.h"))
-                    writer.WriteInclude("extern/beatsaber-hook/shared/utils/utils.h");
+                if (includesWritten.Add("beatsaber-hook/shared/utils/utils.h"))
+                    writer.WriteInclude("beatsaber-hook/shared/utils/utils.h");
             }
             writer.WriteComment("Completed includes");
         }

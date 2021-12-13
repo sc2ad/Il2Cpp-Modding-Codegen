@@ -22,7 +22,7 @@ namespace Il2CppModdingCodegen.Serialization
         private void IncludeIl2CppTypeCheckIfNotAlready(CppStreamWriter writer)
         {
             if (hasIl2CppTypeCheckInclude) return;
-            writer.WriteInclude("extern/beatsaber-hook/shared/utils/il2cpp-type-check.hpp");
+            writer.WriteInclude("beatsaber-hook/shared/utils/il2cpp-type-check.hpp");
             hasIl2CppTypeCheckInclude = true;
         }
 
@@ -102,7 +102,7 @@ namespace Il2CppModdingCodegen.Serialization
             }
 
             DefineIl2CppArgTypes(writer, context);
-            writer.WriteLine("#include \"extern/beatsaber-hook/shared/utils/il2cpp-utils-methods.hpp\"");
+            writer.WriteLine("#include \"beatsaber-hook/shared/utils/il2cpp-utils-methods.hpp\"");
             _serializer.WritePostSerializeMethods(writer, context, true);
             writer.Flush();
 
