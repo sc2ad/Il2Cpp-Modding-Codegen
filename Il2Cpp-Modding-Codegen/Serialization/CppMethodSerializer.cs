@@ -144,14 +144,14 @@ namespace Il2CppModdingCodegen.Serialization
             _stateMap = map;
         }
 
-        private static bool NeedDefinitionInHeader(IMethod method) => method.DeclaringType.IsGenericTemplate || method.Generic || IsCtor(method);
+        private bool NeedDefinitionInHeader(IMethod method) => method.DeclaringType.IsGenericTemplate || method.Generic || (IsCtor(method) && !_declaringIsValueType);
 
         /// <summary>
         /// Returns whether the given method should be written as a definition or a declaration
         /// </summary>
         /// <param name="method"></param>
         /// <returns></returns>
-        private static CppTypeContext.NeedAs NeedTypesAs(IMethod method)
+        private CppTypeContext.NeedAs NeedTypesAs(IMethod method)
         {
             // The TArgs -> initializer_list params proxy will also need complete types
             if (NeedDefinitionInHeader(method) || method.Parameters.Any(p => p.Modifier == ParameterModifier.Params)) return CppTypeContext.NeedAs.BestMatch;
@@ -631,7 +631,7 @@ namespace Il2CppModdingCodegen.Serialization
             // If the type we are writing is a value type, we would like to make a constructor that takes in each non-static, non-const field.
             // This is to allow us to construct structs without having to provide initialization lists that are horribly long.
             // Always write at least one constexpr constructor.
-            if (asHeader)
+            if (asHeader && type.Info.Refness == Refness.ValueType)
             {
                 var sig = $"{name}({string.Join(", ", fieldSer.ResolvedTypeNames.Select(pair => pair.Value))})";
                 if (!CanWriteMethod(0, type.This, asHeader, sig)) return;
@@ -644,7 +644,8 @@ namespace Il2CppModdingCodegen.Serialization
                 {
                     var typeName = pair.Value;
                     var fieldName = fieldSer.SafeFieldNames[pair.Key];
-                    return typeName + " " + fieldName + "_ = {}";
+                    var defaultVal = typeName!.StartsWith("::ArrayW<") ? $"{typeName}(nullptr)" : "{}";
+                    return typeName + " " + fieldName + $"_ = {defaultVal}";
                 }));
                 signature += ") noexcept";
                 string subConstructors = string.Join(", ", fieldSer.SafeFieldNames.Where(p => fieldSer.FirstOrNotInUnion(p.Key)).Select(pair =>
@@ -716,7 +717,7 @@ namespace Il2CppModdingCodegen.Serialization
                 hadGenerics = true;
                 str += string.Join(", ", generics.Select(s => "class " + s));
             }
-            if (IsCtor(method))
+            if (IsCtor(method) && !_declaringIsValueType)
             {
                 if (hadGenerics)
                     str += ", ";
@@ -828,6 +829,7 @@ namespace Il2CppModdingCodegen.Serialization
 
             if (writeContent)
             {
+                // TODO: If ctor, write _ctor method, c++ constructor
                 if (TemplateString(method, asHeader, out var templateStr))
                     writer.WriteLine((commentMethod ? "// " : "") + templateStr);
 
@@ -936,19 +938,7 @@ namespace Il2CppModdingCodegen.Serialization
                         mName = genMName;
                         invokeMethodName = "___generic__method";
                     }
-                    string firstParam;
-                    if (method.Specifiers.IsStatic())
-                        firstParam = "static_cast<Il2CppClass*>(nullptr)";
-                    else if (_declaringIsValueType)
-                    {
-                        firstParam = thisArg;
-                    }
-                    else
-                    {
-                        // Need to write a local of this so that we can pass it in by reference to RunMethodThrow as instance.
-                        writer.WriteDeclaration($"auto ___instance_arg = {thisArg}");
-                        firstParam = "___instance_arg";
-                    }
+                    string firstParam = method.Specifiers.IsStatic() ? "static_cast<Il2CppObject*>(nullptr)" : "this";
                     call += $"{firstParam}, {invokeMethodName}" + (paramString.Length > 0 ? (", " + paramString) : "") + ")";
                 }
                 else
@@ -966,86 +956,87 @@ namespace Il2CppModdingCodegen.Serialization
                 writer.CloseDefinition();
             }
 
-            var param = method.Parameters.Where(p => p.Modifier == ParameterModifier.Params).SingleOrDefault();
-            if (param != null && !commentMethod)
-            {
-                var (container, _) = _parameterMaps[method][^1];
-                var origMethod = $"{method.ReturnType} {method.Il2CppName}({method.Parameters.FormatParameters()})".TrimStart();
+            // REMOVE TARG PROXYING!
+            //var param = method.Parameters.Where(p => p.Modifier == ParameterModifier.Params).SingleOrDefault();
+            //if (param != null && !commentMethod)
+            //{
+            //    var (container, _) = _parameterMaps[method][^1];
+            //    var origMethod = $"{method.ReturnType} {method.Il2CppName}({method.Parameters.FormatParameters()})".TrimStart();
 
-                if (container.HasTemplate || param.Type.IsOrContainsMatch(t => method.GenericParameters.Contains(t)))
-                    writer.WriteComment($"ABORTED: Cannot write std::intializer_list proxy for {origMethod} as the 'params' type ({param.Type}) already " +
-                        "is/contains a method-level generic parameter!");
-                else
-                {
-                    container.ExpandParams = true;
+            //    if (container.HasTemplate || param.Type.IsOrContainsMatch(t => method.GenericParameters.Contains(t)))
+            //        writer.WriteComment($"ABORTED: Cannot write std::intializer_list proxy for {origMethod} as the 'params' type ({param.Type}) already " +
+            //            "is/contains a method-level generic parameter!");
+            //    else
+            //    {
+            //        container.ExpandParams = true;
 
-                    var initializerListProxyInfo = WriteMethod(scope, method, asHeader, overrideName, false);
-                    declaration = initializerListProxyInfo.declaration;
-                    bool commentProxy1 = declaration.StartsWith("/");
+            //        var initializerListProxyInfo = WriteMethod(scope, method, asHeader, overrideName, false);
+            //        declaration = initializerListProxyInfo.declaration;
+            //        bool commentProxy1 = declaration.StartsWith("/");
 
-                    writer.WriteComment($"Creating initializer_list -> params proxy for: {origMethod}");
-                    if (TemplateString(method, !writeContent, out var templateStr))
-                        writer.WriteLine((commentProxy1 ? "// " : "") + templateStr);
+            //        writer.WriteComment($"Creating initializer_list -> params proxy for: {origMethod}");
+            //        if (TemplateString(method, !writeContent, out var templateStr))
+            //            writer.WriteLine((commentProxy1 ? "// " : "") + templateStr);
 
-                    if (commentProxy1)
-                    {
-                        writer.WriteComment("proxy would be redundant?!");
-                        writer.WriteLine(declaration);
-                    }
-                    else if (!writeContent)
-                        writer.WriteDeclaration(declaration);
-                    else
-                    {
-                        writer.WriteDefinition(declaration);
-                        // Call original method (return as necessary)
-                        string s = needsReturn ? "return " : "";
-                        if (cppName.EndsWith("New_ctor"))
-                            cppName += "<creationType>";
-                        s += $"{cppName}({method.Parameters.FormatParameters(_config.IllegalNames, _parameterMaps[method], ParameterFormatFlags.Names, asHeader)})";
-                        writer.WriteDeclaration(s);
-                        writer.CloseDefinition();
-                    }
+            //        if (commentProxy1)
+            //        {
+            //            writer.WriteComment("proxy would be redundant?!");
+            //            writer.WriteLine(declaration);
+            //        }
+            //        else if (!writeContent)
+            //            writer.WriteDeclaration(declaration);
+            //        else
+            //        {
+            //            writer.WriteDefinition(declaration);
+            //            // Call original method (return as necessary)
+            //            string s = needsReturn ? "return " : "";
+            //            if (cppName.EndsWith("New_ctor"))
+            //                cppName += "<creationType>";
+            //            s += $"{cppName}({method.Parameters.FormatParameters(_config.IllegalNames, _parameterMaps[method], ParameterFormatFlags.Names, asHeader)})";
+            //            writer.WriteDeclaration(s);
+            //            writer.CloseDefinition();
+            //        }
 
-                    if (!commentProxy1 && asHeader)
-                    {
-                        var tempGens = _tempGenerics.GetOrAdd(method);
-                        // Temporarily add a generic TParams
-                        tempGens.AddOrThrow("...TParams");
-                        container.Template("TParams&&...");
+            //        if (!commentProxy1 && asHeader)
+            //        {
+            //            var tempGens = _tempGenerics.GetOrAdd(method);
+            //            // Temporarily add a generic TParams
+            //            tempGens.AddOrThrow("...TParams");
+            //            container.Template("TParams&&...");
 
-                        declaration = WriteMethod(scope, method, asHeader, overrideName, false).declaration;
+            //            declaration = WriteMethod(scope, method, asHeader, overrideName, false).declaration;
 
-                        // TArgs proxies for different initializer_list T's look exactly the same.
-                        if (!declaration.StartsWith("/"))
-                        {
-                            writer.WriteComment($"Creating TArgs -> initializer_list proxy for: {origMethod}");
-                            if (TemplateString(method, true, out templateStr))
-                                writer.WriteLine(templateStr);
-                            writer.WriteDefinition(declaration);
-                            // Call original method (return as necessary)
-                            string s = NeedsReturn(initializerListProxyInfo.returnMode) ? "return " : "";
-                            // If we have generics in our original method, we need to forward them
-                            var typeArg = "";
-                            if (_genericArgs.TryGetValue(method, out var generics) && generics.Any())
-                            {
-                                typeArg = "<" + string.Join(", ", generics);
-                            }
-                            if (initializerListProxyInfo.cppName.EndsWith("New_ctor"))
-                                typeArg = typeArg.Length == 0 ? "<creationType>" : typeArg + "creationType>";
-                            else if (typeArg.Length != 0)
-                                typeArg += ">";
-                            s += $"{initializerListProxyInfo.cppName}{typeArg}({method.Parameters.FormatParameters(_config.IllegalNames, _parameterMaps[method], ParameterFormatFlags.Names, asHeader)})";
-                            writer.WriteDeclaration(s);
-                            writer.CloseDefinition();
-                        }
+            //            // TArgs proxies for different initializer_list T's look exactly the same.
+            //            if (!declaration.StartsWith("/"))
+            //            {
+            //                writer.WriteComment($"Creating TArgs -> initializer_list proxy for: {origMethod}");
+            //                if (TemplateString(method, true, out templateStr))
+            //                    writer.WriteLine(templateStr);
+            //                writer.WriteDefinition(declaration);
+            //                // Call original method (return as necessary)
+            //                string s = NeedsReturn(initializerListProxyInfo.returnMode) ? "return " : "";
+            //                // If we have generics in our original method, we need to forward them
+            //                var typeArg = "";
+            //                if (_genericArgs.TryGetValue(method, out var generics) && generics.Any())
+            //                {
+            //                    typeArg = "<" + string.Join(", ", generics);
+            //                }
+            //                if (initializerListProxyInfo.cppName.EndsWith("New_ctor"))
+            //                    typeArg = typeArg.Length == 0 ? "<creationType>" : typeArg + "creationType>";
+            //                else if (typeArg.Length != 0)
+            //                    typeArg += ">";
+            //                s += $"{initializerListProxyInfo.cppName}{typeArg}({method.Parameters.FormatParameters(_config.IllegalNames, _parameterMaps[method], ParameterFormatFlags.Names, asHeader)})";
+            //                writer.WriteDeclaration(s);
+            //                writer.CloseDefinition();
+            //            }
 
-                        // Remove the generic TParams
-                        container.Template(null);
-                        tempGens.RemoveOrThrow("...TParams");
-                    }
-                    container.ExpandParams = false;
-                }
-            }
+            //            // Remove the generic TParams
+            //            container.Template(null);
+            //            tempGens.RemoveOrThrow("...TParams");
+            //        }
+            //        container.ExpandParams = false;
+            //    }
+            //}
 
             // If we have any parameters that are strings, we should make UTF16 and UTF8 string overload methods
             if (method.Parameters.Any(p => p.Type.Namespace == "System" && p.Type.Name == "String"))
@@ -1127,7 +1118,7 @@ namespace Il2CppModdingCodegen.Serialization
             // il2cpp_functions::class_get_nested_types - search for nested match
             // const Il2CppGenericInst* genInst = declaring->generic_class->context.class_inst - If declaring is generic, get instantiation
             // Use it to MakeGeneric, use result.
-            // If we have an element type and we are an array, call classof(Array<T>*)
+            // If we have an element type and we are an array, call array_class_get
             if (type.IsArray() && type.ElementType is not null)
             {
                 return new List<string> { $"il2cpp_functions::array_class_get({ClassFromType(type.ElementType).Single()}, 1)" };

@@ -243,7 +243,21 @@ namespace Il2CppModdingCodegen.Serialization
         private void WriteFields(CppStreamWriter writer, ITypeData type, bool asHeader, bool instanceFields)
         {
             var serializer = instanceFields ? (Serializer<IField>)FieldSerializer : StaticFieldSerializer;
-            foreach (var f in instanceFields ? type.InstanceFields : type.StaticFields)
+            var fields = instanceFields ? type.InstanceFields : type.StaticFields;
+            if (fields.Count == 0)
+            {
+                return;
+            }
+            if (instanceFields)
+            {
+                // TODO: Make static fields and instance fields conditionally public
+                writer.WriteLine("#ifdef USE_CODEGEN_FIELDS");
+                writer.WriteLine("public:");
+                writer.WriteLine("#else");
+                writer.WriteLine("protected:");
+                writer.WriteLine("#endif");
+            }
+            foreach (var f in fields)
                 try
                 {
                     serializer.Serialize(writer, f, asHeader);
@@ -260,6 +274,8 @@ namespace Il2CppModdingCodegen.Serialization
                     else if (_config.UnresolvedTypeExceptionHandling?.FieldHandling == UnresolvedTypeExceptionHandling.Elevate)
                         throw;
                 }
+            if (instanceFields)
+                writer.WriteLine("public:");
         }
 
         internal void WriteInstanceFields(CppStreamWriter writer, ITypeData type)

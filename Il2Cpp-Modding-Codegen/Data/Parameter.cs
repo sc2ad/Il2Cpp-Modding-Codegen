@@ -104,7 +104,7 @@ namespace Il2CppModdingCodegen.Data
                         if (container.ExpandParams)
                         {
                             if (!container.HasTemplate)
-                                nameStr = $"::Array<{container.ElementType}>::New({nameStr})";
+                                nameStr = $"::ArrayW<{container.ElementType}>({nameStr})";
                             else
                             {
                                 if (!container.TypeName(true).Contains("..."))

@@ -278,6 +278,11 @@ namespace Il2CppModdingCodegen.Serialization
                 if (includesWritten.Add("beatsaber-hook/shared/utils/utils.h"))
                     writer.WriteInclude("beatsaber-hook/shared/utils/utils.h");
             }
+            if (asHeader && context.NeedArrayInclude)
+            {
+                // Array include for Array<T>* and ArrayW<T>
+                writer.WriteInclude("extern/beatsaber-hook/shared/utils/typedefs-array.hpp");
+            }
             writer.WriteComment("Completed includes");
         }
 
@@ -376,6 +381,41 @@ namespace Il2CppModdingCodegen.Serialization
             }
         }
 
+        private static void IncludeIl2CppTypeCheckIfNotAlready(CppStreamWriter writer)
+        {
+            // Honestly, just always include type check...
+            writer.WriteInclude("extern/beatsaber-hook/shared/utils/il2cpp-type-check.hpp");
+        }
+
+        // Outputs a DEFINE_IL2CPP_ARG_TYPE call for all root or non-generic types defined by this file
+        internal static void DefineIl2CppArgTypes(CppStreamWriter writer, CppTypeContext context)
+        {
+            var type = context.LocalType;
+            // DEFINE_IL2CPP_ARG_TYPE
+            var (ns, il2cppName) = type.This.GetIl2CppName();
+            // For Name and Namespace here, we DO want all the `, /, etc
+            if (!type.This.IsGeneric)
+            {
+                IncludeIl2CppTypeCheckIfNotAlready(writer);
+                string fullName = context.GetCppName(context.LocalType.This, true, true, CppTypeContext.NeedAs.Definition, CppTypeContext.ForceAsType.Literal)
+                    ?? throw new UnresolvedTypeException(context.LocalType.This, context.LocalType.This);
+                if (context.LocalType.Info.Refness == Refness.ReferenceType)
+                {
+                    writer.WriteDeclaration("NEED_NO_BOX(" + fullName + ")");
+                    fullName += "*";
+                }
+                writer.WriteLine($"DEFINE_IL2CPP_ARG_TYPE({fullName}, \"{ns}\", \"{il2cppName}\");");
+            }
+            else if (type.This.DeclaringType is null || !type.This.DeclaringType.IsGeneric)
+            {
+                IncludeIl2CppTypeCheckIfNotAlready(writer);
+                string templateName = context.GetCppName(context.LocalType.This, true, false, CppTypeContext.NeedAs.Declaration, CppTypeContext.ForceAsType.Literal)
+                    ?? throw new UnresolvedTypeException(context.LocalType.This, context.LocalType.This);
+                var structStr = context.LocalType.Info.Refness == Refness.ReferenceType ? "CLASS" : "STRUCT";
+                writer.WriteLine($"DEFINE_IL2CPP_ARG_TYPE_GENERIC_{structStr}({templateName}, \"{ns}\", \"{il2cppName}\");");
+            }
+        }
+
         internal void Serialize(CppStreamWriter writer, CppTypeContext context, bool asHeader)
         {
             var contextMap = asHeader ? _headerContextMap : _sourceContextMap;
@@ -399,6 +439,23 @@ namespace Il2CppModdingCodegen.Serialization
             // And finally our methods
             if (!_typeSerializers.TryGetValue(context, out var typeSerializer))
                 throw new InvalidOperationException($"Must have a valid {nameof(CppTypeDataSerializer)} for context type: {context.LocalType.This}!");
+
+            if (asHeader)
+            {
+                if (!context.InPlace || context.DeclaringContext is null)
+                {
+                    // Write namespace
+                    writer.WriteComment("Type namespace: " + context.LocalType.This.Namespace);
+                    writer.WriteDefinition("namespace " + context.TypeNamespace);
+                    // Always FD ourselves
+                    // Always write an FD of ourselves
+                    WriteForwardDeclaration(writer, context.LocalType);
+                    // We also want to FD our nested types... This is a bit trickier.
+                    writer.CloseDefinition();
+                    // Now, here we want to actually write our DEFINE_IL2CPP info, since we have an fd of our type, so we can write this out early.
+                    DefineIl2CppArgTypes(writer, context);
+                }
+            }
 
             // Only write the initial type and nested declares/definitions if we are a header
             if (asHeader)
