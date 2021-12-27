@@ -1,6 +1,7 @@
 ﻿using Il2CppModdingCodegen.Config;
 using Il2CppModdingCodegen.Data;
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 
@@ -72,9 +73,13 @@ namespace Il2CppModdingCodegen.Serialization
                 writer.WriteLine("template<class T>");
                 writer.WriteLine("struct is_value_type<T, typename std::enable_if_t<std::is_base_of_v<System::ValueType, T>>> : std::true_type{};");
             }
-
-            foreach (var nested in context.NestedContexts.Where(n => n.InPlace))
+            var nestedContexts = new Stack<CppTypeContext>(context.NestedContexts.Where(n => n.InPlace));
+            while (nestedContexts.TryPop(out var nested))
+            {
                 CppContextSerializer.DefineIl2CppArgTypes(writer, nested);
+                foreach (var innerNested in nested.NestedContexts.Where(n => n.InPlace))
+                    nestedContexts.Push(innerNested);
+            }
 
             writer.WriteLine("#include \"beatsaber-hook/shared/utils/il2cpp-utils-methods.hpp\"");
             _serializer.WritePostSerializeMethods(writer, context, true);

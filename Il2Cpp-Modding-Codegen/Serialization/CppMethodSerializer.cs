@@ -644,7 +644,7 @@ namespace Il2CppModdingCodegen.Serialization
                 {
                     var typeName = pair.Value;
                     var fieldName = fieldSer.SafeFieldNames[pair.Key];
-                    var defaultVal = typeName!.StartsWith("::ArrayW<") ? $"{typeName}(nullptr)" : "{}";
+                    var defaultVal = typeName!.StartsWith("::ArrayW<") ? $"{typeName}(static_cast<void*>(nullptr))" : "{}";
                     return typeName + " " + fieldName + $"_ = {defaultVal}";
                 }));
                 signature += ") noexcept";
@@ -883,7 +883,8 @@ namespace Il2CppModdingCodegen.Serialization
                 if (!isNewCtor)
                 {
                     // Innard should be set to not perform type checking
-                    innard = returnMode != ReturnMode.None ? $"<{returnType}, false>" : "<void, false>";
+                    //innard = returnMode != ReturnMode.None ? $"<{returnType}, false>" : "<Il2CppObject*, false>";
+                    innard = $"<{returnType}, false>";
                 }
                 else
                 {
@@ -893,7 +894,7 @@ namespace Il2CppModdingCodegen.Serialization
 
                 // We should avoid calling RunMethod, as we can be very explicit that we are confident we are calling it correctly.
                 // TODO: Eventually optimize New as well as RunGenericMethod and RunMethod
-                var utilFunc = isNewCtor ? "New" : "RunMethodThrow";
+                var utilFunc = isNewCtor ? "New" : "RunMethodRethrow";
 
                 // If we are calling RunGenericMethodThrow or RunMethodThrow, we should cache the found method first.
                 // ONLY IF we are not an abstract/virtual method!
@@ -948,7 +949,7 @@ namespace Il2CppModdingCodegen.Serialization
                 }
 
                 // Write call
-                if (_config.OutputStyle != OutputStyle.ThrowUnless || isNewCtor)
+                if (isNewCtor || !utilFunc.EndsWith("throw", StringComparison.Ordinal))
                     writer.WriteDeclaration(s + _config.MacroWrap(loggerId, call, needsReturn));
                 else
                     writer.WriteDeclaration(s + call);

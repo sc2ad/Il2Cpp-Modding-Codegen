@@ -281,7 +281,7 @@ namespace Il2CppModdingCodegen.Serialization
             if (asHeader && context.NeedArrayInclude)
             {
                 // Array include for Array<T>* and ArrayW<T>
-                writer.WriteInclude("extern/beatsaber-hook/shared/utils/typedefs-array.hpp");
+                writer.WriteInclude("beatsaber-hook/shared/utils/typedefs-array.hpp");
             }
             writer.WriteComment("Completed includes");
         }
@@ -384,7 +384,7 @@ namespace Il2CppModdingCodegen.Serialization
         private static void IncludeIl2CppTypeCheckIfNotAlready(CppStreamWriter writer)
         {
             // Honestly, just always include type check...
-            writer.WriteInclude("extern/beatsaber-hook/shared/utils/il2cpp-type-check.hpp");
+            writer.WriteInclude("beatsaber-hook/shared/utils/il2cpp-type-check.hpp");
         }
 
         // Outputs a DEFINE_IL2CPP_ARG_TYPE call for all root or non-generic types defined by this file
@@ -444,14 +444,17 @@ namespace Il2CppModdingCodegen.Serialization
             {
                 if (!context.InPlace || context.DeclaringContext is null)
                 {
-                    // Write namespace
-                    writer.WriteComment("Type namespace: " + context.LocalType.This.Namespace);
-                    writer.WriteDefinition("namespace " + context.TypeNamespace);
-                    // Always FD ourselves
-                    // Always write an FD of ourselves
-                    WriteForwardDeclaration(writer, context.LocalType);
-                    // We also want to FD our nested types... This is a bit trickier.
-                    writer.CloseDefinition();
+                    if (context.LocalType.This.DeclaringType is null)
+                    {
+                        // Write namespace
+                        // Always write an FD of ourselves, UNLESS WE ARE A NESTED TYPE!
+                        writer.WriteComment("Type namespace: " + context.LocalType.This.Namespace);
+                        writer.WriteDefinition("namespace " + context.TypeNamespace);
+                        // Always FD ourselves
+                        WriteForwardDeclaration(writer, context.LocalType);
+                        // We also want to FD our nested types... This is a bit trickier.
+                        writer.CloseDefinition();
+                    }
                     // Now, here we want to actually write our DEFINE_IL2CPP info, since we have an fd of our type, so we can write this out early.
                     DefineIl2CppArgTypes(writer, context);
                 }
