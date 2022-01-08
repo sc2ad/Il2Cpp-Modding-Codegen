@@ -860,7 +860,7 @@ namespace Il2CppModdingCodegen.Serialization
                     if (method.Generic)
                         Utils.Noop();
                     // Always use thisTypeName for the cast type, since we are already within the context of the type.
-                    returnType = (_thisTypeName.EndsWith("*") || _declaringIsValueType) ? _thisTypeName : _thisTypeName + "*";
+                    returnType = _declaringIsValueType ? "void" : _thisTypeName.EndsWith("*") ? _thisTypeName : _thisTypeName + "*";
                     // var paramNames = method.Parameters.FormatParameters(_config.IllegalNames, _parameterMaps[method], ParameterFormatFlags.Names, asHeader);
                 }
 
