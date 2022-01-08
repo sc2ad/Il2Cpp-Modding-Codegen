@@ -71,7 +71,7 @@ namespace Il2CppModdingCodegen.Serialization
             {
                 IncludeIl2CppTypeCheckIfNotAlready(writer);
                 writer.WriteLine("template<class T>");
-                writer.WriteLine("struct is_value_type<T, typename std::enable_if_t<std::is_base_of_v<System::ValueType, T>>> : std::true_type{};");
+                writer.WriteLine("struct is_value_type<T, typename std::enable_if_t<std::is_convertible_v<T, System::ValueType>>> : std::true_type{};");
             }
             var nestedContexts = new Stack<CppTypeContext>(context.NestedContexts.Where(n => n.InPlace));
             while (nestedContexts.TryPop(out var nested))
