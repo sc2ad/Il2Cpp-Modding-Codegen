@@ -566,7 +566,7 @@ namespace Il2CppModdingCodegen.Serialization
                         retStr = $"::{Constants.ObjectCppName}*";
                     else if (method.DeclaringType.Namespace == "System" && method.DeclaringType.Name == "String")
                         // Special case for System.String, needs to always return ::StringCppName
-                        retStr = $"::{Constants.StringCppName}*";
+                        retStr = $"::{Constants.StringCppName}";
                     else
                     {
                         retStr = (!asHeader ? _declaringFullyQualified : _thisTypeName)!;

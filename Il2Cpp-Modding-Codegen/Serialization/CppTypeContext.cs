@@ -95,6 +95,7 @@ namespace Il2CppModdingCodegen.Serialization
         internal bool NeedIl2CppUtilsFunctionsInHeader { get; private set; } = false;
 
         internal bool NeedArrayInclude { get; private set; } = false;
+        internal bool NeedStringInclude { get; private set; } = false;
 
         internal void EnableNeedIl2CppUtilsFunctionsInHeader() => NeedIl2CppUtilsFunctionsInHeader = true;
 
@@ -646,7 +647,10 @@ namespace Il2CppModdingCodegen.Serialization
                 else if (name == "object")
                     s = Constants.ObjectCppName;
                 else if (name == "string")
-                    s = Constants.StringCppName;
+                {
+                    s = "::" + Constants.StringCppName;
+                    NeedStringInclude = true;
+                }
                 else if (name == "char")
                     s = "Il2CppChar";
                 else if (def.Name == "bool" || def.Name == "Boolean")

@@ -278,10 +278,18 @@ namespace Il2CppModdingCodegen.Serialization
                 if (includesWritten.Add("beatsaber-hook/shared/utils/utils.h"))
                     writer.WriteInclude("beatsaber-hook/shared/utils/utils.h");
             }
-            if (asHeader && context.NeedArrayInclude)
+            if (asHeader)
             {
-                // Array include for Array<T>* and ArrayW<T>
-                writer.WriteInclude("beatsaber-hook/shared/utils/typedefs-array.hpp");
+                if (context.NeedArrayInclude)
+                {
+                    // Array include for Array<T>* and ArrayW<T>
+                    writer.WriteInclude("beatsaber-hook/shared/utils/typedefs-array.hpp");
+                }
+                if (context.NeedStringInclude)
+                {
+                    // String include for StringW and Il2CppString FD
+                    writer.WriteInclude("beatsaber-hook/shared/utils/typedefs-string.hpp");
+                }
             }
             writer.WriteComment("Completed includes");
         }
