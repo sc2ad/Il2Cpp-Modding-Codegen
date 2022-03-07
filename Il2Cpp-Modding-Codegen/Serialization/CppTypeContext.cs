@@ -1,4 +1,4 @@
-﻿using Il2CppModdingCodegen.Data;
+using Il2CppModdingCodegen.Data;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics.Contracts;
@@ -570,6 +570,8 @@ namespace Il2CppModdingCodegen.Serialization
             // Append pointer as necessary
             if (resolved is null)
                 return null;
+            if (qualified)
+                name = "::" + name;
             if (forceAsType == ForceAsType.Literal)
                 return name;
             if (resolved.This.DeclaringType?.IsGeneric ?? false)  // note: it's important that ForceAsType.Literal is ruled out first

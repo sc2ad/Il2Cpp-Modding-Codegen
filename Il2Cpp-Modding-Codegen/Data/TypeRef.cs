@@ -99,7 +99,7 @@ namespace Il2CppModdingCodegen.Data
                 dt = dt.DeclaringType;
             }
             // Namespace obtained from final declaring type
-            return dt.CppNamespace() + "::" + name;
+            return "::" + dt.CppNamespace() + "::" + name;
         }
 
         public (string, string) GetIl2CppName()
@@ -118,10 +118,13 @@ namespace Il2CppModdingCodegen.Data
         // TODO: new method/param to easily allow for getting only the new generic templates that this TypeRef brings to the table?
         public IEnumerable<TypeRef> GetDeclaredGenerics(bool includeSelf)
         {
+            if (includeSelf)
+                return Generics;
             var genericsDefined = new List<TypeRef>();
             // Populate genericsDefined with all TypeRefs that are used in a declaring type
             var dt = includeSelf ? this : DeclaringType;
             var genericsColl = new List<IReadOnlyList<TypeRef>>();
+
             if (!includeSelf)
                 genericsColl.Add(Generics);
             while (dt != null)
@@ -166,6 +169,7 @@ namespace Il2CppModdingCodegen.Data
             }
             // Return only the first occurance of each of the generic parameters (template or argument)
             // Do not compare the generic types' declaring types (use the fastCompararer)
+            // I don't think this can be just the distincts, by the way.
             return genericsDefined.Distinct(fastComparer);
         }
 

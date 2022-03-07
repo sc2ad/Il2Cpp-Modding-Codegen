@@ -41,19 +41,19 @@ namespace Il2CppModdingCodegen.Serialization
             { "op_Explicit", ("explicit ", OpFlags.NeedMoreInfo) },
             // https://en.cppreference.com/w/cpp/language/operator_assignment
             { "op_Assign", ("operator =", OpFlags.RefReturn | OpFlags.InClassOnly) },
-            { "op_AdditionAssignment", ("operator +=", OpFlags.RefReturn) },
-            { "op_SubtractionAssignment", ("operator -=", OpFlags.RefReturn) },
-            { "op_MultiplicationAssignment", ("operator *=", OpFlags.RefReturn) },
-            { "op_DivisionAssignment", ("operator /=", OpFlags.RefReturn) },
-            { "op_ModulusAssignment", ("operator %=", OpFlags.RefReturn) },
-            { "op_BitwiseAndAssignment", ("operator &=", OpFlags.RefReturn) },
-            { "op_BitwiseOrAssignment", ("operator |=", OpFlags.RefReturn) },
-            { "op_ExclusiveOrAssignment", ("operator ^=", OpFlags.RefReturn) },
-            { "op_LeftShiftAssignment", ("operator <<=", OpFlags.RefReturn) },
-            { "op_RightShiftAssignment", ("operator >>=", OpFlags.RefReturn) },
+            { "op_AdditionAssignment", ("operator +=", OpFlags.ConstSelf) },
+            { "op_SubtractionAssignment", ("operator -=", OpFlags.ConstSelf) },
+            { "op_MultiplicationAssignment", ("operator *=", OpFlags.ConstSelf) },
+            { "op_DivisionAssignment", ("operator /=", OpFlags.ConstSelf) },
+            { "op_ModulusAssignment", ("operator %=", OpFlags.ConstSelf) },
+            { "op_BitwiseAndAssignment", ("operator &=", OpFlags.ConstSelf) },
+            { "op_BitwiseOrAssignment", ("operator |=", OpFlags.ConstSelf) },
+            { "op_ExclusiveOrAssignment", ("operator ^=", OpFlags.ConstSelf) },
+            { "op_LeftShiftAssignment", ("operator <<=", OpFlags.ConstSelf) },
+            { "op_RightShiftAssignment", ("operator >>=", OpFlags.ConstSelf) },
             // https://en.cppreference.com/w/cpp/language/operator_incdec
-            { "op_Increment", ("operator++", OpFlags.RefReturn) },
-            { "op_Decrement", ("operator--", OpFlags.RefReturn) },
+            { "op_Increment", ("operator++", OpFlags.ConstSelf) },
+            { "op_Decrement", ("operator--", OpFlags.ConstSelf) },
             // https://en.cppreference.com/w/cpp/language/operator_arithmetic
             { "op_UnaryPlus", ("operator+", OpFlags.ConstSelf) },
             { "op_UnaryNegation", ("operator-", OpFlags.ConstSelf) },
@@ -691,7 +691,15 @@ namespace Il2CppModdingCodegen.Serialization
                 if (op.Kind == ConversionOperatorKind.Delete)
                 {
                     writer.WriteComment("Deleting conversion operator: " + name);
-                    writer.WriteDeclaration(signature + " = delete");
+                    if (op.Field.Type.Generics.Any(g => op.Field.DeclaringType.Generics.Contains(g)))
+                    {
+                        // Cannot delete this conversion operator, since it has a generic parameter that seems to be an inherited argument-- too annoying, don't bother.
+                        writer.WriteComment("Cannot delete conversion operator because it seems to have a generic type in the definition! This may not be defined!");
+                    }
+                    else
+                    {
+                        writer.WriteDeclaration(signature + " = delete");
+                    }
                 }
                 else if (op.Kind == ConversionOperatorKind.Yes)
                 {
