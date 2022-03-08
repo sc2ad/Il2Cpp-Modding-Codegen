@@ -42,7 +42,8 @@ namespace Il2CppModdingCodegen.Serialization
         {
             // This should replace any characters not in the typical ASCII printable range.
             static ushort FirstChar(Match match) => match.Value[0];
-            return Regex.Replace(value.Replace(@"\", @"\\"), @"[^ -~]", match => $"\\u{FirstChar(match):x4}");
+            // Need to escape \ and "
+            return Regex.Replace(value.Replace(@"\", @"\\").Replace("\"", "\\\""), @"[^ -~]", match => $"\\u{FirstChar(match):x4}");
         }
 
         private static TypeRef GetEnumUnderlyingType(ITypeData self)
