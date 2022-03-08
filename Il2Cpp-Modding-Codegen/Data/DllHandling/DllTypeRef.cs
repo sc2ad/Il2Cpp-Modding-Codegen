@@ -68,6 +68,8 @@ namespace Il2CppModdingCodegen.Data.DllHandling
                 }
                 else if (genericTypes.TryGetValue(genericParameter, out var genericArgument))
                     genericArgumentsInOrder.Add(genericArgument.AsDllTypeRef.This);
+                else if (!genericParameter.IsGenericParameter)
+                    genericArgumentsInOrder.Add(genericParameter.AsDllTypeRef.This);
                 else
                     throw new UnresolvedTypeException(genericParameter, this);
             }
