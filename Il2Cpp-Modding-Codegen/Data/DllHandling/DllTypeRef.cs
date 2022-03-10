@@ -82,8 +82,9 @@ namespace Il2CppModdingCodegen.Data.DllHandling
         internal static int Misses { get; private set; } = 0;
 
         // Should use DllTypeRef.From instead!
-        private DllTypeRef(TypeReference reference)
+        private DllTypeRef(TypeReference reference, int knownOffsetTypeName)
         {
+            this.knownOffsetTypeName = knownOffsetTypeName;
             cache.Add(reference, this);
             This = reference;
 
@@ -132,6 +133,10 @@ namespace Il2CppModdingCodegen.Data.DllHandling
             else if ((This.Name == "EventData" && This.DeclaringType?.Name == "EventProvider") ||
                      (This.Name == "ManifestEtw" && This.DeclaringType?.Name == "UnsafeNativeMethods"))
                 UnNested = true;
+            else if (This.Name == "RenderPass" && This.DeclaringType?.Name == "RenderGraph")
+            {
+                UnNested = true;
+            }
 
             //if (This.DeclaringType is not null)
             //{
@@ -168,7 +173,7 @@ namespace Il2CppModdingCodegen.Data.DllHandling
         }
 
         [return: NotNullIfNotNull("type")]
-        internal static DllTypeRef? From(TypeReference? type)
+        internal static DllTypeRef? From(TypeReference? type, int knownOffsetTypeName = 0)
         {
             if (type is null) return null;
             if (cache.TryGetValue(type, out var value))
@@ -179,7 +184,7 @@ namespace Il2CppModdingCodegen.Data.DllHandling
             Misses++;
 
             // Creates new TypeRef and add it to map
-            value = new DllTypeRef(type);
+            value = new DllTypeRef(type, knownOffsetTypeName);
             return value;
         }
 
