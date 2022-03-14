@@ -47,30 +47,19 @@ namespace Il2CppModdingCodegen.Data.DllHandling
                     frontier.Enqueue(t);
             }));
 
-            Dictionary<string, int> compilerFullNames = new();
             while (frontier.Count > 0)
             {
                 var t = frontier.Dequeue();
                 if (t.Name.StartsWith("<") && t.Namespace.Length == 0 && t.DeclaringType is null)
                 {
-                    if (!t.Name.StartsWith("<Module>") && !t.Name.StartsWith("<PrivateImplementationDetails>"))
+                    if (t.Name.StartsWith("<Module>") || t.Name.StartsWith("<PrivateImplementationDetails>"))
                     {
-                        if (compilerFullNames.TryAdd(t.FullName, 0))
-                        {
-                            Console.Error.WriteLine($"WARNING - Potentially adding bad TypeDefinition {t}");
-                        } else
-                        {
-                            Console.Error.WriteLine($"WARNING - DUPLICATE PRIVATE COMPILER TYPE: {t}");
-                            compilerFullNames[t.FullName]++;
-                        }
-                    }
-                    else
                         // Skip Module or PrivateImplementationDetails types
                         continue;
+                    }
                 }
 
-                compilerFullNames.TryGetValue(t.FullName, out int oft);
-                var dllRef = DllTypeRef.From(t, oft);
+                var dllRef = DllTypeRef.From(t);
                 if (!_types.ContainsKey(dllRef))
                 {
                     var type = new DllTypeData(t, _config);

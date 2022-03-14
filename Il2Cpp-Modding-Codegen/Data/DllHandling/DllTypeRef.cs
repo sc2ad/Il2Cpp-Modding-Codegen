@@ -172,8 +172,10 @@ namespace Il2CppModdingCodegen.Data.DllHandling
             }
         }
 
+        private static Dictionary<string, Dictionary<ModuleDefinition, int>> fullNamesToModules = new();
+
         [return: NotNullIfNotNull("type")]
-        internal static DllTypeRef? From(TypeReference? type, int knownOffsetTypeName = 0)
+        internal static DllTypeRef? From(TypeReference? type)
         {
             if (type is null) return null;
             if (cache.TryGetValue(type, out var value))
@@ -182,9 +184,41 @@ namespace Il2CppModdingCodegen.Data.DllHandling
                 return value;
             }
             Misses++;
+            if (type.DeclaringType is null && string.IsNullOrEmpty(type.Namespace) && type.Name.StartsWith('<'))
+            {
+                // Only perform fixes for duplicate types if they are:
+                // -- not nested
+                // -- have no namespace
+                // -- are compiler generated
+
+                // TODO: This may not universally be the case, so we should make sure this still plays nice.
+                if (fullNamesToModules.TryGetValue(type.FullName, out var modules))
+                {
+                    // Try to add our module to the module collection for this given full name.
+                    if (modules.TryGetValue(type.Module, out var offset))
+                    {
+                        // If the name was already known, we need to use the correct number for this name
+                        return new DllTypeRef(type, offset);
+                    }
+                    else
+                    {
+                        // If we don't have this module's name known, we need to set it to something new.
+                        // Specifically, use size of the our existing as the number of prepending _
+                        modules.Add(type.Module, modules.Count);
+                        value = new DllTypeRef(type, modules.Count - 1);
+                        return value;
+                    }
+
+                }
+                else
+                {
+                    fullNamesToModules.Add(type.FullName, new Dictionary<ModuleDefinition, int> { { type.Module, 0 } });
+                }
+            }
+
 
             // Creates new TypeRef and add it to map
-            value = new DllTypeRef(type, knownOffsetTypeName);
+            value = new DllTypeRef(type, 0);
             return value;
         }
 
