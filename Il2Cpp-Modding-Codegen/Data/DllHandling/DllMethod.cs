@@ -13,9 +13,9 @@ namespace Il2CppModdingCodegen.Data.DllHandling
 
         public List<IAttribute> Attributes { get; } = new List<IAttribute>();
         public List<ISpecifier> Specifiers { get; } = new List<ISpecifier>();
-        public int RVA { get; }
-        public int Offset { get; }
-        public int VA { get; }
+        public long RVA { get; }
+        public long Offset { get; }
+        public long VA { get; }
         public int Slot { get; }
         public TypeRef ReturnType { get; }
         public TypeRef DeclaringType { get; }
@@ -138,7 +138,7 @@ namespace Il2CppModdingCodegen.Data.DllHandling
                                 var f = ca.Fields[i];
                                 if (f.Name == "RVA" || f.Name == "Offset" || f.Name == "VA")
                                 {
-                                    var val = Convert.ToInt32(f.Argument.Value as string, 16);
+                                    var val = Convert.ToInt64(f.Argument.Value as string, 16);
                                     if (f.Name == "RVA") RVA = val;
                                     else if (f.Name == "Offset") Offset = val;
                                     else if (f.Name == "VA") VA = val;

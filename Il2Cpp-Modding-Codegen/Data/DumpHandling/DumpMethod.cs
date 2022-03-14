@@ -9,9 +9,9 @@ namespace Il2CppModdingCodegen.Data.DumpHandling
     {
         public List<IAttribute> Attributes { get; } = new List<IAttribute>();
         public List<ISpecifier> Specifiers { get; } = new List<ISpecifier>();
-        public int RVA { get; }
-        public int Offset { get; }
-        public int VA { get; }
+        public long RVA { get; }
+        public long Offset { get; }
+        public long VA { get; }
         public int Slot { get; }
         public TypeRef ReturnType { get; }
         public TypeRef DeclaringType { get; }

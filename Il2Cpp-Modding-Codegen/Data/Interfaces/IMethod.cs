@@ -8,9 +8,9 @@ namespace Il2CppModdingCodegen.Data
         IReadOnlyList<TypeRef> GenericParameters { get; }
         List<IAttribute> Attributes { get; }
         List<ISpecifier> Specifiers { get; }
-        int RVA { get; }
-        int Offset { get; }
-        int VA { get; }
+        long RVA { get; }
+        long Offset { get; }
+        long VA { get; }
         int Slot { get; }
         TypeRef ReturnType { get; }
         TypeRef DeclaringType { get; }
