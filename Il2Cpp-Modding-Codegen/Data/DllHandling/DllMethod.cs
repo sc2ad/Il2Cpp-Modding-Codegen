@@ -64,7 +64,7 @@ namespace Il2CppModdingCodegen.Data.DllHandling
             if (!m.IsNewSlot)
             {
                 int idxDot = Name.LastIndexOf('.');
-                if (idxDot >= 2 && !Name.StartsWith("<"))
+                if (idxDot >= 2 && !Name.StartsWith('<'))
                 {
                     // Call a utilities function for converting a special name method to a proper base method
                     var baseMethod = m.GetSpecialNameBaseMethod(out var iface, idxDot);

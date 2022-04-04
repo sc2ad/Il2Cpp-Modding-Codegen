@@ -251,15 +251,16 @@ namespace Il2CppModdingCodegen.Serialization
             if (instanceFields && type.Info.Refness != Refness.ValueType)
             {
                 // TODO: Make static fields and instance fields conditionally public
-                writer.WriteLine("#ifdef USE_CODEGEN_FIELDS");
+                //writer.WriteLine("#ifdef USE_CODEGEN_FIELDS");
+                //writer.WriteLine("public:");
+                //writer.WriteLine("#else");
+                //writer.WriteLine("#ifdef CODEGEN_FIELD_ACCESSIBILITY");
+                //writer.WriteLine("CODEGEN_FIELD_ACCESSIBILITY:");
+                //writer.WriteLine("#else");
+                //writer.WriteLine("protected:");
+                //writer.WriteLine("#endif");
+                //writer.WriteLine("#endif");
                 writer.WriteLine("public:");
-                writer.WriteLine("#else");
-                writer.WriteLine("#ifdef CODEGEN_FIELD_ACCESSIBILITY");
-                writer.WriteLine("CODEGEN_FIELD_ACCESSIBILITY:");
-                writer.WriteLine("#else");
-                writer.WriteLine("protected:");
-                writer.WriteLine("#endif");
-                writer.WriteLine("#endif");
             } else if (instanceFields)
             {
                 writer.WriteLine("public:");

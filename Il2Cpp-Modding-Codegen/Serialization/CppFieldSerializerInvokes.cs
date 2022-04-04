@@ -42,7 +42,7 @@ namespace Il2CppModdingCodegen.Serialization
             if (namespaceQualified)
                 ns = _declaringFullyQualified + "::";
             // Collisions with this name are incredibly unlikely.
-            return $"{retStr} {ns}{SafeConfigName($"dyn_{field.Name}")}()";
+            return $"[[deprecated]] {retStr} {ns}{SafeConfigName($"dyn_{field.Name}")}()";
         }
 
         public override void Serialize(CppStreamWriter writer, IField field, bool asHeader)
