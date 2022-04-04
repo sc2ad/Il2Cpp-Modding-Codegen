@@ -424,7 +424,11 @@ namespace Il2CppModdingCodegen.Serialization
 
             if (method.IsVirtual)
             {
-                implementingTypes.Add(method, context.GetCppName(method.ImplementedFrom ?? method.DeclaringType, true));
+                // TODO: Oh no, this is going to cause so many cycles, isn't it? classof(...) is horrible for this...
+                var resolvedName = context.GetCppName(method.ImplementedFrom ?? method.DeclaringType, true, needAs: CppTypeContext.NeedAs.Definition);
+                if (resolvedName is null)
+                    throw new UnresolvedTypeException(method.DeclaringType, method.ImplementedFrom!);
+                implementingTypes.Add(method, resolvedName);
             }
 
             var needAs = NeedTypesAs(method);
