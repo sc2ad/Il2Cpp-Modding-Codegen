@@ -172,57 +172,114 @@ namespace Il2CppModdingCodegen.Data.DllHandling
             }
         }
 
-        private static Dictionary<string, Dictionary<ModuleDefinition, int>> fullNamesToModules = new();
+        private static readonly Dictionary<string, ValueTuple<int, Dictionary<ModuleDefinition, int>>> fullNamesToModules = new();
+
+        [return: NotNullIfNotNull("lockedCtor")]
+        private static DllTypeRef? CheckCache(TypeReference type, Func<DllTypeRef>? lockedCtor)
+        {
+            lock (cache)
+            {
+                if (cache.TryGetValue(type, out var value))
+                {
+                    Hits++;
+                    return value;
+                }
+                Misses++;
+                return lockedCtor?.Invoke() ?? null;
+            }
+        }
 
         [return: NotNullIfNotNull("type")]
         internal static DllTypeRef? From(TypeReference? type)
         {
             if (type is null) return null;
-            if (cache.TryGetValue(type, out var value))
+            lock (cache)
             {
-                Hits++;
-                return value;
+                if (cache.TryGetValue(type, out var value))
+                {
+                    Hits++;
+                    return value;
+                }
+                Misses++;
             }
-            Misses++;
-            if (type.DeclaringType is null && string.IsNullOrEmpty(type.Namespace) && type.Name.StartsWith('<'))
+
+            bool genericParam = type.IsGenericParameter;
+            var parent = type.GetElementType();
+            while (parent is not null && parent != type)
+            {
+                if (parent.IsGenericParameter)
+                {
+                    genericParam = true;
+                    break;
+                }
+                if (parent == parent.GetElementType())
+                    break;
+                parent = parent.GetElementType();
+            }
+
+            if (/*type.DeclaringType is null && */!genericParam)
             {
                 // Only perform fixes for duplicate types if they are:
                 // -- not nested
-                // -- have no namespace
-                // -- are compiler generated
+                // I don't think that's fair actually...
 
                 // TODO: This may not universally be the case, so we should make sure this still plays nice.
-                if (fullNamesToModules.TryGetValue(type.FullName, out var modules))
+                var module = type.Resolve().Module;
+
+                // If the type's fullname isn't in the modules mapping VERBATIM, but it IS in there if we check for ordinality,
+                // then we know we have a different cased name.
+                var ordinalMatch = fullNamesToModules.FirstOrDefault(kvp => kvp.Key.Equals(type.FullName, StringComparison.OrdinalIgnoreCase));
+                int extraOffset = 0;
+                if (!ordinalMatch.Equals(default(KeyValuePair<string, (int, Dictionary<ModuleDefinition, int>)>)))
                 {
+                    // We have a differently cased name. Apply our offset.
+                    extraOffset = ordinalMatch.Value.Item1 + 1;
+                }
+                if (fullNamesToModules.TryGetValue(type.FullName, out var modulesPair))
+                {
+                    extraOffset = modulesPair.Item1;
                     // Try to add our module to the module collection for this given full name.
-                    if (modules.TryGetValue(type.Module, out var offset))
+                    if (modulesPair.Item2.TryGetValue(module, out var offset))
                     {
                         // If the name was already known, we need to use the correct number for this name
-                        return new DllTypeRef(type, offset);
+                        return CheckCache(type, () => new DllTypeRef(type, offset + extraOffset)); 
                     }
                     else
                     {
                         // If we don't have this module's name known, we need to set it to something new.
                         // Specifically, use size of the our existing as the number of prepending _
+                        var modules = modulesPair.Item2;
                         modules.Add(type.Module, modules.Count);
-                        value = new DllTypeRef(type, modules.Count - 1);
-                        return value;
+                        return CheckCache(type, () => new DllTypeRef(type, modules.Count - 1 + extraOffset));
                     }
 
                 }
                 else
                 {
-                    fullNamesToModules.Add(type.FullName, new Dictionary<ModuleDefinition, int> { { type.Module, 0 } });
+                    fullNamesToModules.Add(type.FullName, (extraOffset, new Dictionary<ModuleDefinition, int>(new ModuleComparer()) { { module, 0 } }));
                 }
             }
 
 
             // Creates new TypeRef and add it to map
-            value = new DllTypeRef(type, 0);
-            return value;
+            return CheckCache(type, () => new DllTypeRef(type, 0));
         }
 
         // For better comments
         public override string ToString() => This.ToString();
+
+        private class ModuleComparer : IEqualityComparer<ModuleDefinition>
+        {
+            public bool Equals(ModuleDefinition x, ModuleDefinition y)
+            {
+                // Compare filenames since it is easy and also will ensure correctness as far as I can tell.
+                return x.FileName == y.FileName;
+            }
+
+            public int GetHashCode(ModuleDefinition obj)
+            {
+                return obj.FileName.GetHashCode();
+            }
+        }
     }
 }
