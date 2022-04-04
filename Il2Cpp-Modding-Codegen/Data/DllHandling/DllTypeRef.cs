@@ -242,7 +242,7 @@ namespace Il2CppModdingCodegen.Data.DllHandling
                     if (modulesPair.Item2.TryGetValue(module, out var offset))
                     {
                         // If the name was already known, we need to use the correct number for this name
-                        return CheckCache(type, () => new DllTypeRef(type, offset + extraOffset)); 
+                        return CheckCache(type, () => new DllTypeRef(type, offset + extraOffset));
                     }
                     else
                     {
@@ -259,7 +259,6 @@ namespace Il2CppModdingCodegen.Data.DllHandling
                     fullNamesToModules.Add(type.FullName, (extraOffset, new Dictionary<ModuleDefinition, int>(new ModuleComparer()) { { module, 0 } }));
                 }
             }
-
 
             // Creates new TypeRef and add it to map
             return CheckCache(type, () => new DllTypeRef(type, 0));

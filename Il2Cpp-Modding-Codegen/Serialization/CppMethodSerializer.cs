@@ -98,6 +98,7 @@ namespace Il2CppModdingCodegen.Serialization
 
         private readonly Dictionary<IMethod, MethodTypeContainer> _resolvedReturns = new Dictionary<IMethod, MethodTypeContainer>();
         private readonly Dictionary<IMethod, List<(MethodTypeContainer container, ParameterModifier modifier)>> _parameterMaps = new Dictionary<IMethod, List<(MethodTypeContainer container, ParameterModifier modifier)>>();
+        private readonly Dictionary<IMethod, string> implementingTypes = new();
 
         // This dictionary maps from method to a list of real generic parameters.
         private readonly Dictionary<IMethod, List<string>> _genericArgs = new Dictionary<IMethod, List<string>>();
@@ -419,6 +420,11 @@ namespace Il2CppModdingCodegen.Serialization
                 }
                 _genericArgs.Add(method, generics);
                 _genParamConstraints.Add(method, genParamConstraints);
+            }
+
+            if (method.IsVirtual)
+            {
+                implementingTypes.Add(method, context.GetCppName(method.ImplementedFrom ?? method.DeclaringType, true));
             }
 
             var needAs = NeedTypesAs(method);
@@ -938,8 +944,20 @@ namespace Il2CppModdingCodegen.Serialization
                     var invokeMethodName = "___internal__method";
                     // Static methods are cacheable, virtual methods should never be cached, methods on generic types that used generic args should not be cached.
                     bool cache = !method.IsVirtual || method.Specifiers.IsStatic() && !method.Parameters.Any(p => method.DeclaringType.Generics.Any(p2 => p2.Equals(p)));
-                    writer.WriteDeclaration($"{(cache ? "static " : "")}auto* {invokeMethodName} = " +
-                        _config.MacroWrap(loggerId, $"::il2cpp_utils::FindMethod({(method.Specifiers.IsStatic() ? classArgs : thisArg)}, \"{method.Il2CppName}\", std::vector<Il2CppClass*>{genTypesList}, ::std::vector<const Il2CppType*>{{{extractionString}}})", true));
+                    if (!method.IsVirtual)
+                    {
+                        writer.WriteDeclaration($"{(cache ? "static " : "")}auto* {invokeMethodName} = " +
+                            _config.MacroWrap(loggerId, $"::il2cpp_utils::FindMethod({(method.Specifiers.IsStatic() ? classArgs : thisArg)}, \"{method.Il2CppName}\", std::vector<Il2CppClass*>{genTypesList}, ::std::vector<const Il2CppType*>{{{extractionString}}})", true));
+                    }
+                    else
+                    {
+                        // Method IS virtual, lets do a virtual lookup for this particular method. We need to know WHERE this particular method comes from
+                        // (if it is virtual and overriding) as well as use ourselves if it isn't defined in any base types.
+
+                        // The problem here is that if the method we are trying to write out is a virtual INTERFACE method, we will have to include the interfaces for classof
+                        var targetClass = $"classof({implementingTypes[method]})";
+                        writer.WriteDeclaration($"{(cache ? "static " : "")}auto* {invokeMethodName} = {_config.MacroWrap(loggerId, $"::il2cpp_utils::ResolveVtableSlot({thisArg}, {targetClass}, {method.Slot})", false)}");
+                    }
                     if (method.Generic)
                     {
                         writer.WriteDeclaration($"{(cache ? "static " : "")}auto* ___generic__method = " +
@@ -949,6 +967,7 @@ namespace Il2CppModdingCodegen.Serialization
                     }
                     string firstParam = method.Specifiers.IsStatic() ? "static_cast<Il2CppObject*>(nullptr)" : "this";
                     call += $"{firstParam}, {invokeMethodName}" + (paramString.Length > 0 ? (", " + paramString) : "") + ")";
+                    
                 }
                 else
                 {
