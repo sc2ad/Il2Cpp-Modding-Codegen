@@ -224,18 +224,19 @@ namespace Il2CppModdingCodegen.Data.DllHandling
                 // I don't think that's fair actually...
 
                 // TODO: This may not universally be the case, so we should make sure this still plays nice.
-                var module = type.Resolve().Module;
+                var resolved = type.Resolve();
+                var module = resolved.Module;
 
                 // If the type's fullname isn't in the modules mapping VERBATIM, but it IS in there if we check for ordinality,
                 // then we know we have a different cased name.
-                var ordinalMatch = fullNamesToModules.FirstOrDefault(kvp => kvp.Key.Equals(type.FullName, StringComparison.OrdinalIgnoreCase));
+                var ordinalMatch = fullNamesToModules.FirstOrDefault(kvp => kvp.Key.Equals(resolved.FullName, StringComparison.OrdinalIgnoreCase));
                 int extraOffset = 0;
                 if (!ordinalMatch.Equals(default(KeyValuePair<string, (int, Dictionary<ModuleDefinition, int>)>)))
                 {
                     // We have a differently cased name. Apply our offset.
                     extraOffset = ordinalMatch.Value.Item1 + 1;
                 }
-                if (fullNamesToModules.TryGetValue(type.FullName, out var modulesPair))
+                if (fullNamesToModules.TryGetValue(resolved.FullName, out var modulesPair))
                 {
                     extraOffset = modulesPair.Item1;
                     // Try to add our module to the module collection for this given full name.
@@ -249,14 +250,15 @@ namespace Il2CppModdingCodegen.Data.DllHandling
                         // If we don't have this module's name known, we need to set it to something new.
                         // Specifically, use size of the our existing as the number of prepending _
                         var modules = modulesPair.Item2;
-                        modules.Add(type.Module, modules.Count);
+                        modules.Add(module, modules.Count);
                         return CheckCache(type, () => new DllTypeRef(type, modules.Count - 1 + extraOffset));
                     }
 
                 }
                 else
                 {
-                    fullNamesToModules.Add(type.FullName, (extraOffset, new Dictionary<ModuleDefinition, int>(new ModuleComparer()) { { module, 0 } }));
+                    fullNamesToModules.Add(resolved.FullName, (extraOffset, new Dictionary<ModuleDefinition, int>(new ModuleComparer()) { { module, 0 } }));
+                    return CheckCache(type, () => new DllTypeRef(type, extraOffset));
                 }
             }
 

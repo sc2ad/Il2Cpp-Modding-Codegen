@@ -95,8 +95,7 @@ namespace Il2CppModdingCodegen.Data
                 {
                     b.Append('_');
                 }
-                b.Append(name);
-                name = b.ToString();
+                name += b.ToString();
             }
             return name;
         }
