@@ -1070,71 +1070,64 @@ namespace Il2CppModdingCodegen.Serialization
             //    }
             //}
 
-            // If we have any parameters that are strings, we should make UTF16 and UTF8 string overload methods
-            if (method.Parameters.Any(p => p.Type.Namespace == "System" && p.Type.Name == "String"))
-            {
-                // Replace each string parameter with both a utf16 and utf8 variant
-                // If this method in question also returns a C# string, we need to also perform this with our utf16 and utf8 return types
-                // This will result in a single method that would normally take a string and return a string turning into 7 methods
-                // 2 for both parameter overloads * (2 + 1) for return type overloads + 1 for original return type, + 1 for original, unmodified method
-                // Is this ever worth it?
-            }
             // If we have any parameters that return strings, we should make a specially named method that returns a std::stringu16, std::string
 
             // If we have 2 or more base methods, we need to see if either of our base methods have been renamed.
             // If any of them have been renamed, we need to create a new method for that and map it to the method we are currently serializing.
             // Basically, if we have void Clear() with two base methods, one of which is renamed, we create void Clear(), and we create void QUALIFIED_Clear()
             // Where QUALIFIED_Clear() simply calls Clear()
-            if (performProxy)
-            {
-                // Original method would have already been created by now.
-                foreach (var bm in method.BaseMethods)
-                {
-                    if (!_nameMap.TryGetValue(bm, out var pair))
-                        throw new InvalidOperationException($"{bm} does not have a name!");
-                    if (pair.Item2)
-                    {
-                        // If we have renamed the base method, we write the method.
-                        // If we are a header, write the comments
-                        if (asHeader)
-                        {
-                            writer.WriteComment("Creating proxy method: " + pair.Item1);
-                            // We want to map it to a method that is NOT renamed!
-                            writer.WriteComment("Maps to method: " + method.Name);
-                        }
 
-                        declaration = WriteMethod(scope, method, asHeader, pair.Item1, false).declaration;
-                        // Write method content
-                        if (TemplateString(method, !writeContent, out var templateStr))
-                            writer.WriteLine((declaration.StartsWith("/") ? "// " : "") + templateStr);
-                        if (!writeContent)
-                        {
-                            if (declaration.StartsWith("/"))
-                                writer.WriteComment($"Skipping redundant proxy method: {pair.Item1}");
-                            else
-                                writer.WriteDeclaration(declaration);
-                        }
-                        else
-                        {
-                            if (declaration.StartsWith("/"))
-                            {
-                                // Comment failures
-                                // If we encounter a redundant proxy method, we will continue to print "ABORTED"
-                                // We will additionally provide information stating that this method was a redundant proxy
-                                writer.WriteComment("Redundant proxy method!");
-                                writer.WriteLine(declaration);
-                                continue;
-                            }
-                            writer.WriteDefinition(declaration);
-                            // Call original method (return as necessary)
-                            string s = needsReturn ? "return " : "";
-                            s += $"{cppName}({method.Parameters.FormatParameters(_config.IllegalNames, _parameterMaps[method], ParameterFormatFlags.Names, asHeader)})";
-                            writer.WriteDeclaration(s);
-                            writer.CloseDefinition();
-                        }
-                    }
-                }
-            }
+            // REMOVE QUALIFIED PROXYING, USES SLOTS INSTEAD!
+            //if (performProxy)
+            //{
+            //    // Original method would have already been created by now.
+            //    foreach (var bm in method.BaseMethods)
+            //    {
+            //        if (!_nameMap.TryGetValue(bm, out var pair))
+            //            throw new InvalidOperationException($"{bm} does not have a name!");
+            //        if (pair.Item2)
+            //        {
+            //            // If we have renamed the base method, we write the method.
+            //            // If we are a header, write the comments
+            //            if (asHeader)
+            //            {
+            //                writer.WriteComment("Creating proxy method: " + pair.Item1);
+            //                // We want to map it to a method that is NOT renamed!
+            //                writer.WriteComment("Maps to method: " + method.Name);
+            //            }
+
+            //            declaration = WriteMethod(scope, method, asHeader, pair.Item1, false).declaration;
+            //            // Write method content
+            //            if (TemplateString(method, !writeContent, out var templateStr))
+            //                writer.WriteLine((declaration.StartsWith("/") ? "// " : "") + templateStr);
+            //            if (!writeContent)
+            //            {
+            //                if (declaration.StartsWith("/"))
+            //                    writer.WriteComment($"Skipping redundant proxy method: {pair.Item1}");
+            //                else
+            //                    writer.WriteDeclaration(declaration);
+            //            }
+            //            else
+            //            {
+            //                if (declaration.StartsWith("/"))
+            //                {
+            //                    // Comment failures
+            //                    // If we encounter a redundant proxy method, we will continue to print "ABORTED"
+            //                    // We will additionally provide information stating that this method was a redundant proxy
+            //                    writer.WriteComment("Redundant proxy method!");
+            //                    writer.WriteLine(declaration);
+            //                    continue;
+            //                }
+            //                writer.WriteDefinition(declaration);
+            //                // Call original method (return as necessary)
+            //                string s = needsReturn ? "return " : "";
+            //                s += $"{cppName}({method.Parameters.FormatParameters(_config.IllegalNames, _parameterMaps[method], ParameterFormatFlags.Names, asHeader)})";
+            //                writer.WriteDeclaration(s);
+            //                writer.CloseDefinition();
+            //            }
+            //        }
+            //    }
+            //}
             writer.Flush();
             Serialized(method);
         }

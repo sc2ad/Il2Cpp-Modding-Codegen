@@ -10,7 +10,7 @@ namespace Il2CppModdingCodegen.Data
 {
     public abstract class TypeRef : IEquatable<TypeRef>
     {
-        protected int knownOffsetTypeName = 0;
+        public int KnownOffsetTypeName { get; protected set; } = 0;
         private const string NoNamespace = "GlobalNamespace";
 
         public abstract string Namespace { get; }
@@ -88,10 +88,10 @@ namespace Il2CppModdingCodegen.Data
                     throw new NullReferenceException("DeclaringType was null despite UnNested being true!");
                 name = OriginalDeclaringType.CppName() + "_" + name;
             }
-            if (!IsGenericParameter && DeclaringType is null && knownOffsetTypeName > 0)
+            if (!IsGenericParameter && DeclaringType is null && KnownOffsetTypeName > 0)
             {
-                StringBuilder b = new(knownOffsetTypeName);
-                for (int i = 0; i < knownOffsetTypeName; i++)
+                StringBuilder b = new(KnownOffsetTypeName);
+                for (int i = 0; i < KnownOffsetTypeName; i++)
                 {
                     b.Append('_');
                 }

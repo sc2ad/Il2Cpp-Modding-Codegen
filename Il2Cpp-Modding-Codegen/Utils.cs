@@ -137,9 +137,9 @@ namespace Il2CppModdingCodegen
 
         private class QuickComparer : IEqualityComparer<TypeReference>
         {
-            public bool Equals(TypeReference r1, TypeReference r2) => r1?.FullName == r2?.FullName;
+            public bool Equals(TypeReference r1, TypeReference r2) => r1?.FullName == r2?.FullName && r1?.Module.Name == r2?.Module.Name;
 
-            public int GetHashCode(TypeReference r) => r?.FullName.GetHashCode() ?? 0;
+            public int GetHashCode(TypeReference r) => (r?.FullName, r?.Module.Name).GetHashCode();
         };
 
         private static readonly QuickComparer quickCompare = new QuickComparer();

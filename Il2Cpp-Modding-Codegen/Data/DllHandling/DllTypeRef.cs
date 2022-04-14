@@ -84,7 +84,7 @@ namespace Il2CppModdingCodegen.Data.DllHandling
         // Should use DllTypeRef.From instead!
         private DllTypeRef(TypeReference reference, int knownOffsetTypeName)
         {
-            this.knownOffsetTypeName = knownOffsetTypeName;
+            this.KnownOffsetTypeName = knownOffsetTypeName;
             cache.Add(reference, this);
             This = reference;
 
@@ -274,12 +274,12 @@ namespace Il2CppModdingCodegen.Data.DllHandling
             public bool Equals(ModuleDefinition x, ModuleDefinition y)
             {
                 // Compare filenames since it is easy and also will ensure correctness as far as I can tell.
-                return x.FileName == y.FileName;
+                return x.Name == y.Name;
             }
 
             public int GetHashCode(ModuleDefinition obj)
             {
-                return obj.FileName.GetHashCode();
+                return obj.Name.GetHashCode();
             }
         }
     }

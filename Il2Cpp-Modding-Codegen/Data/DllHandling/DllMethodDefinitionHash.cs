@@ -25,7 +25,8 @@ namespace Il2CppModdingCodegen.Data.DllHandling
                 || x.Parameters.Count != y.Parameters.Count
                 || x.DeclaringType.FullName != y.DeclaringType.FullName
                 || x.HasGenericParameters != y.HasGenericParameters
-                || x.GenericParameters.Count != y.GenericParameters.Count)
+                || x.GenericParameters.Count != y.GenericParameters.Count
+                || x.DeclaringType.Module != y.DeclaringType.Module)
                 return false;
             for (int i = 0; i < x.Parameters.Count; i++)
                 if (x.Parameters[i].ParameterType.FullName != y.Parameters[i].ParameterType.FullName)

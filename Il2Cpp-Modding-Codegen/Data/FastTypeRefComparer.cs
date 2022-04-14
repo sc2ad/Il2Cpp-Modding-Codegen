@@ -15,8 +15,9 @@ namespace Il2CppModdingCodegen.Data
         {
             if (x is null || y is null)
                 return x is null == y is null;
-
             if (x.Namespace != y.Namespace || x.Name != y.Name)
+                return false;
+            if (x.KnownOffsetTypeName != y.KnownOffsetTypeName)
                 return false;
             if (x.IsGeneric && y.IsGeneric)
             {
@@ -34,12 +35,7 @@ namespace Il2CppModdingCodegen.Data
         {
             if (obj is null)
                 return 0;
-            // TODO: Ensure this function is correct
-            int hashCode = 611187721;
-            hashCode = hashCode * -1521134295 + EqualityComparer<string>.Default.GetHashCode(obj.Namespace);
-            hashCode = hashCode * -1521134295 + EqualityComparer<string>.Default.GetHashCode(obj.Name);
-            // Generics are not included in the hash code.
-            return hashCode;
+            return (obj.Namespace, obj.Name, obj.KnownOffsetTypeName).GetHashCode();
         }
     }
 }
