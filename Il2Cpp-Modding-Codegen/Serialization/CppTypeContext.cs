@@ -433,7 +433,7 @@ namespace Il2CppModdingCodegen.Serialization
         /// Gets the C++ fully qualified name for the TypeRef.
         /// </summary>
         /// <returns>Null if the type has not been resolved (and is not a generic parameter or primitive)</returns>
-        public string? GetCppName(TypeRef? data, bool qualified, bool generics = true, NeedAs needAs = NeedAs.BestMatch, ForceAsType forceAsType = ForceAsType.None)
+        public string? GetCppName(TypeRef? data, bool qualified, bool generics = true, NeedAs needAs = NeedAs.BestMatch, ForceAsType forceAsType = ForceAsType.None, bool asReferenceButNeedInclude = false)
         {
             if (data is null) throw new ArgumentNullException(nameof(data));
             // First we check if the type is a primitive type. If it is, we return the converted name.
@@ -450,7 +450,7 @@ namespace Il2CppModdingCodegen.Serialization
             if (IsGenericParameter(data))
                 return data.CppName();
 
-            var resolved = ResolveAndStore(data, forceAsType, needAs);
+            var resolved = ResolveAndStore(data, forceAsType, asReferenceButNeedInclude ? NeedAs.Definition : needAs);
             if (resolved is null)
                 return null;
             var name = string.Empty;
