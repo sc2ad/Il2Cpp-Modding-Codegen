@@ -686,11 +686,25 @@ namespace Il2CppModdingCodegen.Serialization
         internal void WriteInterfaceConversionMethod(CppStreamWriter writer, ITypeData type, string? interfaceType)
         {
             if (interfaceType is null) throw new ArgumentNullException(nameof(interfaceType));
-            var name = $"i_{interfaceType}";
+
+
+            var startIndex = interfaceType.LastIndexOf("::", StringComparison.Ordinal);
+
+            if (startIndex < 0)
+            {
+                startIndex = 0;
+            }
+            else
+            {
+                startIndex += 2;
+            }
+
+            // TODO: Better name filtering
+            var name = $"i_{interfaceType[startIndex..].Replace("<","_").Replace(">","").Replace("*","").Replace(", ","_")}";
             var sig = name + "()";
             if (!CanWriteMethod(0, type.This, true, sig)) return;
 
-            var signature = $"{name}() noexcept";
+            var signature = $"inline {interfaceType}* {name}() noexcept";
             writer.WriteComment("Creating interface conversion operator: " + name);
             writer.WriteDefinition(signature);
             writer.WriteDeclaration($"return reinterpret_cast<{interfaceType}*>(this)");
