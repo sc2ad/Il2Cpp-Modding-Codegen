@@ -338,7 +338,10 @@ namespace Il2CppModdingCodegen.Serialization
             // Write the special constructor
             var state = map[type.This];
             foreach (var @interface in state.unsafeParents)
+            {
                 MethodSerializer.WriteInterfaceConversionOperator(writer, type, @interface);
+                MethodSerializer.WriteInterfaceConversionMethod(writer, type, @interface);
+            }
         }
 
         internal void WriteConversionOperator(CppStreamWriter writer, CppTypeDataSerializer scopedSer, ITypeData type,
